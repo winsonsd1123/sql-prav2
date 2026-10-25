@@ -238,8 +238,12 @@ export default function Playground() {
                 </p>
               )}
               {结果.判定 === "错误" && (
-                <pre className="overflow-auto rounded bg-zinc-950 p-3 font-mono text-sm text-red-400">
-                  {结果.错误信息}
+                /* 终端风格：mysql> 提示符 + 学生输入 + MySQL 格式错误逐字呈现 */
+                <pre className="overflow-auto rounded-md border border-zinc-800 bg-zinc-950 p-3 font-mono text-sm leading-relaxed">
+                  <span className="text-zinc-500">mysql&gt; </span>
+                  <span className="text-zinc-100">{SQL输入}</span>
+                  {"\n"}
+                  <span className="text-red-400">{结果.错误信息}</span>
                 </pre>
               )}
               {结果.判定 === "不通过" && (

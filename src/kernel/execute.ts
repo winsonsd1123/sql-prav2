@@ -54,7 +54,7 @@ function 规范化(v: unknown): 显示值 {
   return `S:${String(v)}`;
 }
 
-/** 在内存库上执行查询，返回结果集；错误抛出 SQLite 原文（本票直通，映射在后续票） */
+/** 在内存库上执行查询，返回结果集；错误抛出 SQLite errmsg 原文（由错误映射层转 MySQL 三要素） */
 export async function 执行查询(语句: string, 会话: 会话): Promise<结果集> {
   const db = await 打开内存库(会话);
   try {
