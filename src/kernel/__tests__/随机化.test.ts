@@ -72,10 +72,20 @@ describe("四层随机化", () => {
   });
 });
 
+/** T6：题库含仅引用课程表/成绩表的模板，防抄袭对撞会话需三张表实际名全部相异 */
+function 找全表异名种子(基准会话: ReturnType<typeof 生成>, 域包: ReturnType<typeof 加载域包A>): number {
+  const 基准表名们 = 基准会话.库.表.map((t) => t.表名);
+  for (let 种子 = 1; 种子 <= 500; 种子++) {
+    const 表名们 = 生成(种子, 域包).库.表.map((t) => t.表名);
+    if (基准表名们.every((名, i) => 名 !== 表名们[i])) return 种子;
+  }
+  throw new Error("500 个种子内未出现全表名差异，候选池随机化失效");
+}
+
 describe("结构性防抄袭", () => {
   const 域包 = 加载域包A();
   const 会话A = 生成(20260101, 域包);
-  const 会话B = 生成(找异名种子(会话A, 域包), 域包);
+  const 会话B = 生成(找全表异名种子(会话A, 域包), 域包);
 
   it("前置：A 会话参考答案自判通过", async () => {
     for (const 题目 of 会话A.题目) {
@@ -84,7 +94,9 @@ describe("结构性防抄袭", () => {
   });
 
   it("A 会话通过的 SQL 原文在 B 会话判定失败（列名不同）", async () => {
-    expect(会话A.库.表[0].表名).not.toBe(会话B.库.表[0].表名);
+    for (let i = 0; i < 会话A.库.表.length; i++) {
+      expect(会话A.库.表[i].表名).not.toBe(会话B.库.表[i].表名);
+    }
     // 全部模板均以实际表名/列名书写（中文标识符无点号限定），换会话即因表/列不存在而失败
     const 涉及列名的SQL = 会话A.题目.map((q) => q.参考答案);
     expect(涉及列名的SQL.length).toBeGreaterThan(0);

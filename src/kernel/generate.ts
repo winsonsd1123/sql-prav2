@@ -141,5 +141,6 @@ function 实例化模板(
     提示: 模板.提示.map(替换) as [string, string],
     参考答案: 替换(模板.参考答案),
     ordered: 模板.ordered,
+    ...(模板.错误写法 !== undefined ? { 错误写法: 替换(模板.错误写法) } : {}),
   };
 }

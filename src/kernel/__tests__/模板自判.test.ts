@@ -5,13 +5,24 @@ import { 加载域包A } from "@/domain-packs/学生课程成绩/域包A";
 
 const 会话 = 生成(20260101, 加载域包A());
 
-/** 列序颠倒的正确变体：把参考答案 SELECT 后的列清单反转 */
+/** 列序颠倒的正确变体：把参考答案 SELECT 后的列清单反转（括号内的逗号不属于列分隔） */
 function 列序颠倒(sql: string): string {
   const m = sql.match(/^select\s+(.+?)\s+from\s+(.+)$/i);
   if (!m) return sql;
-  const cols = m[1].split(",").map((s) => s.trim());
-  if (cols.length < 2) return sql;
-  return `SELECT ${cols.reverse().join(", ")} FROM ${m[2]}`;
+  let 深度 = 0;
+  const 项: string[] = [];
+  let 当前 = "";
+  for (const ch of m[1]) {
+    if (ch === "(") 深度++;
+    if (ch === ")") 深度--;
+    if (ch === "," && 深度 === 0) {
+      项.push(当前.trim());
+      当前 = "";
+    } else 当前 += ch;
+  }
+  项.push(当前.trim());
+  if (项.length < 2) return sql;
+  return `SELECT ${项.reverse().join(", ")} FROM ${m[2]}`;
 }
 
 describe("每个题目模板的判题等价", () => {
