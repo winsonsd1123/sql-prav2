@@ -1,0 +1,56 @@
+# 域包A（简化版）· 学生-课程-成绩：5 个基础单表查询模板
+# 占位符：{{table.X}} 表语义角色 / {{col.表.角色}} 列语义角色 / {{param.X}} 参数
+# 本票列名固定，实例化时占位符解析为同名实际列（随机化在后续票落地）。
+- 模板ID: single-select-all
+  知识点: 单表查询
+  难度: 1
+  题面: 查询所有学生的姓名。
+  提示:
+    - "思路：只需要一个列，从学生表里全部取出。"
+    - "关键子句：SELECT {{col.学生.姓名}} FROM {{table.学生}}"
+  参考答案: "SELECT {{col.学生.姓名}} FROM {{table.学生}}"
+  ordered: false
+
+- 模板ID: single-select-distinct-city
+  知识点: 单表查询
+  难度: 1
+  题面: 查询学生来自哪些不同的城市（去除重复）。
+  提示:
+    - "思路：城市有重复值，需要去重后再列出。"
+    - "关键子句：SELECT DISTINCT {{col.学生.城市}} FROM {{table.学生}}"
+  参考答案: "SELECT DISTINCT {{col.学生.城市}} FROM {{table.学生}}"
+  ordered: false
+
+- 模板ID: single-where-score
+  知识点: 单表查询
+  难度: 2
+  题面: "查询成绩不低于 {{param.及格线}} 分的成绩记录，返回学号、课程号与分数。"
+  提示:
+    - "思路：用 WHERE 条件筛选分数，注意包含等于阈值的情况。"
+    - "关键子句：WHERE {{col.成绩.分数}} >= {{param.及格线}}"
+  参考答案: "SELECT {{col.成绩.学号}}, {{col.成绩.课程号}}, {{col.成绩.分数}} FROM {{table.成绩}} WHERE {{col.成绩.分数}} >= {{param.及格线}}"
+  ordered: false
+  参数:
+    及格线: [60, 70, 80]
+
+- 模板ID: single-order-by-scholarship
+  知识点: 单表查询
+  难度: 2
+  题面: 查询每位学生的姓名与奖学金，按奖学金从高到低排序（奖学金相同时按学号升序）。
+  提示:
+    - "思路：排序用 ORDER BY，降序是 DESC。"
+    - "关键子句：ORDER BY {{col.学生.奖学金}} DESC, {{col.学生.学号}}"
+  参考答案: "SELECT {{col.学生.姓名}}, {{col.学生.奖学金}} FROM {{table.学生}} ORDER BY {{col.学生.奖学金}} DESC, {{col.学生.学号}}"
+  ordered: true
+
+- 模板ID: single-limit-top
+  知识点: 单表查询
+  难度: 3
+  题面: 查询前 {{param.名额}} 名学生（按学号升序）的姓名。
+  提示:
+    - "思路：先按学号排序，再限制返回行数。"
+    - "关键子句：ORDER BY {{col.学生.学号}} LIMIT {{param.名额}}"
+  参考答案: "SELECT {{col.学生.姓名}} FROM {{table.学生}} ORDER BY {{col.学生.学号}} LIMIT {{param.名额}}"
+  ordered: true
+  参数:
+    名额: [3, 5, 7]
