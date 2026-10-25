@@ -58,6 +58,10 @@ const 样本集 = [
   { id: "1305-SELECT列表", 类别: "1305", sql: "SELECT LEN(姓名) FROM 学生" },
   { id: "1305-WHERE", 类别: "1305", sql: "SELECT * FROM 成绩 WHERE SQUARE2(分数) > 100" },
   { id: "1305-聚合拼错", 类别: "1305", sql: "SELECT AVG2(分数) FROM 成绩" },
+  // 1305 日期/字符串函数拼错（issue #5：转译层垫片函数的错误保真）
+  { id: "1305-日期函数拼错", 类别: "1305", sql: "SELECT YEAR2(奖学金) FROM 学生" },
+  { id: "1305-日期格式化拼错", 类别: "1305", sql: "SELECT DATE_FORMT(姓名, '%Y') FROM 学生" },
+  { id: "1305-字符串拼接拼错", 类别: "1305", sql: "SELECT CONCAT2(姓名, 城市) FROM 学生" },
 ];
 
 function 执行mysql(SQL, 库 = null) {

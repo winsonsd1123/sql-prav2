@@ -1,4 +1,5 @@
 import type { 会话, 结果集, 显示值 } from "./types";
+import { 注册垫片函数, 转译, type 垫片宿主 } from "./转译";
 
 import type initSqlJs from "sql.js";
 
@@ -58,7 +59,10 @@ function 规范化(v: unknown): 显示值 {
 export async function 执行查询(语句: string, 会话: 会话): Promise<结果集> {
   const db = await 打开内存库(会话);
   try {
-    const 结果 = db.exec(语句);
+    // 转译层（issue #5）：学生 SQL 为 MySQL 方言，垫片函数 + 语法改写对学生透明
+    // （sql.js 类型声明缺 create_aggregate，垫片宿主为最小结构类型）
+    注册垫片函数(db as unknown as 垫片宿主);
+    const 结果 = db.exec(转译(语句));
     if (结果.length === 0) return { 列名: [], 行: [] };
     return {
       列名: 结果[0].columns,
