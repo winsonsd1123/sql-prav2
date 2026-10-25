@@ -50,4 +50,20 @@ describe("映射运行时错误", () => {
     const e = 映射运行时错误("arbitrary sqlite failure", "SELECT 1");
     expect(格式化(e)).toBe("ERROR 1105 (HY000): arbitrary sqlite failure");
   });
+
+  // 左侧边界（code-review #1）：一列名为另一列名的后缀时，不得把后缀出现当作该列出现
+  it("后缀列不误判子句：WHERE 中只出现以该列为后缀的另一列 → field list", () => {
+    const e = 映射运行时错误("no such column: name", "SELECT name FROM 用户 WHERE username = 'a'");
+    expect(格式化(e)).toBe("ERROR 1054 (42S22): Unknown column 'name' in 'field list'");
+  });
+
+  it("前缀恢复不吃后缀列：语句同时含 name 与 username 时前缀与子句判定均正确", () => {
+    const e = 映射运行时错误("no such column: name", "SELECT 用户.name FROM 用户 WHERE 用户.username = 'a'");
+    expect(格式化(e)).toBe("ERROR 1054 (42S22): Unknown column '用户.name' in 'field list'");
+  });
+
+  it("中文后缀列同理：编号 与 选课编号 并存时不误匹配", () => {
+    const e = 映射运行时错误("no such column: 编号", "SELECT 编号 FROM 课程 WHERE 选课编号 = 1");
+    expect(格式化(e)).toBe("ERROR 1054 (42S22): Unknown column '编号' in 'field list'");
+  });
 });

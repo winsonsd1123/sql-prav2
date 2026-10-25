@@ -55,19 +55,27 @@ export function 校验语法(语句: string): MySQL错误 | null {
 const 库名 = "playground";
 
 const 标识符 = "[A-Za-z0-9_$\\u4e00-\\u9fff]+";
+/** 标识符字符集（用于左侧边界：列名/前缀前一个字符不得仍是标识符字符） */
+const 标识符字符 = "A-Za-z0-9_$\\u4e00-\\u9fff";
 /** 标识符边界：\b 对中文不成立，用「非标识符字符或结尾」断言 */
 const 边界 = "(?![A-Za-z0-9_$\\u4e00-\\u9fff])";
 
-/** 找回列在 SQL 中的完整写法（含可选表前缀），SQLite errmsg 会丢前缀 */
+/** 找回列在 SQL 中的完整写法（含可选表前缀），SQLite errmsg 会丢前缀。
+ * 前缀左侧同样要求非标识符边界，避免另一列名的后缀被当作前缀的一部分。 */
 function 找回写法(语句: string, 列名: string): string {
-  const 带前缀 = new RegExp(`(${标识符})\\.${列名}${边界}`);
+  const 带前缀 = new RegExp(`(?:^|[^${标识符字符}])((?:${标识符})\\.${列名})${边界}`);
   const m = 语句.match(带前缀);
-  return m ? `${m[1]}.${列名}` : 列名;
+  return m ? m[1] : 列名;
 }
 
-/** 列名是否出现在 WHERE 子句作用域内（SQLite errmsg 不含子句上下文，按原文近似判定） */
+/** 列名是否出现在 WHERE 子句作用域内（SQLite errmsg 不含子句上下文，按原文近似判定）。
+ * 列名左侧要求非标识符边界：一列名为另一列名后缀时（如 name / username），
+ * 后缀列的出现不算该列出现。 */
 function 在WHERE中(语句: string, 列名: string): boolean {
-  const 模式 = new RegExp(`\\bWHERE\\b[\\s\\S]*?${列名}${边界}`, "i");
+  const 模式 = new RegExp(
+    `\\bWHERE\\b[\\s\\S]*?[^${标识符字符}]${列名}${边界}`,
+    "i",
+  );
   return 模式.test(语句);
 }
 

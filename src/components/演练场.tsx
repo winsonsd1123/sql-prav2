@@ -1,6 +1,6 @@
 "use client";
 
-import { useSyncExternalStore, useMemo, useState, useCallback, useEffect, useRef } from "react";
+import { useSyncExternalStore, useMemo, useState, useEffect, useRef } from "react";
 import { 生成练习会话 } from "@/kernel/出题";
 import { 请求判定, 订阅引擎就绪, 引擎是否就绪 } from "@/kernel/worker客户端";
 import SQL编辑器 from "@/components/SQL编辑器";
@@ -8,119 +8,35 @@ import 库浏览器 from "@/components/库浏览器";
 import 差异对照 from "@/components/差异对照";
 import 提示与答案 from "@/components/提示与答案";
 import {
+  种子存储,
+  域包存储,
+  进度存储,
+  迁移进度,
+  换一套种子,
+  设域包,
+  实例名,
+  域包注册表,
+} from "@/components/会话存储";
+import {
   空进度,
-  进度键,
-  解析进度,
   记通过,
   揭示下一层提示,
   借助答案,
   完成度,
   是否借助答案,
-  type 进度记录,
 } from "@/components/进度";
 import type { 判定结果, 题目实例 } from "@/kernel/types";
-import { 加载域包A } from "@/domain-packs/学生课程成绩/域包A";
-import { 加载域包B } from "@/domain-packs/员工部门薪资/域包B";
-import type { 域包 } from "@/kernel/types";
 
-// 域包注册表：学生可在两个业务域之间切换练习（issue #8）
-const 域包注册表: 域包[] = [加载域包A(), 加载域包B()];
-
-const 种子键 = "sql-playground:seed";
-const 域包键 = "sql-playground:pack";
-
-function 读取种子(): number {
-  if (typeof window !== "undefined") {
-    const 来自URL = new URLSearchParams(window.location.search).get("seed");
-    if (来自URL && /^\d+$/.test(来自URL)) {
-      const n = Number(来自URL);
-      localStorage.setItem(种子键, String(n));
-      return n;
-    }
-    const 已存 = localStorage.getItem(种子键);
-    if (已存 && /^\d+$/.test(已存)) return Number(已存);
-  }
-  const 新种子 = Math.floor(Math.random() * 1_000_000_000);
-  localStorage.setItem(种子键, String(新种子));
-  window.history.replaceState(null, "", `?seed=${新种子}`);
-  return 新种子;
-}
-
-// 种子作为外部存储：服务端快照为 null，客户端从 localStorage/URL 读取并缓存
-let 缓存种子: number | null = null;
-let 缓存域包ID: string | null = null;
-const 订阅者 = new Set<() => void>();
-function 取种子快照(): number | null {
-  if (缓存种子 === null) 缓存种子 = 读取种子();
-  return 缓存种子;
-}
-function 设新种子(n: number) {
-  缓存种子 = n;
-  localStorage.setItem(种子键, String(n));
-  window.history.replaceState(null, "", `?seed=${n}`);
-  订阅者.forEach((f) => f());
-}
-
-/** 当前域包ID：客户端从 localStorage 读取并缓存，非法值回退到域包A */
-function 取域包ID快照(): string | null {
-  if (typeof window === "undefined") return null;
-  if (缓存域包ID === null) {
-    const 已存 = localStorage.getItem(域包键);
-    缓存域包ID = 域包注册表.some((d) => d.域包ID === 已存) ? 已存! : 域包注册表[0].域包ID;
-  }
-  return 缓存域包ID;
-}
-/** 切换域包：保留种子，只换业务域（同种子下两域包生成各自的库与题） */
-function 设域包(域包ID: string) {
-  缓存域包ID = 域包ID;
-  localStorage.setItem(域包键, 域包ID);
-  订阅者.forEach((f) => f());
-}
-
-/** 库实例名：随会话种子派生的随机名（同一会话稳定，换一套即换名） */
-function 实例名(种子: number): string {
-  return `practice_${String(种子).padStart(9, "0").slice(-4)}`;
-}
-
-// 进度外部存储：与种子/域包同一订阅体系；键随会话变化时惰性重载（等价于换一套/换域包重置）
-let 缓存进度: 进度记录 = 空进度;
-let 缓存进度键: string | null = null;
-function 当前进度键(): string | null {
-  return 缓存种子 !== null && 缓存域包ID !== null ? 进度键(缓存域包ID, 缓存种子) : null;
-}
-function 取进度快照(): 进度记录 {
-  if (typeof window === "undefined") return 空进度;
-  const 键 = 当前进度键();
-  if (键 === null) return 空进度;
-  if (缓存进度键 !== 键) {
-    缓存进度键 = 键;
-    缓存进度 = 解析进度(localStorage.getItem(键));
-  }
-  return 缓存进度;
-}
-function 迁移进度(迁移: (p: 进度记录) => 进度记录) {
-  缓存进度 = 迁移(缓存进度);
-  const 键 = 当前进度键();
-  if (键 !== null) localStorage.setItem(键, JSON.stringify(缓存进度));
-  订阅者.forEach((f) => f());
-}
+// UI 编排组件：会话级本地状态（种子/域包/进度）在 会话存储，判题在 Worker，
+// 本组件只负责把它们接到界面与交互上。
 
 export default function Playground() {
-  const 种子 = useSyncExternalStore(
-    (通知) => {
-      订阅者.add(通知);
-      return () => 订阅者.delete(通知);
-    },
-    取种子快照,
-    () => null,
-  );
+  // 种子/域包/进度：三个外部存储，写入走共享通知总线（见 会话存储）
+  const 种子 = useSyncExternalStore(种子存储.订阅, 种子存储.取快照, () => null);
   const 域包ID = useSyncExternalStore(
-    (通知) => {
-      订阅者.add(通知);
-      return () => 订阅者.delete(通知);
-    },
-    取域包ID快照,
-    () => null,
+    域包存储.订阅,
+    域包存储.取快照,
+    () => 域包注册表[0].域包ID, // SSR 快照：客户端真实值在 hydrate 后生效
   );
   const 域包 = useMemo(
     () => 域包注册表.find((d) => d.域包ID === 域包ID) ?? 域包注册表[0],
@@ -144,15 +60,7 @@ export default function Playground() {
   }, [当前题号]);
 
   // 进度随会话（域包+种子）持久于 localStorage；换一套/换域包即换键，天然重置
-  const 进度 = useSyncExternalStore(
-    (通知) => {
-      订阅者.add(通知);
-      return () => 订阅者.delete(通知);
-    },
-    取进度快照,
-    () => 空进度,
-  );
-  const 更新进度 = useCallback((迁移: (p: 进度记录) => 进度记录) => 迁移进度(迁移), []);
+  const 进度 = useSyncExternalStore(进度存储.订阅, 进度存储.取快照, () => 空进度);
 
   if (!会话) {
     return <p className="p-8 text-zinc-500">正在生成会话……</p>;
@@ -170,7 +78,7 @@ export default function Playground() {
       const 结果 = await 请求判定(SQL输入, 会话, 会话.题目[发起题号]);
       if (当前题号引用.current !== 发起题号) return; // 期间已切题，丢弃旧结果
       设结果(结果);
-      if (结果.判定 === "通过") 更新进度((p) => 记通过(p, 发起题号));
+      if (结果.判定 === "通过") 迁移进度((p) => 记通过(p, 发起题号));
     } catch (e) {
       // 超时/行数上限等防护触发：产品级提示（非伪造 MySQL 错误）
       if (当前题号引用.current !== 发起题号) return;
@@ -187,7 +95,7 @@ export default function Playground() {
   }
 
   function 换一套() {
-    设新种子(Math.floor(Math.random() * 1_000_000_000));
+    换一套种子();
     重置作答();
   }
 
@@ -303,8 +211,8 @@ export default function Playground() {
             参考答案={题目.参考答案}
             已看层数={进度.已看提示[String(当前题号)] ?? 0}
             已借助答案={是否借助答案(进度, 当前题号)}
-            on揭示提示={() => 更新进度((p) => 揭示下一层提示(p, 当前题号)[0])}
-            on查看答案={() => 更新进度((p) => 借助答案(p, 当前题号))}
+            on揭示提示={() => 迁移进度((p) => 揭示下一层提示(p, 当前题号)[0])}
+            on查看答案={() => 迁移进度((p) => 借助答案(p, 当前题号))}
           />
 
           {结果 && (
