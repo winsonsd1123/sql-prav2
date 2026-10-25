@@ -116,3 +116,37 @@ describe("含日期函数的示例题端到端判题", () => {
     expect(结果.判定).toBe("不通过");
   });
 });
+
+describe("边界样本（code-review #1 追加；已入采样脚本样本集，待下次采样固化入夹具）", () => {
+  it("DATEDIFF 只按日期部分求差，忽略时间部分", async () => {
+    const 结果 = await 执行查询(
+      "SELECT DATEDIFF('2024-03-01 23:59:59','2024-02-01 00:00:01'), DATEDIFF('2024-03-01','2024-03-01 12:00:00')",
+      固定会话(),
+    );
+    expect(结果.行[0]).toEqual(["N:29", "N:0"]);
+  });
+
+  it("DATE_FORMAT 的 %T/%f/%p/%h 说明符", async () => {
+    const 结果 = await 执行查询(
+      "SELECT DATE_FORMAT('2024-03-15 14:05:09','%T %f'), DATE_FORMAT('2024-03-15 00:30:00','%p %h')",
+      固定会话(),
+    );
+    expect(结果.行[0]).toEqual(["S:14:05:09 000000", "S:AM 12"]);
+  });
+
+  it("CONCAT_WS 跳过 NULL 参数、分隔符 NULL 则整体 NULL", async () => {
+    const 结果 = await 执行查询(
+      "SELECT CONCAT_WS('-',姓名,NULL,NULL), CONCAT_WS(NULL,'a','b') FROM 员工 ORDER BY 工号 LIMIT 3",
+      固定会话(),
+    );
+    expect(结果.行).toEqual([["S:张伟", null], ["S:李娜", null], ["S:王强", null]]);
+  });
+
+  it("年月日边界：闰日与年末年末日期", async () => {
+    const 结果 = await 执行查询(
+      "SELECT YEAR('2024-02-29'), MONTH('2024-12-31'), DAY('2024-01-31'), DATE('2024-02-29 23:59:59')",
+      固定会话(),
+    );
+    expect(结果.行[0]).toEqual(["N:2024", "N:12", "N:31", "S:2024-02-29"]);
+  });
+});

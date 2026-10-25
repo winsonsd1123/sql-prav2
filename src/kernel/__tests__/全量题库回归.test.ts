@@ -77,6 +77,14 @@ describe.each(域包们.map((域包) => [域包.名称, 域包]))(
         expect(t.ordered, `${t.模板ID} 的 ordered 应与是否含 ORDER BY 一致`).toBe(含排序);
       }
     });
+
+    it("聚合/JOIN 分区至少 3 个模板声明语义陷阱变体（code-review #1）", () => {
+      const 聚合与JOIN = 域包.题目模板.filter(
+        (t) => t.知识点 === "聚合与分组" || t.知识点 === "多表 JOIN",
+      );
+      const 含陷阱 = 聚合与JOIN.filter((t) => (t.语义陷阱 ?? []).length > 0);
+      expect(含陷阱.length, "应至少 3 个模板声明语义陷阱").toBeGreaterThanOrEqual(3);
+    });
   },
 );
 
@@ -107,6 +115,19 @@ for (const 域包 of 域包们) {
         const 结果 = await 判定(错误, 会话, 题目);
         // 典型错误均为合法 SELECT，应在结果比对层被判不通过，而非语法/运行时错误
         expect(结果.判定, `错误写法应判不通过：${错误}`).toBe("不通过");
+      },
+    );
+
+    // 语义陷阱变体（code-review #1）：聚合函数用错 / JOIN 条件错位 / 分组依据错位等
+    it.each(
+      会话.题目.flatMap((题目) =>
+        (题目.语义陷阱 ?? []).map((陷阱, i) => [`${题目.模板ID}#${i}`, 陷阱, 题目] as const),
+      ),
+    )(
+      "模板 %s 语义陷阱变体判不通过",
+      async (_键, 陷阱, 题目) => {
+        const 结果 = await 判定(陷阱, 会话, 题目);
+        expect(结果.判定, `语义陷阱应判不通过：${陷阱}`).toBe("不通过");
       },
     );
   });

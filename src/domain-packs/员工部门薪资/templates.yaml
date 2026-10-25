@@ -144,6 +144,8 @@
     - "关键子句：SELECT COUNT(*) AS 总记录数 FROM {{table.薪资发放}}"
   参考答案: "SELECT COUNT(*) AS 总记录数 FROM {{table.薪资发放}}"
   错误写法: "SELECT COUNT(*) AS 总记录数 FROM {{table.员工}}"
+  语义陷阱:
+    - "SELECT COUNT(DISTINCT {{col.薪资发放.员工号}}) AS 总记录数 FROM {{table.薪资发放}}"
   ordered: false
 
 - 模板ID: pay-count-distinct
@@ -155,6 +157,8 @@
     - "关键子句：SELECT COUNT(DISTINCT {{col.薪资发放.员工号}}) AS 员工数"
   参考答案: "SELECT COUNT(DISTINCT {{col.薪资发放.员工号}}) AS 员工数 FROM {{table.薪资发放}}"
   错误写法: "SELECT COUNT({{col.薪资发放.员工号}}) AS 员工数 FROM {{table.薪资发放}}"
+  语义陷阱:
+    - "SELECT COUNT(*) AS 员工数 FROM {{table.薪资发放}}"
   ordered: false
 
 - 模板ID: pay-avg-group
@@ -166,6 +170,8 @@
     - "关键子句：GROUP BY {{col.薪资发放.员工号}} 配合 AVG({{col.薪资发放.发放金额}})"
   参考答案: "SELECT {{col.薪资发放.员工号}}, AVG({{col.薪资发放.发放金额}}) AS 平均发放 FROM {{table.薪资发放}} GROUP BY {{col.薪资发放.员工号}}"
   错误写法: "SELECT {{col.薪资发放.员工号}}, SUM({{col.薪资发放.发放金额}}) AS 平均发放 FROM {{table.薪资发放}} GROUP BY {{col.薪资发放.员工号}}"
+  语义陷阱:
+    - "SELECT {{col.薪资发放.发放序号}}, AVG({{col.薪资发放.发放金额}}) AS 平均发放 FROM {{table.薪资发放}} GROUP BY {{col.薪资发放.发放序号}}"
   ordered: false
 
 - 模板ID: pay-having
@@ -177,6 +183,8 @@
     - "关键子句：GROUP BY {{col.薪资发放.员工号}} HAVING COUNT(*) >= 3"
   参考答案: "SELECT {{col.薪资发放.员工号}}, COUNT(*) AS 发薪次数 FROM {{table.薪资发放}} GROUP BY {{col.薪资发放.员工号}} HAVING COUNT(*) >= 3"
   错误写法: "SELECT {{col.薪资发放.员工号}}, COUNT(*) AS 发薪次数 FROM {{table.薪资发放}} GROUP BY {{col.薪资发放.员工号}} HAVING COUNT(*) = 3"
+  语义陷阱:
+    - "SELECT {{col.薪资发放.发放序号}}, COUNT(*) AS 发薪次数 FROM {{table.薪资发放}} GROUP BY {{col.薪资发放.发放序号}} HAVING COUNT(*) >= 3"
   ordered: false
 
 # ── 知识点四：多表 JOIN（5 题）──────────────────────────────
@@ -202,6 +210,8 @@
     - "关键子句：JOIN {{table.部门}} ON {{table.员工}}.{{col.员工.部门号}} = {{table.部门}}.{{col.部门.部门号}}"
   参考答案: "SELECT {{col.员工.姓名}}, {{col.部门.部门名}}, {{col.薪资发放.发放金额}} FROM {{table.员工}} JOIN {{table.部门}} ON {{table.员工}}.{{col.员工.部门号}} = {{table.部门}}.{{col.部门.部门号}} JOIN {{table.薪资发放}} ON {{table.员工}}.{{col.员工.员工号}} = {{table.薪资发放}}.{{col.薪资发放.员工号}}"
   错误写法: "SELECT {{col.员工.姓名}}, {{col.部门.部门名}}, {{col.薪资发放.发放金额}} FROM {{table.员工}} JOIN {{table.部门}} ON {{table.员工}}.{{col.员工.部门号}} = {{table.部门}}.{{col.部门.部门号}} JOIN {{table.薪资发放}} ON {{table.员工}}.{{col.员工.部门号}} = {{table.薪资发放}}.{{col.薪资发放.员工号}}"
+  语义陷阱:
+    - "SELECT {{col.员工.姓名}}, {{col.部门.部门名}}, {{col.薪资发放.发放金额}} FROM {{table.员工}} JOIN {{table.部门}} ON {{table.员工}}.{{col.员工.员工号}} = {{table.部门}}.{{col.部门.部门号}} JOIN {{table.薪资发放}} ON {{table.员工}}.{{col.员工.员工号}} = {{table.薪资发放}}.{{col.薪资发放.员工号}}"
   ordered: false
 
 - 模板ID: join-left-null

@@ -67,6 +67,11 @@ const 样本集 = [
   { id: "GROUP_CONCAT-自定义分隔", sql: "SELECT GROUP_CONCAT(姓名 SEPARATOR ' | ') FROM (SELECT 工号,姓名 FROM 员工 ORDER BY 工号 DESC LIMIT 100) t" },
   { id: "GROUP_CONCAT-分组", sql: "SELECT 部门, GROUP_CONCAT(姓名 SEPARATOR '/') FROM (SELECT 工号,部门,姓名 FROM 员工 ORDER BY 工号 LIMIT 100) t GROUP BY 部门 ORDER BY 部门" },
   { id: "GROUP_CONCAT-DISTINCT", sql: "SELECT GROUP_CONCAT(DISTINCT 部门 SEPARATOR ',') FROM (SELECT 部门 FROM 员工 WHERE 部门 IS NOT NULL ORDER BY 部门 LIMIT 100) t" },
+  // 边界样本（code-review #1 追加：均为垫片已实现函数的新边界值；DATE_ADD/DATE_SUB 垫片未实现，不入样本）
+  { id: "DATEDIFF-含时间部分", sql: "SELECT DATEDIFF('2024-03-01 23:59:59','2024-02-01 00:00:01'), DATEDIFF('2024-03-01','2024-03-01 12:00:00')" },
+  { id: "DATE_FORMAT-T与f", sql: "SELECT DATE_FORMAT('2024-03-15 14:05:09','%T %f'), DATE_FORMAT('2024-03-15 00:30:00','%p %h')" },
+  { id: "CONCAT_WS-空参数与NULL分隔", sql: "SELECT CONCAT_WS('-',姓名,NULL,NULL), CONCAT_WS(NULL,'a','b') FROM 员工 ORDER BY 工号 LIMIT 3" },
+  { id: "年月日-边界日期", sql: "SELECT YEAR('2024-02-29'), MONTH('2024-12-31'), DAY('2024-01-31'), DATE('2024-02-29 23:59:59')" },
 ];
 
 function 执行mysql(SQL) {

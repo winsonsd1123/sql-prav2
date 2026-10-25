@@ -147,6 +147,8 @@
     - "关键子句：SELECT COUNT(*) AS 总记录数 FROM {{table.成绩}}"
   参考答案: "SELECT COUNT(*) AS 总记录数 FROM {{table.成绩}}"
   错误写法: "SELECT COUNT(*) AS 总记录数 FROM {{table.学生}}"
+  语义陷阱:
+    - "SELECT COUNT(DISTINCT {{col.成绩.课程号}}) AS 总记录数 FROM {{table.成绩}}"
   ordered: false
 
 - 模板ID: agg-count-distinct
@@ -158,6 +160,8 @@
     - "关键子句：SELECT COUNT(DISTINCT {{col.成绩.学号}}) AS 学生数"
   参考答案: "SELECT COUNT(DISTINCT {{col.成绩.学号}}) AS 学生数 FROM {{table.成绩}}"
   错误写法: "SELECT COUNT({{col.成绩.学号}}) AS 学生数 FROM {{table.成绩}}"
+  语义陷阱:
+    - "SELECT COUNT(*) AS 学生数 FROM {{table.成绩}}"
   ordered: false
 
 - 模板ID: agg-max-min
@@ -180,6 +184,8 @@
     - "关键子句：GROUP BY {{col.成绩.课程号}} 配合 AVG({{col.成绩.分数}})"
   参考答案: "SELECT {{col.成绩.课程号}}, AVG({{col.成绩.分数}}) AS 平均分 FROM {{table.成绩}} GROUP BY {{col.成绩.课程号}}"
   错误写法: "SELECT {{col.成绩.课程号}}, SUM({{col.成绩.分数}}) AS 平均分 FROM {{table.成绩}} GROUP BY {{col.成绩.课程号}}"
+  语义陷阱:
+    - "SELECT {{col.成绩.课程号}}, MAX({{col.成绩.分数}}) AS 平均分 FROM {{table.成绩}} GROUP BY {{col.成绩.课程号}}"
   ordered: false
 
 - 模板ID: agg-having
@@ -191,6 +197,8 @@
     - "关键子句：GROUP BY {{col.成绩.学号}} HAVING COUNT(*) >= 2"
   参考答案: "SELECT {{col.成绩.学号}}, COUNT(*) AS 考试次数 FROM {{table.成绩}} GROUP BY {{col.成绩.学号}} HAVING COUNT(*) >= 2"
   错误写法: "SELECT {{col.成绩.学号}}, COUNT(*) AS 考试次数 FROM {{table.成绩}} GROUP BY {{col.成绩.学号}} HAVING COUNT(*) = 2"
+  语义陷阱:
+    - "SELECT {{col.成绩.课程号}}, COUNT(*) AS 考试次数 FROM {{table.成绩}} GROUP BY {{col.成绩.课程号}} HAVING COUNT(*) >= 2"
   ordered: false
 
 # ── 知识点四：多表 JOIN（5 题）──────────────────────────────
@@ -216,6 +224,8 @@
     - "关键子句：JOIN {{table.课程}} ON {{table.成绩}}.{{col.成绩.课程号}} = {{table.课程}}.{{col.课程.课程号}}"
   参考答案: "SELECT {{col.学生.姓名}}, {{col.课程.课程名}}, {{col.成绩.分数}} FROM {{table.学生}} JOIN {{table.成绩}} ON {{table.学生}}.{{col.学生.学号}} = {{table.成绩}}.{{col.成绩.学号}} JOIN {{table.课程}} ON {{table.成绩}}.{{col.成绩.课程号}} = {{table.课程}}.{{col.课程.课程号}}"
   错误写法: "SELECT {{col.学生.姓名}}, {{col.课程.课程名}}, {{col.成绩.分数}} FROM {{table.学生}} JOIN {{table.成绩}} ON {{table.学生}}.{{col.学生.学号}} = {{table.成绩}}.{{col.成绩.学号}} JOIN {{table.课程}} ON {{table.成绩}}.{{col.成绩.学号}} = {{table.课程}}.{{col.课程.课程号}}"
+  语义陷阱:
+    - "SELECT {{col.学生.姓名}}, {{col.课程.课程名}}, {{col.成绩.分数}} FROM {{table.学生}} JOIN {{table.成绩}} ON {{table.学生}}.{{col.学生.学号}} = {{table.成绩}}.{{col.成绩.学号}} JOIN {{table.课程}} ON {{table.成绩}}.{{col.成绩.课程号}} = {{table.课程}}.{{col.课程.学分}}"
   ordered: false
 
 - 模板ID: join-left-null
