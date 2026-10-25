@@ -44,3 +44,25 @@ You can check out [the Next.js GitHub repository](https://github.com/vercel/next
 The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=vercel.com&utm_campaign=create-next-app-readme) from Vercel.
 
 Check out our [Next.js deployment documentation](https://nextjs.com/docs/app/building-your-application/deploying) for more details.
+
+## 静态导出与部署（issue #10）
+
+本项目无任何后端：全部计算（随机建库、判题、防护）在浏览器端完成，SQL 执行跑在 Web Worker 中（`src/kernel/执行worker.ts`）。`next.config.ts` 已启用 `output: "export"`：
+
+```bash
+pnpm build   # 产出 out/，可直接静态托管
+```
+
+本地预览静态产物（静态导出后 `next start` 不可用）：
+
+```bash
+node scripts/静态服务.mjs out 3311
+```
+
+### Vercel 部署要点
+
+- 直接导入仓库即可：Vercel 对 `output: "export"` 的 Next.js 项目会自动识别 `out/` 目录并按静态站点部署，无需 Framework Preset 之外的额外配置（无 Serverless / Node 运行时）。
+- 构建命令无需自定义：Vercel 侧自动执行 `pnpm install && pnpm build`，仓库不含构建产物。
+- 静态资源约束：`public/sql-wasm.wasm`（sql.js 引擎）与 Turbopack 产物中的 Worker 脚本（`_next/static/chunks/turbopack-worker-*.js`）均为静态文件，Vercel 默认静态服务即可（`.wasm` 的 MIME 由 Vercel 自动处理）。
+- 无需环境变量；进度与种子存于浏览器 localStorage / URL，无任何后端状态。
+- 注意：`cacheComponents`/PPR 与静态导出不兼容，故未启用（Next.js 16 的 `output: "export"` 会在 build 时校验并报错）。

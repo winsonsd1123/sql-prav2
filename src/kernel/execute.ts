@@ -1,5 +1,6 @@
 import type { 会话, 结果集, 显示值 } from "./types";
 import { 注册垫片函数, 转译, type 垫片宿主 } from "./转译";
+import { 行数上限提示, 防护超限错误 } from "./防护";
 
 import type initSqlJs from "sql.js";
 
@@ -8,16 +9,22 @@ type 数据库 = InstanceType<引擎["Database"]>;
 
 let 已加载引擎: 引擎 | null = null;
 
-/** sql.js 为 WASM 包，需动态加载；浏览器中 wasm 文件位于 public/ */
+/** sql.js 为 WASM 包，需动态加载；浏览器（主线程或 Worker，均无 Node fs）中 wasm 文件位于 public/ */
 async function 加载引擎(): Promise<引擎> {
   if (!已加载引擎) {
-    const 在浏览器 = typeof window !== "undefined";
+    // Worker 全局无 window 但有 self；Node 测试环境两者皆无，走 sql.js 默认路径
+    const 在浏览器 = typeof window !== "undefined" || typeof self !== "undefined";
     const init = (await import("sql.js")).default;
     已加载引擎 = await init(
       在浏览器 ? { locateFile: () => "/sql-wasm.wasm" } : {},
     );
   }
   return 已加载引擎;
+}
+
+/** 预热引擎：Worker 启动时立即加载 WASM，主线程据此展示首次加载指示 */
+export async function 预热引擎(): Promise<void> {
+  await 加载引擎();
 }
 
 /** 从会话库建立内存数据库（纯函数式：每次全新，执行不可变更会话） */
@@ -55,8 +62,15 @@ function 规范化(v: unknown): 显示值 {
   return `S:${String(v)}`;
 }
 
-/** 在内存库上执行查询，返回结果集；错误抛出 SQLite errmsg 原文（由错误映射层转 MySQL 三要素） */
-export async function 执行查询(语句: string, 会话: 会话): Promise<结果集> {
+/** 在内存库上执行查询，返回结果集；错误抛出 SQLite errmsg 原文（由错误映射层转 MySQL 三要素）。
+ * 行数上限（issue #10）：结果超限时抛防护超限错误（产品提示），不进入 MySQL 错误映射。
+ * 取舍：sql.js 的 exec 同步物化全部结果行，上限检查发生在物化之后——
+ * 真正的内存/时间兜底由 Worker 超时终止负责，行数上限拦截"能跑完但结果巨大"的查询。 */
+export async function 执行查询(
+  语句: string,
+  会话: 会话,
+  行数上限?: number,
+): Promise<结果集> {
   const db = await 打开内存库(会话);
   try {
     // 转译层（issue #5）：学生 SQL 为 MySQL 方言，垫片函数 + 语法改写对学生透明
@@ -64,6 +78,9 @@ export async function 执行查询(语句: string, 会话: 会话): Promise<结�
     注册垫片函数(db as unknown as 垫片宿主);
     const 结果 = db.exec(转译(语句));
     if (结果.length === 0) return { 列名: [], 行: [] };
+    if (行数上限 !== undefined && 结果[0].values.length > 行数上限) {
+      throw new 防护超限错误("行数上限", 行数上限提示);
+    }
     return {
       列名: 结果[0].columns,
       行: 结果[0].values.map((行) => 行.map(规范化)),

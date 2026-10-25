@@ -1,8 +1,8 @@
 "use client";
 
-import { useSyncExternalStore, useMemo, useState, useCallback } from "react";
+import { useSyncExternalStore, useMemo, useState, useCallback, useEffect, useRef } from "react";
 import { 生成练习会话 } from "@/kernel/出题";
-import { 判定 } from "@/kernel/judge";
+import { 请求判定, 订阅引擎就绪, 引擎是否就绪 } from "@/kernel/worker客户端";
 import SQL编辑器 from "@/components/SQL编辑器";
 import 库浏览器 from "@/components/库浏览器";
 import 差异对照 from "@/components/差异对照";
@@ -134,6 +134,14 @@ export default function Playground() {
   const [SQL输入, 设SQL输入] = useState("");
   const [结果, 设结果] = useState<判定结果 | null>(null);
   const [判定中, 设判定中] = useState(false);
+  // 引擎就绪态（issue #10）：Worker 启动即加载 WASM，主线程展示首次加载指示
+  const [引擎就绪, 设引擎就绪] = useState(引擎是否就绪);
+  useEffect(() => 订阅引擎就绪(() => 设引擎就绪(引擎是否就绪())), []);
+  // 长查询期间学生可能切题：判题返回时若已切题则丢弃（结果属于旧题）
+  const 当前题号引用 = useRef(当前题号);
+  useEffect(() => {
+    当前题号引用.current = 当前题号;
+  }, [当前题号]);
 
   // 进度随会话（域包+种子）持久于 localStorage；换一套/换域包即换键，天然重置
   const 进度 = useSyncExternalStore(
@@ -155,11 +163,18 @@ export default function Playground() {
 
   async function 验证() {
     if (!会话) return;
+    const 发起题号 = 当前题号;
     设判定中(true);
     try {
-      const 结果 = await 判定(SQL输入, 会话, 会话.题目[当前题号]);
+      // 判题在 Web Worker 中进行（issue #10）：主线程不阻塞，编辑/切题/浏览库保持可交互
+      const 结果 = await 请求判定(SQL输入, 会话, 会话.题目[发起题号]);
+      if (当前题号引用.current !== 发起题号) return; // 期间已切题，丢弃旧结果
       设结果(结果);
-      if (结果.判定 === "通过") 更新进度((p) => 记通过(p, 当前题号));
+      if (结果.判定 === "通过") 更新进度((p) => 记通过(p, 发起题号));
+    } catch (e) {
+      // 超时/行数上限等防护触发：产品级提示（非伪造 MySQL 错误）
+      if (当前题号引用.current !== 发起题号) return;
+      设结果({ 判定: "拦截", 错误信息: e instanceof Error ? e.message : String(e) });
     } finally {
       设判定中(false);
     }
@@ -263,7 +278,13 @@ export default function Playground() {
           </section>
 
           <section className="space-y-2">
-            <SQL编辑器 值={SQL输入} onChange={设SQL输入} onSubmit={验证} 表={会话.库.表} 禁用={判定中} />
+            <SQL编辑器 值={SQL输入} onChange={设SQL输入} onSubmit={验证} 表={会话.库.表} />
+            {/* WASM 首次加载指示：Worker 预热引擎期间可见 */}
+            {!引擎就绪 && (
+              <p data-testid="引擎加载中" className="text-xs text-amber-600 dark:text-amber-400">
+                数据库引擎（WASM）加载中……首次载入约需一两秒。
+              </p>
+            )}
             <div className="flex items-center gap-3">
               <button
                 onClick={验证}
@@ -272,7 +293,7 @@ export default function Playground() {
               >
                 {判定中 ? "判定中……" : "验证"}
               </button>
-              <span className="text-xs text-zinc-400">Ctrl/⌘ + Enter 快速验证</span>
+              <span className="text-xs text-zinc-400">Ctrl/⌘ + Enter 快速验证{判定中 ? "（判定在后台进行，可继续编辑或切换题目）" : ""}</span>
             </div>
           </section>
 
