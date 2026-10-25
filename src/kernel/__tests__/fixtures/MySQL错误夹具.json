@@ -1,0 +1,179 @@
+{
+  "说明": "MySQL 错误采样夹具（错误保真度验收基准）。由 scripts/采样MySQL错误.mjs 生成，勿手改。",
+  "采样环境": {
+    "版本": "26.7.0",
+    "库名": "playground"
+  },
+  "样本": [
+    {
+      "id": "1064-拼写-SELEC",
+      "类别": "1064",
+      "sql": "SELEC * FROM 学生",
+      "错误码": 1064,
+      "sqlstate": "42000",
+      "文案": "You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'SELEC * FROM 学生' at line 1",
+      "nearToken": "SELEC * FROM 学生",
+      "行号": 1
+    },
+    {
+      "id": "1064-拼写-FRO",
+      "类别": "1064",
+      "sql": "SELECT 姓名 FRO 学生",
+      "错误码": 1064,
+      "sqlstate": "42000",
+      "文案": "You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near '学生' at line 1",
+      "nearToken": "学生",
+      "行号": 1
+    },
+    {
+      "id": "1064-拼写-FORM",
+      "类别": "1064",
+      "sql": "SELECT * FORM 课程",
+      "错误码": 1064,
+      "sqlstate": "42000",
+      "文案": "You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'FORM 课程' at line 1",
+      "nearToken": "FORM 课程",
+      "行号": 1
+    },
+    {
+      "id": "1064-残缺-缺左括号",
+      "类别": "1064",
+      "sql": "SELECT COUNT 姓名) FROM 成绩",
+      "错误码": 1064,
+      "sqlstate": "42000",
+      "文案": "You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near ') FROM 成绩' at line 1",
+      "nearToken": ") FROM 成绩",
+      "行号": 1
+    },
+    {
+      "id": "1064-残缺-悬空逗号",
+      "类别": "1064",
+      "sql": "SELECT 姓名, FROM 学生",
+      "错误码": 1064,
+      "sqlstate": "42000",
+      "文案": "You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'FROM 学生' at line 1",
+      "nearToken": "FROM 学生",
+      "行号": 1
+    },
+    {
+      "id": "1064-拼写-WHER",
+      "类别": "1064",
+      "sql": "SELECT * FROM 学生 WHER 性别 = '男'",
+      "错误码": 1064,
+      "sqlstate": "42000",
+      "文案": "You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near '性别 = '男'' at line 1",
+      "nearToken": "性别 = '男'",
+      "行号": 1
+    },
+    {
+      "id": "1064-字符串未闭合",
+      "类别": "1064",
+      "sql": "SELECT * FROM 学生 WHERE 性别 = '男",
+      "错误码": 1064,
+      "sqlstate": "42000",
+      "文案": "You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near ''男' at line 1",
+      "nearToken": "'男",
+      "行号": 1
+    },
+    {
+      "id": "1146-单表",
+      "类别": "1146",
+      "sql": "SELECT * FROM 老师",
+      "错误码": 1146,
+      "sqlstate": "42S02",
+      "文案": "Table 'playground.老师' doesn't exist",
+      "nearToken": null,
+      "行号": null
+    },
+    {
+      "id": "1146-别名表",
+      "类别": "1146",
+      "sql": "SELECT * FROM 学生 s JOIN 班级 c ON s.学号 = c.学号",
+      "错误码": 1146,
+      "sqlstate": "42S02",
+      "文案": "Table 'playground.班级' doesn't exist",
+      "nearToken": null,
+      "行号": null
+    },
+    {
+      "id": "1146-子查询",
+      "类别": "1146",
+      "sql": "SELECT * FROM (SELECT * FROM 院系) t",
+      "错误码": 1146,
+      "sqlstate": "42S02",
+      "文案": "Table 'playground.院系' doesn't exist",
+      "nearToken": null,
+      "行号": null
+    },
+    {
+      "id": "1054-字段列表",
+      "类别": "1054",
+      "sql": "SELECT 姓 FROM 学生",
+      "错误码": 1054,
+      "sqlstate": "42S22",
+      "文案": "Unknown column '姓' in 'field list'",
+      "nearToken": null,
+      "行号": null
+    },
+    {
+      "id": "1054-WHERE",
+      "类别": "1054",
+      "sql": "SELECT * FROM 学生 WHERE 年龄 > 20",
+      "错误码": 1054,
+      "sqlstate": "42S22",
+      "文案": "Unknown column '年龄' in 'where clause'",
+      "nearToken": null,
+      "行号": null
+    },
+    {
+      "id": "1054-聚合参数",
+      "类别": "1054",
+      "sql": "SELECT AVG(成绩) FROM 成绩",
+      "错误码": 1054,
+      "sqlstate": "42S22",
+      "文案": "Unknown column '成绩' in 'field list'",
+      "nearToken": null,
+      "行号": null
+    },
+    {
+      "id": "1054-表前缀错列",
+      "类别": "1054",
+      "sql": "SELECT 学生.名字 FROM 学生",
+      "错误码": 1054,
+      "sqlstate": "42S22",
+      "文案": "Unknown column '学生.名字' in 'field list'",
+      "nearToken": null,
+      "行号": null
+    },
+    {
+      "id": "1305-SELECT列表",
+      "类别": "1305",
+      "sql": "SELECT LEN(姓名) FROM 学生",
+      "错误码": 1305,
+      "sqlstate": "42000",
+      "文案": "FUNCTION playground.LEN does not exist",
+      "nearToken": null,
+      "行号": null
+    },
+    {
+      "id": "1305-WHERE",
+      "类别": "1305",
+      "sql": "SELECT * FROM 成绩 WHERE SQUARE2(分数) > 100",
+      "错误码": 1305,
+      "sqlstate": "42000",
+      "文案": "FUNCTION playground.SQUARE2 does not exist",
+      "nearToken": null,
+      "行号": null
+    },
+    {
+      "id": "1305-聚合拼错",
+      "类别": "1305",
+      "sql": "SELECT AVG2(分数) FROM 成绩",
+      "错误码": 1305,
+      "sqlstate": "42000",
+      "文案": "FUNCTION playground.AVG2 does not exist",
+      "nearToken": null,
+      "行号": null
+    }
+  ]
+}
