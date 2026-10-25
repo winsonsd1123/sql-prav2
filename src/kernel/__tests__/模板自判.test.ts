@@ -44,13 +44,23 @@ describe("每个题目模板的判题等价", () => {
     const 题目 = 会话.题目[0];
     const 结果 = await 判定("SELECT 1; SELECT 2", 会话, 题目);
     expect(结果.判定).toBe("拦截");
+    if (结果.判定 !== "拦截") return;
+    // 产品提示为中文、说明演练场范围规则，且不伪装成 MySQL 错误格式
+    expect(结果.错误信息).toContain("演练场仅接受单条 SELECT 查询语句");
+    expect(结果.错误信息).not.toMatch(/^ERROR \d+ \(\w+\):/);
   });
 
-  it("非 SELECT 语句被拦截", async () => {
-    const 题目 = 会话.题目[0];
-    const 结果 = await 判定("DELETE FROM 学生", 会话, 题目);
-    expect(结果.判定).toBe("拦截");
-  });
+  it.each(["INSERT INTO 学生 VALUES (1, 'x')", "UPDATE 学生 SET 姓名 = 'x'", "DELETE FROM 学生", "DROP TABLE 学生", "CREATE TABLE t (a INT)"])(
+    "非 SELECT 语句被拦截并得到中文产品提示：%s",
+    async (SQL) => {
+      const 题目 = 会话.题目[0];
+      const 结果 = await 判定(SQL, 会话, 题目);
+      expect(结果.判定).toBe("拦截");
+      if (结果.判定 !== "拦截") return;
+      expect(结果.错误信息).toContain("演练场仅接受单条 SELECT 查询语句");
+      expect(结果.错误信息).not.toMatch(/^ERROR \d+ \(\w+\):/);
+    },
+  );
 
   it("容忍单个尾分号", async () => {
     const 题目 = 会话.题目[0];

@@ -54,6 +54,14 @@ const 样本集 = [
   { id: "1054-WHERE", 类别: "1054", sql: "SELECT * FROM 学生 WHERE 年龄 > 20" },
   { id: "1054-聚合参数", 类别: "1054", sql: "SELECT AVG(成绩) FROM 成绩" },
   { id: "1054-表前缀错列", 类别: "1054", sql: "SELECT 学生.名字 FROM 学生" },
+  // 1055 ONLY_FULL_GROUP_BY：SELECT/ORDER BY 中非聚合非分组裸列
+  // （样本只用"代入"后映射一致的角色列：姓名/城市/奖学金在实例库中同名或成对替换）
+  { id: "1055-裸列", 类别: "1055", sql: "SELECT 姓名, COUNT(*) FROM 学生 GROUP BY 城市" },
+  { id: "1055-表达式内", 类别: "1055", sql: "SELECT 奖学金 + 1 FROM 学生 GROUP BY 姓名" },
+  { id: "1055-函数嵌列", 类别: "1055", sql: "SELECT CONCAT(姓名, 城市) FROM 学生 GROUP BY 姓名" },
+  { id: "1055-别名表", 类别: "1055", sql: "SELECT s.姓名, COUNT(*) FROM 学生 s GROUP BY s.城市" },
+  { id: "1055-序号表达式", 类别: "1055", sql: "SELECT COUNT(*), 城市 FROM 学生 GROUP BY 姓名" },
+  { id: "1055-ORDER-BY", 类别: "1055", sql: "SELECT 姓名 FROM 学生 GROUP BY 姓名 ORDER BY 城市" },
   // 1305 函数不存在
   { id: "1305-SELECT列表", 类别: "1305", sql: "SELECT LEN(姓名) FROM 学生" },
   { id: "1305-WHERE", 类别: "1305", sql: "SELECT * FROM 成绩 WHERE SQUARE2(分数) > 100" },

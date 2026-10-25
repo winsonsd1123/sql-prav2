@@ -1,7 +1,7 @@
 import type { 判定结果, 会话, 题目实例 } from "./types";
 import { 执行查询, 清洗语句 } from "./execute";
 import { 结果等价 } from "./equivalence";
-import { 校验语法, 映射运行时错误, 格式化 } from "./错误映射";
+import { 校验语法, 校验分组, 映射运行时错误, 格式化 } from "./错误映射";
 
 /**
  * 判定（判题内核接缝之二）：学生SQL + 会话 + 题目实例 → 判定结果。
@@ -28,6 +28,12 @@ export async function 判定(
   const 语法错误 = 校验语法(清洗.语句);
   if (语法错误) {
     return { 判定: "错误", 错误码: 语法错误.错误码, SQLSTATE: 语法错误.SQLSTATE, 错误信息: 格式化(语法错误) };
+  }
+
+  // ONLY_FULL_GROUP_BY 静态检查（插在语法校验后、执行前）
+  const 分组错误 = 校验分组(清洗.语句, 会话.库.表.map((t) => ({ 表名: t.表名, 列名: t.列名 })));
+  if (分组错误) {
+    return { 判定: "错误", 错误码: 分组错误.错误码, SQLSTATE: 分组错误.SQLSTATE, 错误信息: 格式化(分组错误) };
   }
 
   let 学生结果;
