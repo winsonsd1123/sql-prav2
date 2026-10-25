@@ -17,9 +17,9 @@ describe("会话生成的确定性（种子 → 域包A → 会话）", () => {
     expect(a).not.toBe(b);
   });
 
-  it("会话包含域包A的三张表与 5 道题目实例", () => {
+  it("会话包含域包A的三张表与 6 道题目实例", () => {
     const 会话 = 生成(20260101, 域包);
-    expect(会话.库.表.map((t) => t.表名)).toEqual(["学生", "课程", "成绩"]);
-    expect(会话.题目).toHaveLength(5);
+    expect(会话.库.表).toHaveLength(3); // T5 起表名为实例化的实际名，池归属由 随机化.test.ts 覆盖
+    expect(会话.题目).toHaveLength(6);
   });
 });
