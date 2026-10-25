@@ -1,13 +1,19 @@
 "use client";
 
 import { useSyncExternalStore, useMemo, useState } from "react";
-import { 生成 } from "@/kernel/generate";
+import { 生成练习会话 } from "@/kernel/出题";
 import { 判定 } from "@/kernel/judge";
 import { 显示 } from "@/kernel/execute";
 import type { 判定结果, 结果集, 题目实例 } from "@/kernel/types";
 import { 加载域包A } from "@/domain-packs/学生课程成绩/域包A";
+import { 加载域包B } from "@/domain-packs/员工部门薪资/域包B";
+import type { 域包 } from "@/kernel/types";
+
+// 域包注册表：学生可在两个业务域之间切换练习（issue #8）
+const 域包注册表: 域包[] = [加载域包A(), 加载域包B()];
 
 const 种子键 = "sql-playground:seed";
+const 域包键 = "sql-playground:pack";
 
 function 读取种子(): number {
   if (typeof window !== "undefined") {
@@ -28,6 +34,7 @@ function 读取种子(): number {
 
 // 种子作为外部存储：服务端快照为 null，客户端从 localStorage/URL 读取并缓存
 let 缓存种子: number | null = null;
+let 缓存域包ID: string | null = null;
 const 订阅者 = new Set<() => void>();
 function 取种子快照(): number | null {
   if (缓存种子 === null) 缓存种子 = 读取种子();
@@ -37,6 +44,22 @@ function 设新种子(n: number) {
   缓存种子 = n;
   localStorage.setItem(种子键, String(n));
   window.history.replaceState(null, "", `?seed=${n}`);
+  订阅者.forEach((f) => f());
+}
+
+/** 当前域包ID：客户端从 localStorage 读取并缓存，非法值回退到域包A */
+function 取域包ID快照(): string | null {
+  if (typeof window === "undefined") return null;
+  if (缓存域包ID === null) {
+    const 已存 = localStorage.getItem(域包键);
+    缓存域包ID = 域包注册表.some((d) => d.域包ID === 已存) ? 已存! : 域包注册表[0].域包ID;
+  }
+  return 缓存域包ID;
+}
+/** 切换域包：保留种子，只换业务域（同种子下两域包生成各自的库与题） */
+function 设域包(域包ID: string) {
+  缓存域包ID = 域包ID;
+  localStorage.setItem(域包键, 域包ID);
   订阅者.forEach((f) => f());
 }
 
@@ -86,9 +109,20 @@ export default function Playground() {
     取种子快照,
     () => null,
   );
-  const 域包 = useMemo(() => 加载域包A(), []);
+  const 域包ID = useSyncExternalStore(
+    (通知) => {
+      订阅者.add(通知);
+      return () => 订阅者.delete(通知);
+    },
+    取域包ID快照,
+    () => null,
+  );
+  const 域包 = useMemo(
+    () => 域包注册表.find((d) => d.域包ID === 域包ID) ?? 域包注册表[0],
+    [域包ID],
+  );
   const 会话 = useMemo(
-    () => (种子 === null ? null : 生成(种子, 域包)),
+    () => (种子 === null ? null : 生成练习会话(种子, 域包)),
     [种子, 域包],
   );
   const [当前题号, 设当前题号] = useState(0);
@@ -112,27 +146,52 @@ export default function Playground() {
     }
   }
 
-  function 换一套() {
-    设新种子(Math.floor(Math.random() * 1_000_000_000));
+  function 重置作答() {
     设结果(null);
     设SQL输入("");
     设当前题号(0);
+  }
+
+  function 换一套() {
+    设新种子(Math.floor(Math.random() * 1_000_000_000));
+    重置作答();
+  }
+
+  function 切换域包(目标域包ID: string) {
+    if (目标域包ID === 域包.域包ID) return;
+    设域包(目标域包ID);
+    重置作答();
   }
 
   return (
     <div className="flex min-h-screen flex-col">
       <header className="flex items-center justify-between border-b border-zinc-200 px-6 py-3 dark:border-zinc-800">
         <h1 className="text-lg font-semibold">SQL 演练场</h1>
-        <div className="flex items-center gap-3 text-sm text-zinc-600 dark:text-zinc-400">
+        <div className="flex flex-wrap items-center gap-3 text-sm text-zinc-600 dark:text-zinc-400">
           <span>
             会话种子：<code className="rounded bg-zinc-100 px-1.5 py-0.5 dark:bg-zinc-900">{会话.种子}</code>
-            （域包：{域包.名称}）
+          </span>
+          {/* 业务域切换：同种子下在两个域包间交替练习 */}
+          <span className="flex items-center gap-1">
+            {域包注册表.map((d) => (
+              <button
+                key={d.域包ID}
+                onClick={() => 切换域包(d.域包ID)}
+                className={`rounded border px-3 py-1 ${
+                  d.域包ID === 域包.域包ID
+                    ? "border-blue-600 bg-blue-50 text-blue-700 dark:bg-blue-900 dark:text-blue-200"
+                    : "border-zinc-300 hover:bg-zinc-100 dark:border-zinc-700 dark:hover:bg-zinc-900"
+                }`}
+              >
+                {d.名称}
+              </button>
+            ))}
           </span>
           <button
             onClick={换一套}
             className="rounded border border-zinc-300 px-3 py-1 hover:bg-zinc-100 dark:border-zinc-700 dark:hover:bg-zinc-900"
           >
-            换一套
+            换一套（新种子）
           </button>
         </div>
       </header>
