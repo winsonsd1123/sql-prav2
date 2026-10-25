@@ -146,6 +146,66 @@
       "行号": null
     },
     {
+      "id": "1055-裸列",
+      "类别": "1055",
+      "sql": "SELECT 姓名, COUNT(*) FROM 学生 GROUP BY 城市",
+      "错误码": 1055,
+      "sqlstate": "42000",
+      "文案": "Expression #1 of SELECT list is not in GROUP BY clause and contains nonaggregated column 'playground.学生.姓名' which is not functionally dependent on columns in GROUP BY clause; this is incompatible with sql_mode=only_full_group_by",
+      "nearToken": null,
+      "行号": null
+    },
+    {
+      "id": "1055-表达式内",
+      "类别": "1055",
+      "sql": "SELECT 奖学金 + 1 FROM 学生 GROUP BY 姓名",
+      "错误码": 1055,
+      "sqlstate": "42000",
+      "文案": "Expression #1 of SELECT list is not in GROUP BY clause and contains nonaggregated column 'playground.学生.奖学金' which is not functionally dependent on columns in GROUP BY clause; this is incompatible with sql_mode=only_full_group_by",
+      "nearToken": null,
+      "行号": null
+    },
+    {
+      "id": "1055-函数嵌列",
+      "类别": "1055",
+      "sql": "SELECT CONCAT(姓名, 城市) FROM 学生 GROUP BY 姓名",
+      "错误码": 1055,
+      "sqlstate": "42000",
+      "文案": "Expression #1 of SELECT list is not in GROUP BY clause and contains nonaggregated column 'playground.学生.城市' which is not functionally dependent on columns in GROUP BY clause; this is incompatible with sql_mode=only_full_group_by",
+      "nearToken": null,
+      "行号": null
+    },
+    {
+      "id": "1055-别名表",
+      "类别": "1055",
+      "sql": "SELECT s.姓名, COUNT(*) FROM 学生 s GROUP BY s.城市",
+      "错误码": 1055,
+      "sqlstate": "42000",
+      "文案": "Expression #1 of SELECT list is not in GROUP BY clause and contains nonaggregated column 'playground.s.姓名' which is not functionally dependent on columns in GROUP BY clause; this is incompatible with sql_mode=only_full_group_by",
+      "nearToken": null,
+      "行号": null
+    },
+    {
+      "id": "1055-序号表达式",
+      "类别": "1055",
+      "sql": "SELECT COUNT(*), 城市 FROM 学生 GROUP BY 姓名",
+      "错误码": 1055,
+      "sqlstate": "42000",
+      "文案": "Expression #2 of SELECT list is not in GROUP BY clause and contains nonaggregated column 'playground.学生.城市' which is not functionally dependent on columns in GROUP BY clause; this is incompatible with sql_mode=only_full_group_by",
+      "nearToken": null,
+      "行号": null
+    },
+    {
+      "id": "1055-ORDER-BY",
+      "类别": "1055",
+      "sql": "SELECT 姓名 FROM 学生 GROUP BY 姓名 ORDER BY 城市",
+      "错误码": 1055,
+      "sqlstate": "42000",
+      "文案": "Expression #1 of ORDER BY clause is not in GROUP BY clause and contains nonaggregated column 'playground.学生.城市' which is not functionally dependent on columns in GROUP BY clause; this is incompatible with sql_mode=only_full_group_by",
+      "nearToken": null,
+      "行号": null
+    },
+    {
       "id": "1305-SELECT列表",
       "类别": "1305",
       "sql": "SELECT LEN(姓名) FROM 学生",
