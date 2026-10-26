@@ -2,6 +2,7 @@
 
 // 两层提示逐层揭示 + 参考答案查看（issue #9）。
 // 状态不落在本组件（随会话进度持久），只负责展示与回调。
+// T1 仅换皮为霓虹练习簿风（issue #12）；解锁门槛在 T5 工单再加。
 
 import { useState } from "react";
 
@@ -30,7 +31,7 @@ export default function HintsPanel({
           <button
             onClick={on揭示提示}
             disabled={已看层数 >= 2}
-            className="rounded border border-amber-300 bg-amber-50 px-3 py-1 text-sm text-amber-800 hover:bg-amber-100 disabled:opacity-40 dark:border-amber-700 dark:bg-amber-900 dark:text-amber-200"
+            className="按压 硬阴影 硬阴影-错误 rounded-none border-2 border-warn bg-panel px-3 py-1 text-sm font-medium text-warn disabled:opacity-40 disabled:hover:translate-x-0 disabled:hover:shadow-none"
           >
             {已看层数 === 0
               ? "显示提示（第 1 层：思路）"
@@ -38,17 +39,19 @@ export default function HintsPanel({
                 ? "再显示一层（第 2 层：关键子句）"
                 : "两层提示已全部显示"}
           </button>
-          {已看层数 > 0 && <span className="text-xs text-zinc-400">已看 {已看层数}/2 层</span>}
+          {已看层数 > 0 && (
+            <span className="font-mono text-xs text-ink/50">已看 {已看层数}/2 层</span>
+          )}
         </div>
         {已看层数 >= 1 && (
-          <p className="rounded bg-amber-50 px-3 py-2 text-sm text-amber-900 dark:bg-amber-950 dark:text-amber-200">
-            <strong>提示 1 · 思路：</strong>
+          <p className="rounded-none border-2 border-dashed border-warn/60 bg-warn/5 px-3 py-2 text-sm">
+            <strong className="text-warn">提示 1 · 思路：</strong>
             {提示[0]}
           </p>
         )}
         {已看层数 >= 2 && (
-          <p className="rounded bg-amber-50 px-3 py-2 text-sm text-amber-900 dark:bg-amber-950 dark:text-amber-200">
-            <strong>提示 2 · 关键子句：</strong>
+          <p className="rounded-none border-2 border-dashed border-warn/60 bg-warn/5 px-3 py-2 text-sm">
+            <strong className="text-warn">提示 2 · 关键子句：</strong>
             <code className="font-mono">{提示[1]}</code>
           </p>
         )}
@@ -61,18 +64,18 @@ export default function HintsPanel({
               设答案已展开(true);
               on查看答案();
             }}
-            className="rounded border border-zinc-300 px-3 py-1 text-sm text-zinc-700 hover:bg-zinc-100 dark:border-zinc-700 dark:text-zinc-300 dark:hover:bg-zinc-900"
+            className="按压 硬阴影 硬阴影-借助 rounded-none border-2 border-border-strong bg-panel px-3 py-1 text-sm font-medium disabled:opacity-40"
           >
             {答案已展开 ? "参考答案已显示" : "查看参考答案"}
           </button>
           {已借助答案 && (
-            <span className="rounded bg-purple-100 px-2 py-0.5 text-xs text-purple-700 dark:bg-purple-900 dark:text-purple-200">
+            <span className="硬阴影 硬阴影-借助 rounded-none border-2 border-assist bg-panel px-2 py-0.5 text-xs font-medium text-assist">
               已借助答案
             </span>
           )}
         </div>
         {答案已展开 && (
-          <pre className="overflow-auto rounded border border-zinc-200 bg-zinc-50 p-3 font-mono text-sm dark:border-zinc-800 dark:bg-zinc-900">
+          <pre className="overflow-auto rounded-none border-2 border-border-strong bg-bg p-3 font-mono text-sm">
             {参考答案}
           </pre>
         )}
