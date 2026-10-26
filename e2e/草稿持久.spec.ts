@@ -24,13 +24,13 @@ test("切题再返回，该题草稿恢复且其他题不受污染", async ({ pa
   await 打开演练场(page);
   await 输入SQL(page, "SELECT 草稿一");
   // 切到第 2 题：编辑器应为空（该题无草稿）
-  await page.getByRole("button", { name: "2", exact: true }).click();
+  await page.getByRole("button").filter({ hasText: "#02" }).click();
   await expect(await 编辑器文本(page)).toBe("在此输入单条 SELECT 语句……\n");
   await 输入SQL(page, "SELECT 草稿二");
   // 回到第 1 题：草稿一恢复；再去第 2 题：草稿二恢复
-  await page.getByRole("button", { name: "1", exact: true }).click();
+  await page.getByRole("button").filter({ hasText: "#01" }).click();
   await expect(await 编辑器文本(page)).toContain("SELECT 草稿一");
-  await page.getByRole("button", { name: "2", exact: true }).click();
+  await page.getByRole("button").filter({ hasText: "#02" }).click();
   await expect(await 编辑器文本(page)).toContain("SELECT 草稿二");
 });
 
