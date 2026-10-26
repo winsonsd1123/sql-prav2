@@ -59,6 +59,23 @@ export default function Playground() {
     当前题号引用.current = 当前题号;
   }, [当前题号]);
 
+  // 禁粘贴横幅（issue #17 T6）：拦截时编辑器上方提示约 2 秒，
+  // 同一页面生命周期内只弹一次（连续触发不刷屏，ADR-0003 摩擦力设计）。
+  const [显示禁粘横幅, 设显示禁粘横幅] = useState(false);
+  const 已弹过禁粘横幅 = useRef(false);
+  const 禁粘横幅计时器 = useRef<ReturnType<typeof setTimeout> | null>(null);
+  useEffect(() => {
+    return () => {
+      if (禁粘横幅计时器.current) clearTimeout(禁粘横幅计时器.current);
+    };
+  }, []);
+  function 提示禁粘贴() {
+    if (已弹过禁粘横幅.current) return; // 会话内不重复弹
+    已弹过禁粘横幅.current = true;
+    设显示禁粘横幅(true);
+    禁粘横幅计时器.current = setTimeout(() => 设显示禁粘横幅(false), 2000);
+  }
+
   // 进度随会话（域包+种子）持久于 localStorage；换一套/换域包即换键，天然重置
   const 进度 = useSyncExternalStore(进度存储.订阅, 进度存储.取快照, () => 空进度);
 
@@ -209,6 +226,15 @@ export default function Playground() {
           </section>
 
           <section className="space-y-2">
+            {/* 禁粘贴横幅（issue #17 T6）：拦截粘贴/拖入时短暂出现 */}
+            {显示禁粘横幅 && (
+              <p
+                data-testid="禁粘横幅"
+                className="硬阴影 硬阴影-警示 入场 rounded-none border-2 border-warn bg-panel px-4 py-2 text-sm font-bold text-warn"
+              >
+                请手动输入 SQL，粘贴已禁用
+              </p>
+            )}
             {/* 终端窗口装饰的编辑器：标题栏三窗口点 + 文件名 + 引擎状态灯 */}
             <div className="卡片 硬阴影 overflow-hidden rounded-none">
               <div className="flex items-center gap-2 border-b-2 border-border-strong bg-ink/5 px-3 py-1.5 text-xs text-ink/60">
@@ -227,7 +253,13 @@ export default function Playground() {
                   {引擎就绪 ? "引擎就绪" : "引擎加载中"}
                 </span>
               </div>
-              <SQL编辑器 值={SQL输入} onChange={设SQL输入} onSubmit={验证} 表={会话.库.表} />
+              <SQL编辑器
+                值={SQL输入}
+                onChange={设SQL输入}
+                onSubmit={验证}
+                表={会话.库.表}
+                on拦截粘贴={提示禁粘贴}
+              />
             </div>
             {/* WASM 首次加载指示：Worker 预热引擎期间可见（保留 testid 供 e2e 断言） */}
             {!引擎就绪 && (
