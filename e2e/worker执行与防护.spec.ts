@@ -32,8 +32,11 @@ test("验证按钮走 Worker 路径：通过与不通过均正常返回", async 
   await page.getByRole("button", { name: "验证", exact: true }).click();
   await expect(page.getByText("不通过：结果集与预期不等价")).toBeVisible({ timeout: 10_000 });
   await expect(page.getByTestId("差异对照")).toBeVisible();
-  // 通过：按参考答案作答
+  // 答案两级解锁（issue #16）：再累计两次不通过尝试后解锁，确认查看
+  await page.getByRole("button", { name: "验证", exact: true }).click();
+  await page.getByRole("button", { name: "验证", exact: true }).click();
   await page.getByRole("button", { name: "查看参考答案" }).click();
+  await page.getByTestId("确认查看答案").click();
   const 答案 = await page.getByTestId("提示与答案").locator("pre").innerText();
   await 输入SQL(page, 答案);
   await page.getByRole("button", { name: "验证", exact: true }).click();
