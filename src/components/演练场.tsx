@@ -1,6 +1,6 @@
 "use client";
 
-import { useSyncExternalStore, useMemo, useState, useEffect, useRef } from "react";
+import { useSyncExternalStore, useMemo, useState, useEffect, useRef, useCallback } from "react";
 import { 生成练习会话 } from "@/kernel/出题";
 import { 请求判定, 订阅引擎就绪, 引擎是否就绪 } from "@/kernel/worker客户端";
 import SQL编辑器 from "@/components/SQL编辑器";
@@ -57,6 +57,23 @@ export default function Playground() {
   const [SQL输入, 设SQL输入] = useState("");
   const [结果, 设结果] = useState<判定结果 | null>(null);
   const [判定中, 设判定中] = useState(false);
+  // 库浏览器免遮罩浮层（issue #14 T3）：默认隐藏，顶栏按钮 / Cmd/Ctrl+B 切换
+  const [库浏览器开, 设库浏览器开] = useState(false);
+  const 关闭库浏览器 = useCallback(() => 设库浏览器开(false), []);
+  useEffect(() => {
+    // 全局快捷键：Cmd/Ctrl+B 随时切换；ESC 仅在浮层打开时收起（不劫持编辑器输入）。
+    // 捕获阶段监听，避免 CodeMirror 内先行拦截。
+    function 按键(e: KeyboardEvent) {
+      if ((e.metaKey || e.ctrlKey) && !e.altKey && e.key.toLowerCase() === "b") {
+        e.preventDefault();
+        设库浏览器开((开) => !开);
+      } else if (e.key === "Escape") {
+        设库浏览器开((开) => (开 ? false : 开));
+      }
+    }
+    window.addEventListener("keydown", 按键, true);
+    return () => window.removeEventListener("keydown", 按键, true);
+  }, []);
   // 引擎就绪态（issue #10）：Worker 启动即加载 WASM，主线程展示首次加载指示
   const [引擎就绪, 设引擎就绪] = useState(引擎是否就绪);
   useEffect(() => 订阅引擎就绪(() => 设引擎就绪(引擎是否就绪())), []);
@@ -198,6 +215,14 @@ export default function Playground() {
 
   return (
     <div className="flex min-h-screen flex-col">
+      {/* 库浏览器免遮罩浮层：fixed 左侧滑入，不占布局、无遮罩层（issue #14 T3） */}
+      <库浏览器
+        表={会话.库.表}
+        实例名={实例名(会话.种子)}
+        打开={库浏览器开}
+        on关闭={关闭库浏览器}
+      />
+
       {/* 顶栏：glitch Logo + 域包分段控件 + 换一套 + 完成度迷你进度条 */}
       <header className="卡片 flex flex-wrap items-center justify-between gap-3 border-x-0 border-t-0 px-5 py-3">
         <h1 className="glitch标题 text-xl">SQL 演练场</h1>
@@ -230,6 +255,15 @@ export default function Playground() {
             className="卡片 硬阴影 按压 rounded-none px-3 py-1 font-medium"
           >
             换一套（新种子）
+          </button>
+          {/* 库浏览器浮层开关（issue #14 T3）：data 属性供浮层点外收起时豁免自身 */}
+          <button
+            data-库浏览器开关
+            onClick={() => 设库浏览器开((开) => !开)}
+            aria-expanded={库浏览器开}
+            className="卡片 硬阴影 按压 rounded-none px-3 py-1 font-medium"
+          >
+            库（Ctrl/⌘+B）
           </button>
         </div>
       </header>
@@ -373,10 +407,8 @@ export default function Playground() {
           )}
         </main>
 
-        {/* 右栏：库浏览器（T1 常驻，T3 再抽浮层）+ 提示与答案 + 完成度/种子信息卡 */}
+        {/* 右栏：提示与答案 + 完成度/种子信息卡（库浏览器已抽为免遮罩浮层，见 issue #14 T3） */}
         <aside className="入场 入场-3 w-full shrink-0 space-y-4 lg:w-80">
-          <库浏览器 表={会话.库.表} 实例名={实例名(会话.种子)} />
-
           <div className="卡片 硬阴影 rounded-none p-3">
             <提示与答案
               key={当前题号}
