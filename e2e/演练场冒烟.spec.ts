@@ -9,6 +9,15 @@ async function 打开演练场(page: Page, seed = 42) {
   await expect(page.getByRole("heading", { name: "SQL 演练场" })).toBeVisible();
 }
 
+/** 提交一次必然不通过的 SQL，累计一次"尝试"（issue #16 口径） */
+async function 记一次不通过尝试(page: Page) {
+  await 输入SQL(page, "SELECT 1");
+  await page.getByRole("button", { name: "验证", exact: true }).click();
+  await expect(
+    page.getByText(/不通过：结果集与预期不等价|ERROR|超出|防护/),
+  ).toBeVisible({ timeout: 15000 });
+}
+
 async function 输入SQL(page: Page, sql: string) {
   await page.locator(".cm-content").click();
   await page.keyboard.press("ControlOrMeta+a");
@@ -73,6 +82,10 @@ test("库浏览器浮层：点击外部任意处（含编辑器）收起；表�
 test("两层提示逐层揭示并随会话保留", async ({ page }) => {
   await 打开演练场(page);
   await expect(page.getByText("提示 1 · 思路：")).toBeHidden();
+  // 两级解锁（issue #16）：0 次尝试时提示锁定；先验证一次解锁
+  await expect(page.getByTestId("提示锁定说明")).toHaveText(/先验证一次解锁提示/);
+  await 记一次不通过尝试(page);
+  await expect(page.getByTestId("提示锁定说明")).toBeHidden();
   await page.getByRole("button", { name: /显示提示/ }).click();
   await expect(page.getByText("提示 1 · 思路：")).toBeVisible();
   await expect(page.getByText("提示 2 · 关键子句：")).toBeHidden();
@@ -84,10 +97,21 @@ test("两层提示逐层揭示并随会话保留", async ({ page }) => {
   await expect(page.getByText("提示 2 · 关键子句：")).toBeVisible();
 });
 
-test("参考答案：查看后标注已借助答案；按答案作答计完成度并持久", async ({ page }) => {
+test("参考答案：三次不通过尝试后解锁，确认框知情后标注已借助答案", async ({ page }) => {
   await 打开演练场(page);
+  // 两级解锁（issue #16）：锁定态直接标明解锁条件
+  await expect(page.getByTestId("答案锁定说明")).toHaveText(/再试 3 次或看提示后解锁答案/);
+  await 记一次不通过尝试(page);
+  await expect(page.getByTestId("答案锁定说明")).toHaveText(/再试 2 次或看提示后解锁答案/);
+  await 记一次不通过尝试(page);
+  await 记一次不通过尝试(page);
+  await expect(page.getByTestId("答案锁定说明")).toBeHidden();
+  // 解锁后先弹确认框（将记入进度），确认才展示
   await page.getByRole("button", { name: "查看参考答案" }).click();
-  await expect(page.getByText("已借助答案").first()).toBeVisible();
+  await expect(page.getByTestId("答案确认框")).toBeVisible();
+  await expect(page.getByText("已借助答案", { exact: true }).first()).toBeHidden();
+  await page.getByTestId("确认查看答案").click();
+  await expect(page.getByText("已借助答案", { exact: true }).first()).toBeVisible();
   const 答案 = await page.getByTestId("提示与答案").locator("pre").innerText();
 
   await 输入SQL(page, 答案);
@@ -104,7 +128,11 @@ test("参考答案：查看后标注已借助答案；按答案作答计完成�
 
 test("换一套后进度重置", async ({ page }) => {
   await 打开演练场(page, 43);
+  await 记一次不通过尝试(page);
+  await 记一次不通过尝试(page);
+  await 记一次不通过尝试(page);
   await page.getByRole("button", { name: "查看参考答案" }).click();
+  await page.getByTestId("确认查看答案").click();
   const 答案 = await page.getByTestId("提示与答案").locator("pre").innerText();
   await 输入SQL(page, 答案);
   await page.getByRole("button", { name: "验证", exact: true }).click();
@@ -113,4 +141,26 @@ test("换一套后进度重置", async ({ page }) => {
   await page.getByRole("button", { name: "换一套（新种子）" }).click();
   // 种子变化 → 进度键变化 → 完成度归零
   await expect(page.getByTestId("完成度")).toHaveText(/^已完成 0\//);
+});
+
+test("已通过的题提示与答案自由查看，通过后查看不挂已借助答案徽章（issue #16）", async ({ page }) => {
+  // 预置第 0 题已通过的进度（不经查看答案取得），验证通过后自由查看且不记借助
+  await page.goto("/?seed=42");
+  await page.evaluate(() => {
+    localStorage.setItem(
+      "sql-playground:progress:student-course-grade:42",
+      JSON.stringify({ 已通过题号: [0], 已看提示: {}, 已借助答案题号: [], 尝试次数: { "0": 3 } }),
+    );
+  });
+  await page.reload();
+  // 已通过 → 锁定说明不出现，提示/答案按钮均可用
+  await expect(page.getByTestId("提示锁定说明")).toBeHidden();
+  await expect(page.getByTestId("答案锁定说明")).toBeHidden();
+  await page.getByRole("button", { name: /显示提示/ }).click();
+  await expect(page.getByText("提示 1 · 思路：")).toBeVisible();
+  // 通过后查看答案：无确认框、直接展示、不挂徽章
+  await page.getByRole("button", { name: "查看参考答案" }).click();
+  await expect(page.getByTestId("答案确认框")).toBeHidden();
+  await expect(page.getByTestId("提示与答案").locator("pre")).toBeVisible();
+  await expect(page.getByText("已借助答案", { exact: true }).first()).toBeHidden();
 });

@@ -9,6 +9,8 @@ const eslintConfig = defineConfig([
   globalIgnores([
     // Default ignores of eslint-config-next:
     ".next/**",
+    // Agent worktrees（含各自的 .next 构建产物，见 .gitignore）
+    ".claude/worktrees/**",
     "out/**",
     "build/**",
     "next-env.d.ts",
