@@ -143,6 +143,21 @@ body {
 .入场-2 { animation-delay: 120ms; }
 .入场-3 { animation-delay: 240ms; }
 
+/* 库浏览器浮层左侧滑入（issue #14 T3）：免遮罩，从左侧 -16px 滑入就位 */
+@keyframes 浮层滑入 {
+  from {
+    opacity: 0;
+    transform: translateX(-16px);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(0);
+  }
+}
+.浮层滑入 {
+  animation: 浮层滑入 200ms ease both;
+}
+
 /* 通过章落章弹跳：scale 1.12 → 1 */
 @keyframes 落章 {
   0% { transform: scale(1.12); }

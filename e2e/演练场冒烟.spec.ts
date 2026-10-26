@@ -31,21 +31,43 @@ test("CodeMirror 编辑器渲染、行号与快捷键提交", async ({ page }) =
   await expect(page.getByText("预期结果")).toBeVisible();
 });
 
-test("库浏览器：表可折叠，展示列与数据预览", async ({ page }) => {
+// 库浏览器浮层（issue #14 T3）：默认隐藏，顶栏「库」按钮与 Cmd/Ctrl+B 切换，
+// 点击浮层外部（含编辑器）或按 ESC 收起；无遮罩层；表级折叠与数据预览保留。
+test("库浏览器浮层：默认隐藏，按钮与 Cmd/Ctrl+B 均可唤出", async ({ page }) => {
   await 打开演练场(page);
+  // 默认不可见
+  await expect(page.getByTestId("库浏览器浮层")).toBeHidden();
+  // 顶栏「库」按钮唤出
+  await page.getByRole("button", { name: "库（Ctrl/⌘+B）" }).click();
+  await expect(page.getByTestId("库浏览器浮层")).toBeVisible();
+  // ESC 收起
+  await page.keyboard.press("Escape");
+  await expect(page.getByTestId("库浏览器浮层")).toBeHidden();
+  // Cmd/Ctrl+B 唤出，再按一次切换收起
+  await page.keyboard.press("ControlOrMeta+b");
+  await expect(page.getByTestId("库浏览器浮层")).toBeVisible();
+  await page.keyboard.press("ControlOrMeta+b");
+  await expect(page.getByTestId("库浏览器浮层")).toBeHidden();
+  // 浮层关闭时焦点在编辑器内，按 ESC 不应弹出（无劫持）
+  await 输入SQL(page, "SELECT 1");
+  await page.keyboard.press("Escape");
+  await expect(page.getByTestId("库浏览器浮层")).toBeHidden();
+});
+
+test("库浏览器浮层：点击外部任意处（含编辑器）收起；表级折叠与预览保留", async ({ page }) => {
+  await 打开演练场(page);
+  await page.keyboard.press("ControlOrMeta+b");
   const 首表 = page.locator('details[data-testid="库表"]').first();
-  // 展开（默认可能收起，点击 summary 确保）
   const summary = 首表.locator("summary");
   await summary.click(); // 收起
   await expect(首表.locator("table")).toBeHidden();
   await summary.click(); // 再展开
   await expect(首表.locator("table")).toBeVisible();
   await expect(首表.locator("li").first()).toContainText(/INTEGER|TEXT/);
-  // 整体侧栏收起/展开
-  await page.getByRole("button", { name: "收起" }).click();
-  await expect(page.getByRole("button", { name: /库浏览器/ })).toBeVisible();
-  await page.getByRole("button", { name: /库浏览器/ }).click();
-  await expect(page.getByRole("button", { name: "收起" })).toBeVisible();
+  // 点击编辑器（浮层外）→ 浮层收起、无遮罩层
+  await page.locator(".cm-content").click();
+  await expect(page.getByTestId("库浏览器浮层")).toBeHidden();
+  await expect(page.locator(".cm-editor")).toBeVisible();
 });
 
 test("两层提示逐层揭示并随会话保留", async ({ page }) => {
