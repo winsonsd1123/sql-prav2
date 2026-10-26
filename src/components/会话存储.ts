@@ -75,6 +75,37 @@ export function 迁移进度(迁移: (p: 进度记录) => 进度记录): void {
   进度存储.写(迁移(进度存储.取快照()));
 }
 
+/** 草稿防抖保存器（issue #15）：编辑器逐键变更只在静默窗口后写一次进度，
+ * 避免逐键同步写 localStorage；切题/卸载前调用 立即刷新 落盘最后一次编辑。
+ * 写入函数注入以便单测（真实使用见 演练场 的 保存草稿）。 */
+export function 创建草稿保存器(
+  写入: (题号: number, SQL: string) => void,
+  静默毫秒 = 500,
+): { 排程: (题号: number, SQL: string) => void; 立即刷新: () => void } {
+  let 待写: { 题号: number; SQL: string } | null = null;
+  let 计时器: ReturnType<typeof setTimeout> | null = null;
+  const 落盘 = () => {
+    if (待写 === null) return;
+    const { 题号, SQL } = 待写;
+    待写 = null;
+    写入(题号, SQL);
+  };
+  return {
+    排程: (题号, SQL) => {
+      待写 = { 题号, SQL };
+      if (计时器 !== null) clearTimeout(计时器);
+      计时器 = setTimeout(落盘, 静默毫秒);
+    },
+    立即刷新: () => {
+      if (计时器 !== null) {
+        clearTimeout(计时器);
+        计时器 = null;
+      }
+      落盘();
+    },
+  };
+}
+
 /** 换一套：生成新种子（保留域包，同域包下换一套库与题），并同步 URL */
 export function 换一套种子(): void {
   const 新种子 = Math.floor(Math.random() * 1_000_000_000);

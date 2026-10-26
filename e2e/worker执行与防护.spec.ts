@@ -32,8 +32,11 @@ test("验证按钮走 Worker 路径：通过与不通过均正常返回", async 
   await page.getByRole("button", { name: "验证", exact: true }).click();
   await expect(page.getByText("不通过：结果集与预期不等价")).toBeVisible({ timeout: 10_000 });
   await expect(page.getByTestId("差异对照")).toBeVisible();
-  // 通过：按参考答案作答
+  // 答案两级解锁（issue #16）：再累计两次不通过尝试后解锁，确认查看
+  await page.getByRole("button", { name: "验证", exact: true }).click();
+  await page.getByRole("button", { name: "验证", exact: true }).click();
   await page.getByRole("button", { name: "查看参考答案" }).click();
+  await page.getByTestId("确认查看答案").click();
   const 答案 = await page.getByTestId("提示与答案").locator("pre").innerText();
   await 输入SQL(page, 答案);
   await page.getByRole("button", { name: "验证", exact: true }).click();
@@ -58,6 +61,8 @@ test("首次加载 WASM 有加载指示，随后就绪", async ({ page }) => {
 
 test("结果行数上限：三表笛卡尔积触发产品提示", async ({ page }) => {
   await 打开演练场(page);
+  // 库浏览器为免遮罩浮层（issue #14 T3）：先唤出再读表名
+  await page.keyboard.press("ControlOrMeta+b");
   const 全部表名 = await page.locator('[data-testid="库表"]').evaluateAll((els) =>
     els.map((e) => e.getAttribute("data-表名") as string),
   );
@@ -71,18 +76,22 @@ test("结果行数上限：三表笛卡尔积触发产品提示", async ({ page 
 
 test("执行超时：产品提示、期间 UI 可交互、Worker 重建后可继续判题", async ({ page }) => {
   await 打开演练场(page, 42, "&timeoutMs=300");
+  // 库浏览器浮层（issue #14 T3）：唤出后取实际表名
+  await page.keyboard.press("ControlOrMeta+b");
   const 表名 = await 取表名(page);
   // 六重自笛卡尔积 COUNT（20^6 次组合，结果 1 行，纯耗时）必然超过 300ms
   await 输入SQL(page, `SELECT COUNT(*) FROM ${表名} a, ${表名} b, ${表名} c, ${表名} d, ${表名} e, ${表名} f`);
+  // 浮层 fixed 覆盖主区左侧，先发起验证再用快捷键唤出浮层（不遮挡验证按钮点击）
   await page.getByRole("button", { name: "验证", exact: true }).click();
-  // 判定期间 UI 保持可交互：库浏览器收起按钮立即可点
+  // 判定期间 UI 保持可交互：快捷键唤出浮层，收起按钮立即可点
+  await page.keyboard.press("ControlOrMeta+b");
   await expect(page.getByRole("button", { name: "收起" })).toBeEnabled();
   await page.getByRole("button", { name: "收起" }).click();
   // 超时提示（产品文案，非 MySQL 错误）
   await expect(page.getByText(/秒上限，已自动终止/)).toBeVisible({ timeout: 10_000 });
   await expect(page.getByText("mysql&gt;")).toBeHidden();
-  // Worker 被终止后自动重建：普通查询可继续判题
-  await page.getByRole("button", { name: /库浏览器/ }).click();
+  // Worker 被终止后自动重建：普通查询可继续判题（快捷键再唤浮层确认表结构仍在）
+  await page.keyboard.press("ControlOrMeta+b");
   await 输入SQL(page, "SELECT 1");
   await page.getByRole("button", { name: "验证", exact: true }).click();
   await expect(page.getByText("不通过：结果集与预期不等价")).toBeVisible({ timeout: 15_000 });

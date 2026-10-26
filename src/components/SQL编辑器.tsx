@@ -13,6 +13,7 @@ import {
 } from "@codemirror/view";
 import { EditorState, Prec, type Extension } from "@codemirror/state";
 import { sql, SQLite } from "@codemirror/lang-sql";
+import { autocompletion } from "@codemirror/autocomplete";
 import { defaultKeymap, history, historyKeymap, indentWithTab } from "@codemirror/commands";
 import { syntaxHighlighting, defaultHighlightStyle, bracketMatching } from "@codemirror/language";
 import type { 表实例 } from "@/kernel/types";
@@ -25,6 +26,8 @@ export interface SQL编辑器属性 {
   /** 库实例：注入 SQL 补全 schema（表名/列名） */
   表: 表实例[];
   禁用?: boolean;
+  /** 粘贴/拖入被拦截时回调（issue #17 T6：用于编辑器上方横幅提示） */
+  on拦截粘贴?: () => void;
 }
 
 /** CodeMirror 需要的 schema 形态：表名 → 列名数组 */
@@ -32,14 +35,16 @@ export function 构造schema(表: 表实例[]): Record<string, string[]> {
   return Object.fromEntries(表.map((t) => [t.表名, t.列名]));
 }
 
-export default function SQL编辑器({ 值, onChange, onSubmit, 表, 禁用 }: SQL编辑器属性) {
+export default function SQL编辑器({ 值, onChange, onSubmit, 表, 禁用, on拦截粘贴 }: SQL编辑器属性) {
   const 容器 = useRef<HTMLDivElement>(null);
   const 视图 = useRef<EditorView | null>(null);
   const 提交回调 = useRef(onSubmit);
   const 值引用 = useRef(值);
+  const 拦截回调 = useRef(on拦截粘贴);
   useEffect(() => {
     提交回调.current = onSubmit;
     值引用.current = 值;
+    拦截回调.current = on拦截粘贴;
   });
 
   useEffect(() => {
@@ -50,18 +55,23 @@ export default function SQL编辑器({ 值, onChange, onSubmit, 表, 禁用 }: S
       history(),
       bracketMatching(),
       sql({ dialect: SQLite, schema: 构造schema(表) }),
+      // 表名/列名补全兜底（issue #17 T6）：禁粘贴强制手打，schema 补全必须实际可用
+      autocompletion(),
       syntaxHighlighting(defaultHighlightStyle, { fallback: true }),
       cm占位("在此输入单条 SELECT 语句……"),
       EditorView.lineWrapping,
+      // 主题注入（issue #12 T1）：颜色走语义 token 变量，随亮暗主题自动切换；
+      // 只调主题与外层窗口装饰，扩展结构与受控同步不动。
       EditorView.theme({
-        "&": { fontSize: "14px", backgroundColor: "transparent" },
-        ".cm-content": { fontFamily: "var(--font-geist-mono), ui-monospace, monospace" },
+        "&": { fontSize: "14px", backgroundColor: "var(--色-面板, #fff)", color: "var(--色-墨, #111)" },
+        ".cm-content": { fontFamily: "var(--font-jetbrains-mono), ui-monospace, monospace" },
         ".cm-gutters": {
-          backgroundColor: "transparent",
-          color: "var(--color-zinc-400, #a1a1aa)",
+          backgroundColor: "color-mix(in srgb, var(--色-墨, #111) 5%, transparent)",
+          color: "color-mix(in srgb, var(--色-墨, #111) 45%, transparent)",
           border: "none",
         },
-        ".cm-activeLine": { backgroundColor: "rgba(0,0,0,0.03)" },
+        ".cm-activeLine": { backgroundColor: "color-mix(in srgb, var(--色-强调, #0090a8) 8%, transparent)" },
+        "&.cm-focused": { outline: "2px solid var(--色-强调, #0090a8)" },
       }),
       Prec.highest(
         keymap.of([
@@ -75,6 +85,19 @@ export default function SQL编辑器({ 值, onChange, onSubmit, 表, 禁用 }: S
           },
         ]),
       ),
+      // 禁粘贴与拖入（issue #17 T6，ADR-0003 摩擦力设计）：
+      // 在 DOM 事件层拦截 paste 与 drop 并返回 true 阻止默认行为，
+      // 覆盖键盘 Cmd/Ctrl+V、右键粘贴与拖放文本；无任何例外通道。
+      EditorView.domEventHandlers({
+        paste: () => {
+          拦截回调.current?.();
+          return true;
+        },
+        drop: () => {
+          拦截回调.current?.();
+          return true;
+        },
+      }),
       keymap.of([...defaultKeymap, ...historyKeymap, indentWithTab]),
       EditorView.updateListener.of((更新) => {
         if (更新.docChanged) {
@@ -108,7 +131,7 @@ export default function SQL编辑器({ 值, onChange, onSubmit, 表, 禁用 }: S
     <div
       ref={容器}
       aria-label="SQL 编辑器"
-      className={`overflow-hidden rounded border border-zinc-300 bg-white dark:border-zinc-700 dark:bg-zinc-950 ${
+      className={`overflow-hidden bg-panel ${
         禁用 ? "pointer-events-none opacity-50" : ""
       }`}
     />
