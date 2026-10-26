@@ -1,4 +1,4 @@
-// 会话进度的纯函数状态机：通过题号、已看提示层级、已借助答案题号（issue #9）。
+// 会话进度的纯函数状态机：通过题号、已看提示层级、已借助答案题号、按题 SQL 草稿（issue #9、#15）。
 // 状态为不可变值，迁移函数返回新状态；持久化由调用方按 进度键 写入 localStorage。
 
 export interface 进度记录 {
@@ -8,9 +8,11 @@ export interface 进度记录 {
   已看提示: Record<string, number>;
   /** 已查看过参考答案的题号（0 起），查看后该题永久标注"已借助答案" */
   已借助答案题号: number[];
+  /** 题号 → SQL 草稿文本（issue #15）：切题保留、随会话（域包+种子）持久 */
+  草稿: Record<string, string>;
 }
 
-export const 空进度: 进度记录 = { 已通过题号: [], 已看提示: {}, 已借助答案题号: [] };
+export const 空进度: 进度记录 = { 已通过题号: [], 已看提示: {}, 已借助答案题号: [], 草稿: {} };
 
 /** 进度随会话（域包 + 种子）持久：换一套或换域包即换键，等价于重置 */
 export function 进度键(域包ID: string, 种子: number): string {
@@ -42,6 +44,25 @@ export function 完成度(进度: 进度记录, 总题数: number): { 已完成:
   return { 已完成: 进度.已通过题号.length, 总数: 总题数 };
 }
 
+/** 记录第 题号 题的 SQL 草稿（issue #15）：内容未变原样返回（幂等），空串清除该题草稿 */
+export function 记草稿(进度: 进度记录, 题号: number, SQL: string): 进度记录 {
+  const 键 = String(题号);
+  const 现有 = 进度.草稿[键];
+  if (SQL === "") {
+    if (现有 === undefined) return 进度;
+    const 新草稿 = { ...进度.草稿 };
+    delete 新草稿[键];
+    return { ...进度, 草稿: 新草稿 };
+  }
+  if (现有 === SQL) return 进度;
+  return { ...进度, 草稿: { ...进度.草稿, [键]: SQL } };
+}
+
+/** 读取第 题号 题的 SQL 草稿，无草稿回退空串 */
+export function 取草稿(进度: 进度记录, 题号: number): string {
+  return 进度.草稿[String(题号)] ?? "";
+}
+
 /** 题号 i 是否已借助答案 */
 export function 是否借助答案(进度: 进度记录, 题号: number): boolean {
   return 进度.已借助答案题号.includes(题号);
@@ -70,7 +91,14 @@ export function 解析进度(原始: string | null): 进度记录 {
         if (/^\d+$/.test(k) && (v === 1 || v === 2)) 提示[k] = v;
       }
     }
-    return { 已通过题号: obj.已通过题号 as number[], 已借助答案题号: 借助, 已看提示: 提示 };
+    // 草稿向后兼容（issue #15）：旧数据缺字段回退空草稿，只收留数字题号→字符串条目
+    const 草稿: Record<string, string> = {};
+    if (obj.草稿 && typeof obj.草稿 === "object") {
+      for (const [k, v] of Object.entries(obj.草稿)) {
+        if (/^\d+$/.test(k) && typeof v === "string") 草稿[k] = v;
+      }
+    }
+    return { 已通过题号: obj.已通过题号 as number[], 已借助答案题号: 借助, 已看提示: 提示, 草稿 };
   } catch {
     return 空进度;
   }
