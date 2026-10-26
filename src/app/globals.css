@@ -1,26 +1,168 @@
 @import "tailwindcss";
 
-:root {
-  --background: #ffffff;
-  --foreground: #171717;
-}
+/* ============================================================
+   「霓虹练习簿」主题层（issue #12 / T1）
+   语义 token 只在本文件定义一次：暗色 = 霓虹夜城，亮色 = 白日都市。
+   dark: variant 跟随系统（prefers-color-scheme），无手动切换。
+   绿=通过 / 紫=借助答案 / 红=错误 的语义色严格与交互青、琥珀警示分离。
+   ============================================================ */
 
-@theme inline {
-  --color-background: var(--background);
-  --color-foreground: var(--foreground);
-  --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
+:root {
+  /* 亮色（白日都市） */
+  --色-底: #eef0f4;
+  --色-面板: #ffffff;
+  --色-边框: #111318;
+  --色-墨: #111318;
+  --色-强调: #0090a8;
+  --色-通过: #0a9e63;
+  --色-借助: #7c1fd6;
+  --色-错误: #d61f4e;
+  --色-警示: #b59400;
 }
 
 @media (prefers-color-scheme: dark) {
   :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
+    /* 暗色（霓虹夜城） */
+    --色-底: #0a0e14;
+    --色-面板: #131822;
+    --色-边框: #dbe4f0;
+    --色-墨: #e8ecf4;
+    --色-强调: #00e5ff;
+    --色-通过: #00ff9f;
+    --色-借助: #b026ff;
+    --色-错误: #ff2a6d;
+    --色-警示: #fcee0a;
   }
 }
 
+@theme inline {
+  --color-bg: var(--色-底);
+  --color-panel: var(--色-面板);
+  --color-border-strong: var(--色-边框);
+  --color-ink: var(--色-墨);
+  --color-accent: var(--色-强调);
+  --color-pass: var(--色-通过);
+  --color-assist: var(--色-借助);
+  --color-fail: var(--色-错误);
+  --color-warn: var(--色-警示);
+  /* 代码/题号/种子/表格数据/进度数字统一等宽字体（layout 注入 JetBrains Mono） */
+  --font-mono: var(--font-jetbrains-mono), ui-monospace, "SF Mono", monospace;
+  /* 正文/题面/UI：系统中文字体栈 */
+  --font-sans: "PingFang SC", "Hiragino Sans GB", "Microsoft YaHei", "Noto Sans SC",
+    system-ui, sans-serif;
+}
+
+/* ---------- 基底：网格纸 / 扫描线纹理 ---------- */
+
 body {
-  background: var(--background);
-  color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+  background-color: var(--色-底);
+  color: var(--色-墨);
+  font-family: var(--font-sans);
+  /* 亮色：细网格纸；暗色：极淡青网格（3%） */
+  background-image: linear-gradient(
+      to right,
+      color-mix(in srgb, var(--网格色) 100%, transparent) 1px,
+      transparent 1px
+    ),
+    linear-gradient(
+      to bottom,
+      color-mix(in srgb, var(--网格色) 100%, transparent) 1px,
+      transparent 1px
+    );
+  background-size: 28px 28px;
+  --网格色: color-mix(in srgb, var(--色-墨) 4%, transparent);
+}
+
+@media (prefers-color-scheme: dark) {
+  body {
+    /* 暗色网格改用极淡电光青 */
+    --网格色: color-mix(in srgb, var(--色-强调) 3%, transparent);
+  }
+}
+
+/* ---------- 新粗野主义构件 ---------- */
+
+/* 粗边贴纸卡：2-3px 粗描边 + 面板底 */
+.卡片 {
+  background: var(--色-面板);
+  border: 2px solid var(--色-边框);
+}
+
+/* 硬偏移阴影（无模糊）：默认墨色；语义变体在暗色下投对应霓虹色，亮色统一纯黑 */
+.硬阴影 {
+  box-shadow: 4px 4px 0 var(--硬阴影色, var(--色-墨));
+}
+.硬阴影-强调 { --硬阴影色: var(--色-强调); }
+.硬阴影-通过 { --硬阴影色: var(--色-通过); }
+.硬阴影-借助 { --硬阴影色: var(--色-借助); }
+.硬阴影-错误 { --硬阴影色: var(--色-错误); }
+
+@media (prefers-color-scheme: light) {
+  .硬阴影-强调,
+  .硬阴影-通过,
+  .硬阴影-借助,
+  .硬阴影-错误 {
+    --硬阴影色: #111318;
+  }
+}
+
+/* 实体按压动效：hover 位移 2px + 阴影收缩 */
+.按压 {
+  transition: transform 120ms ease, box-shadow 120ms ease;
+}
+.按压:hover:not(:disabled) {
+  transform: translate(2px, 2px);
+  box-shadow: 2px 2px 0 var(--硬阴影色, var(--色-墨));
+}
+
+/* ---------- 标题 glitch 双色残影（仅顶栏 Logo 与会话总结大标题用） ---------- */
+
+.glitch标题 {
+  font-weight: 900;
+  letter-spacing: 0.02em;
+  transform: skewX(-4deg);
+  text-shadow: 2px 0 var(--色-错误), -2px 0 var(--色-强调);
+}
+
+/* ---------- 动效（纯 CSS） ---------- */
+
+/* 三区块 stagger 入场：120ms 间隔 */
+@keyframes 入场上浮 {
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+.入场 {
+  animation: 入场上浮 360ms ease both;
+}
+.入场-2 { animation-delay: 120ms; }
+.入场-3 { animation-delay: 240ms; }
+
+/* 通过章落章弹跳：scale 1.12 → 1 */
+@keyframes 落章 {
+  0% { transform: scale(1.12); }
+  60% { transform: scale(0.96); }
+  100% { transform: scale(1); }
+}
+.落章 { animation: 落章 280ms ease-out; }
+
+/* 引擎加载中：警示色呼吸灯 */
+@keyframes 呼吸 {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.35; }
+}
+.呼吸 { animation: 呼吸 1.4s ease-in-out infinite; }
+
+/* 暗色霓虹 glow 脉冲（验证按钮） */
+@keyframes 霓虹脉冲 {
+  0%, 100% { box-shadow: 4px 4px 0 var(--色-强调), 0 0 0 color-mix(in srgb, var(--色-强调) 0%, transparent); }
+  50% { box-shadow: 4px 4px 0 var(--色-强调), 0 0 14px color-mix(in srgb, var(--色-强调) 45%, transparent); }
+}
+@media (prefers-color-scheme: dark) {
+  .霓虹按钮:not(:disabled):not(:hover) { animation: 霓虹脉冲 2.4s ease-in-out infinite; }
 }
