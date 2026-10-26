@@ -32,7 +32,9 @@ import {
   记草稿,
   取草稿,
   下一未通过题,
+  完成分档统计,
 } from "@/components/进度";
+import 会话总结 from "@/components/会话总结";
 import type { 判定结果, 题目实例 } from "@/kernel/types";
 
 // UI 编排组件：会话级本地状态（种子/域包/进度）在 会话存储，判题在 Worker，
@@ -137,6 +139,22 @@ export default function Playground() {
   // 进度随会话（域包+种子）持久于 localStorage；换一套/换域包即换键，天然重置
   const 进度 = useSyncExternalStore(进度存储.订阅, 进度存储.取快照, () => 空进度);
 
+  // 会话总结（issue #19 T8）：触发语义为「事件性」——仅在"从非全通过变为全通过"
+  // 的时刻弹出；刷新载入已全通过的进度（首帧即全通过）不重弹。新会话（换一套/换域包）
+  // 重置进度后，再次全通过会重新触发。
+  const [总结开, 设总结开] = useState(false);
+  const 上一全通过 = useRef<boolean | null>(null);
+  useEffect(() => {
+    if (!会话) return;
+    const 全通过 = 进度.已通过题号.length === 会话.题目.length;
+    if (上一全通过.current === null) {
+      上一全通过.current = 全通过; // 首帧：记录基线，不触发（刷新已全通过不重弹）
+      return;
+    }
+    if (全通过 && !上一全通过.current) 设总结开(true);
+    上一全通过.current = 全通过;
+  }, [进度, 会话]);
+
   // SQL 草稿按题保留并随进度持久（issue #15）：逐键编辑走防抖写（500ms 静默窗口），
   // 切题/换会话/卸载前立即刷新，避免丢最后一次编辑。
   const 草稿保存器 = useMemo(
@@ -217,6 +235,7 @@ export default function Playground() {
     设SQL输入("");
     设当前题号(0);
     设通过反馈(null); // 换会话后旧反馈条与倒计时不再有意义
+    设总结开(false); // 旧会话的总结卡随换会话关闭
   }
 
   function 换一套() {
@@ -265,6 +284,17 @@ export default function Playground() {
         打开={库浏览器开}
         on关闭={关闭库浏览器}
       />
+
+      {/* 会话总结卡（issue #19 T8）：全部通过时右下滑入，免遮罩不挡回顾 */}
+      {总结开 && 会话 && (
+        <会话总结
+          分档={完成分档统计(进度, 会话.题目.length)}
+          已完成={进度.已通过题号.length}
+          总数={会话.题目.length}
+          on再来一套={换一套}
+          on关闭={() => 设总结开(false)}
+        />
+      )}
 
       {/* 顶栏：glitch Logo + 域包分段控件 + 换一套 + 完成度迷你进度条 */}
       <header className="卡片 flex flex-wrap items-center justify-between gap-3 border-x-0 border-t-0 px-5 py-3">

@@ -268,3 +268,59 @@ test("已通过题再次验证不弹反馈条不跳转；全部通过时不跳�
   await page.waitForTimeout(2200);
   await expect(page.getByText("第 1/10 题")).toBeVisible(); // 不跳转，停在原题
 });
+
+// ===== 会话总结与完成分档（issue #19 T8）=====
+
+/** 预置 9 题通过的三档混合进度（题 0 待做），并解锁题 0 参考答案（3 次尝试） */
+async function 预置混合进度(page: Page) {
+  await page.goto("/?seed=42");
+  await 预置进度(page, {
+    已通过题号: [1, 2, 3, 4, 5, 6, 7, 8, 9],
+    // 1 起题号：题 3、4 看过提示；题 10 借助答案；其余 6 题独立完成
+    已看提示: { "2": 1, "3": 1 },
+    已借助答案题号: [9],
+    尝试次数: { "0": 3 },
+  });
+  await page.getByRole("button", { name: "查看参考答案" }).click();
+  await page.getByTestId("确认查看答案").click();
+  const 答案 = await page.getByTestId("提示与答案").locator("pre").innerText();
+  await 输入SQL(page, 答案);
+  await page.getByRole("button", { name: "验证", exact: true }).click();
+  await expect(page.getByTestId("会话总结卡")).toBeVisible({ timeout: 15000 });
+}
+
+test("全部通过弹出会话总结卡，三档统计正确；再来一套进入全新会话（issue #19）", async ({
+  page,
+}) => {
+  await 预置混合进度(page);
+  // 题 0 借助答案通过 → 独立 6 · 提示 2 · 答案 2；总通过 10/10
+  await expect(page.getByTestId("分档-独立")).toContainText("独立");
+  await expect(page.getByTestId("分档-独立")).toContainText("6");
+  await expect(page.getByTestId("分档-提示")).toContainText("提示");
+  await expect(page.getByTestId("分档-提示")).toContainText("2");
+  await expect(page.getByTestId("分档-答案")).toContainText("答案");
+  await expect(page.getByTestId("分档-答案")).toContainText("2");
+  await expect(page.getByTestId("会话总结卡")).toContainText("10/10");
+
+  // 再来一套：换种子 → 进度归零、总结卡关闭
+  await page.getByTestId("再来一套按钮").click();
+  await expect(page.getByTestId("完成度")).toHaveText(/^已完成 0\//);
+  await expect(page.getByTestId("会话总结卡")).toBeHidden();
+});
+
+test("回顾题目关闭总结卡后可点目录回看；刷新已全通过不重弹（issue #19）", async ({
+  page,
+}) => {
+  await 预置混合进度(page);
+  await page.getByTestId("回顾题目按钮").click();
+  await expect(page.getByTestId("会话总结卡")).toBeHidden();
+  // 回到最后一题界面，目录仍可点选回顾
+  await expect(page.getByText("第 1/10 题")).toBeVisible();
+  await page.getByRole("button", { name: /#05/ }).click();
+  await expect(page.getByText("第 5/10 题")).toBeVisible();
+
+  // 触发语义为事件性：刷新载入已全通过的进度不重弹总结卡
+  await page.reload();
+  await expect(page.getByTestId("完成度")).toHaveText("已完成 10/10");
+  await expect(page.getByTestId("会话总结卡")).toBeHidden();
+});
