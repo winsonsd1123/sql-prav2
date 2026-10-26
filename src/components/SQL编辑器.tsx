@@ -13,6 +13,7 @@ import {
 } from "@codemirror/view";
 import { EditorState, Prec, type Extension } from "@codemirror/state";
 import { sql, SQLite } from "@codemirror/lang-sql";
+import { autocompletion } from "@codemirror/autocomplete";
 import { defaultKeymap, history, historyKeymap, indentWithTab } from "@codemirror/commands";
 import { syntaxHighlighting, defaultHighlightStyle, bracketMatching } from "@codemirror/language";
 import type { 表实例 } from "@/kernel/types";
@@ -25,6 +26,8 @@ export interface SQL编辑器属性 {
   /** 库实例：注入 SQL 补全 schema（表名/列名） */
   表: 表实例[];
   禁用?: boolean;
+  /** 粘贴/拖入被拦截时回调（issue #17 T6：用于编辑器上方横幅提示） */
+  on拦截粘贴?: () => void;
 }
 
 /** CodeMirror 需要的 schema 形态：表名 → 列名数组 */
@@ -32,14 +35,16 @@ export function 构造schema(表: 表实例[]): Record<string, string[]> {
   return Object.fromEntries(表.map((t) => [t.表名, t.列名]));
 }
 
-export default function SQL编辑器({ 值, onChange, onSubmit, 表, 禁用 }: SQL编辑器属性) {
+export default function SQL编辑器({ 值, onChange, onSubmit, 表, 禁用, on拦截粘贴 }: SQL编辑器属性) {
   const 容器 = useRef<HTMLDivElement>(null);
   const 视图 = useRef<EditorView | null>(null);
   const 提交回调 = useRef(onSubmit);
   const 值引用 = useRef(值);
+  const 拦截回调 = useRef(on拦截粘贴);
   useEffect(() => {
     提交回调.current = onSubmit;
     值引用.current = 值;
+    拦截回调.current = on拦截粘贴;
   });
 
   useEffect(() => {
@@ -50,6 +55,8 @@ export default function SQL编辑器({ 值, onChange, onSubmit, 表, 禁用 }: S
       history(),
       bracketMatching(),
       sql({ dialect: SQLite, schema: 构造schema(表) }),
+      // 表名/列名补全兜底（issue #17 T6）：禁粘贴强制手打，schema 补全必须实际可用
+      autocompletion(),
       syntaxHighlighting(defaultHighlightStyle, { fallback: true }),
       cm占位("在此输入单条 SELECT 语句……"),
       EditorView.lineWrapping,
@@ -78,6 +85,19 @@ export default function SQL编辑器({ 值, onChange, onSubmit, 表, 禁用 }: S
           },
         ]),
       ),
+      // 禁粘贴与拖入（issue #17 T6，ADR-0003 摩擦力设计）：
+      // 在 DOM 事件层拦截 paste 与 drop 并返回 true 阻止默认行为，
+      // 覆盖键盘 Cmd/Ctrl+V、右键粘贴与拖放文本；无任何例外通道。
+      EditorView.domEventHandlers({
+        paste: () => {
+          拦截回调.current?.();
+          return true;
+        },
+        drop: () => {
+          拦截回调.current?.();
+          return true;
+        },
+      }),
       keymap.of([...defaultKeymap, ...historyKeymap, indentWithTab]),
       EditorView.updateListener.of((更新) => {
         if (更新.docChanged) {
