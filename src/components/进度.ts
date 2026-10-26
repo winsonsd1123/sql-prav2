@@ -53,6 +53,19 @@ export function 答案是否解锁(进度: 进度记录, 题号: number): boolea
   return 已看 >= 1 && 尝试 >= 2;
 }
 
+/**
+ * 距答案解锁还差的尝试次数（口径与 答案是否解锁 一致）：
+ * 已通过或已解锁返回 0；否则按门槛（已看提示 ≥1 层为 2 次，否则 3 次）减去已有尝试。
+ * 门槛知识归本模块单一来源，UI 只展示不重述。
+ */
+export function 答案解锁还差尝试(进度: 进度记录, 题号: number): number {
+  if (答案是否解锁(进度, 题号)) return 0;
+  const 尝试 = 进度.尝试次数[String(题号)] ?? 0;
+  const 已看 = 进度.已看提示[String(题号)] ?? 0;
+  const 门槛 = 已看 >= 1 ? 2 : 3;
+  return Math.max(0, 门槛 - 尝试);
+}
+
 /** 记录第 i 题通过（幂等） */
 export function 记通过(进度: 进度记录, 题号: number): 进度记录 {
   if (进度.已通过题号.includes(题号)) return 进度;
@@ -65,12 +78,6 @@ export function 揭示下一层提示(进度: 进度记录, 题号: number): [�
   if (已看 >= 2) return [进度, 2];
   const 新层数 = 已看 + 1;
   return [{ ...进度, 已看提示: { ...进度.已看提示, [String(题号)]: 新层数 } }, 新层数];
-}
-
-/** 标记第 题号 题已借助答案（幂等） */
-export function 借助答案(进度: 进度记录, 题号: number): 进度记录 {
-  if (进度.已借助答案题号.includes(题号)) return 进度;
-  return { ...进度, 已借助答案题号: [...进度.已借助答案题号, 题号] };
 }
 
 /**

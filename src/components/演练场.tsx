@@ -29,6 +29,7 @@ import {
   是否已通过,
   提示是否解锁,
   答案是否解锁,
+  答案解锁还差尝试,
   记草稿,
   取草稿,
   下一未通过题,
@@ -120,7 +121,7 @@ export default function Playground() {
   }, [通过反馈, 会话]);
 
   // 禁粘贴横幅（issue #17 T6）：拦截时编辑器上方提示约 2 秒，
-  // 同一页面生命周期内只弹一次（连续触发不刷屏，ADR-0003 摩擦力设计）。
+  // 同一会话内只弹一次（连续触发不刷屏，ADR-0003 摩擦力设计）；换一套即新会话，可再弹一次。
   const [显示禁粘横幅, 设显示禁粘横幅] = useState(false);
   const 已弹过禁粘横幅 = useRef(false);
   const 禁粘横幅计时器 = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -130,7 +131,7 @@ export default function Playground() {
     };
   }, []);
   function 提示禁粘贴() {
-    if (已弹过禁粘横幅.current) return; // 会话内不重复弹
+    if (已弹过禁粘横幅.current) return; // 同一会话内不重复弹
     已弹过禁粘横幅.current = true;
     设显示禁粘横幅(true);
     禁粘横幅计时器.current = setTimeout(() => 设显示禁粘横幅(false), 2000);
@@ -242,6 +243,7 @@ export default function Playground() {
     草稿保存器.立即刷新(); // 先把待写草稿落盘到旧会话的进度键，再换键
     换一套种子();
     重置作答();
+    已弹过禁粘横幅.current = false; // 新会话可再弹一次禁粘贴规则提示
   }
 
   function 切换域包(目标域包ID: string) {
@@ -251,29 +253,32 @@ export default function Playground() {
     重置作答();
   }
 
-  /** 切题：先落盘当前题待写草稿，再切换并恢复目标题已有草稿（issue #15） */
+  /** 切题：先落盘当前题待写草稿，再切换并恢复目标题已有草稿（issue #15）。
+   *  草稿从 进度存储 实时快照读取（而非渲染闭包里的旧 进度）：
+   *  防抖窗口内编辑→切题→切回时，落盘后的最新草稿才能被正确恢复。 */
   function 切换题目(目标题号: number) {
     草稿保存器.立即刷新();
     设当前题号(目标题号);
     设结果(null);
-    设SQL输入(取草稿(进度, 目标题号));
+    设SQL输入(取草稿(进度存储.取快照(), 目标题号));
   }
 
-  /** 左栏题目目录行：状态章样式（已过=通过描边 / 借助答案=紫 / 未做=虚线 / 当前=强调实底） */
-  function 题目行类(i: number): string {
-    if (i === 当前题号) return "bg-accent text-bg border-border-strong";
-    if (进度.已借助答案题号.includes(i))
-      return "text-assist border-assist";
-    if (进度.已通过题号.includes(i)) return "text-pass border-pass";
-    return "text-ink/55 border-dashed border-ink/40";
+  /** 左栏题目目录行状态（同一级联两处查表共享）：当前 > 借助答案 > 通过 > 未做 */
+  type 题目行状态 = "当前" | "借助" | "通过" | "未做";
+  function 题目行状态(i: number): 题目行状态 {
+    if (i === 当前题号) return "当前";
+    if (进度.已借助答案题号.includes(i)) return "借助";
+    if (进度.已通过题号.includes(i)) return "通过";
+    return "未做";
   }
-
-  function 题目行章(i: number): string {
-    if (i === 当前题号) return "▶";
-    if (进度.已借助答案题号.includes(i)) return "✗";
-    if (进度.已通过题号.includes(i)) return "✓";
-    return "·";
-  }
+  // 行样式：已过=通过描边 / 借助答案=紫 / 未做=虚线 / 当前=强调实底
+  const 题目行类表: Record<题目行状态, string> = {
+    当前: "bg-accent text-bg border-border-strong",
+    借助: "text-assist border-assist",
+    通过: "text-pass border-pass",
+    未做: "text-ink/70 border-dashed border-ink/40",
+  };
+  const 题目行章表: Record<题目行状态, string> = { 当前: "▶", 借助: "✗", 通过: "✓", 未做: "·" };
 
   return (
     <div className="flex min-h-screen flex-col">
@@ -344,7 +349,7 @@ export default function Playground() {
       {/* 三栏：左题目目录 / 中工作区 / 右辅助卡；小屏全单列 */}
       <div className="flex flex-1 flex-col gap-4 p-4 lg:flex-row">
         {/* 左栏：题目目录（票据风，虚线分行；点击行为与原题号圆点一致） */}
-        <aside className="入场 w-full shrink-0 lg:w-56">
+        <aside className="入场 w-full shrink-0 lg:w-52">
           <div className="卡片 硬阴影 rounded-none">
             <p className="border-b-2 border-dashed border-ink/30 px-3 py-2 text-xs font-medium text-ink/60">
               题目目录（{会话.题目.length} 题）
@@ -355,11 +360,11 @@ export default function Playground() {
                   key={i}
                   title={`${题.知识点}（难度 ${题.难度}）`}
                   onClick={() => 切换题目(i)}
-                  className={`flex items-center gap-2 border-b border-dashed border-ink/20 px-3 py-1.5 text-left text-xs last:border-b-0 hover:bg-ink/5 ${题目行类(i)}`}
+                  className={`flex items-center gap-2 border-b border-dashed border-ink/20 px-3 py-1.5 text-left text-xs last:border-b-0 hover:bg-ink/5 ${题目行类表[题目行状态(i)]}`}
                 >
                   <span className="font-mono font-semibold">#{String(i + 1).padStart(2, "0")}</span>
                   <span className="min-w-0 flex-1 truncate">{题.知识点}</span>
-                  <span className="font-mono">{题目行章(i)}</span>
+                  <span className="font-mono">{题目行章表[题目行状态(i)]}</span>
                 </button>
               ))}
             </nav>
@@ -481,13 +486,13 @@ export default function Playground() {
                 </div>
               )}
               {结果.判定 === "拦截" && (
-                <p className="硬阴影 硬阴影-错误 rounded-none border-2 border-warn bg-panel px-4 py-2 text-warn">
+                <p className="硬阴影 硬阴影-警示 rounded-none border-2 border-warn bg-panel px-4 py-2 text-warn">
                   {结果.错误信息}
                 </p>
               )}
               {结果.判定 === "错误" && (
                 /* 错误终端：mysql> 黑窗、等宽、fail 色错误文本 */
-                <pre className="硬阴影 硬阴影-错误 overflow-auto rounded-none border-2 border-border-strong bg-bg p-3 font-mono text-sm leading-relaxed">
+                <pre className="硬阴影 硬阴影-错误 overflow-auto rounded-none border-2 border-border-strong bg-deep p-3 font-mono text-sm leading-relaxed">
                   <span className="text-ink/50">mysql&gt; </span>
                   <span className="text-ink">{SQL输入}</span>
                   {"\n"}
@@ -511,7 +516,7 @@ export default function Playground() {
         </main>
 
         {/* 右栏：提示与答案 + 完成度/种子信息卡（库浏览器已抽为免遮罩浮层，见 issue #14 T3） */}
-        <aside className="入场 入场-3 w-full shrink-0 space-y-4 lg:w-80">
+        <aside className="入场 入场-3 w-full shrink-0 space-y-4 lg:w-72">
           <div className="卡片 硬阴影 rounded-none p-3">
             <提示与答案
               key={当前题号}
@@ -519,10 +524,13 @@ export default function Playground() {
               参考答案={题目.参考答案}
               已看层数={进度.已看提示[String(当前题号)] ?? 0}
               已借助答案={是否借助答案(进度, 当前题号)}
-              已通过={是否已通过(进度, 当前题号)}
-              提示已解锁={提示是否解锁(进度, 当前题号)}
-              答案已解锁={答案是否解锁(进度, 当前题号)}
-              尝试次数={进度.尝试次数[String(当前题号)] ?? 0}
+              解锁状态={{
+                已通过: 是否已通过(进度, 当前题号),
+                提示已解锁: 提示是否解锁(进度, 当前题号),
+                答案已解锁: 答案是否解锁(进度, 当前题号),
+                尝试次数: 进度.尝试次数[String(当前题号)] ?? 0,
+              }}
+              答案还差尝试={答案解锁还差尝试(进度, 当前题号)}
               on揭示提示={() => 迁移进度((p) => 揭示下一层提示(p, 当前题号)[0])}
               on查看答案={() => 迁移进度((p) => 查看答案(p, 当前题号)[0])}
             />
@@ -532,8 +540,9 @@ export default function Playground() {
           <div className="卡片 硬阴影 rounded-none p-3 font-mono text-xs">
             <p className="mb-2 text-ink/60">会话进度</p>
             <div className="mb-2 h-3 border-2 border-border-strong bg-bg">
+              {/* 中性墨色填充：右栏避免与提示 warn/答案 assist/通过 pass 语义色同屏并置抢焦点 */}
               <div
-                className="h-full bg-accent"
+                className="h-full bg-ink"
                 style={{ width: `${总数 === 0 ? 0 : (已完成 / 总数) * 100}%` }}
               />
             </div>

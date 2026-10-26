@@ -36,12 +36,15 @@ export default function LibraryBrowser({
     return () => document.removeEventListener("mousedown", 在外按下);
   }, [打开, on关闭]);
 
-  if (!打开) return null;
+  // 挂载保活（spec 故事 31）：关闭只置 hidden 不卸载，表级 <details> 折叠状态得以保留；
+  // display:none → 可见的切换会让 浮层滑入 动画重新播放，开合动效不受影响。
   return (
     <aside
       ref={浮层引用}
+      hidden={!打开}
       data-testid="库浏览器浮层"
       aria-label="库浏览器"
+      aria-hidden={!打开}
       // 免遮罩浮层：fixed 左侧滑入（动画类 浮层滑入 见 globals.css）；无任何遮罩层
       className="浮层滑入 卡片 硬阴影 fixed top-4 bottom-4 left-4 z-40 w-80 max-w-[85vw] overflow-y-auto rounded-none p-3"
     >
