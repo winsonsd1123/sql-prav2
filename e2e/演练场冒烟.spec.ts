@@ -142,3 +142,107 @@ test("已通过的题提示与答案自由查看，通过后查看不挂已借�
   await expect(page.getByTestId("提示与答案").locator("pre")).toBeVisible();
   await expect(page.getByText("已借助答案", { exact: true }).first()).toBeHidden();
 });
+
+// ===== 通过后自动流转（issue #18 T7）=====
+
+/** 预置 seed=42 会话进度（域包A 默认），并刷新生效 */
+async function 预置进度(page: Page, 进度: object) {
+  await page.evaluate((数据) => {
+    localStorage.setItem(
+      "sql-playground:progress:student-course-grade:42",
+      JSON.stringify(数据),
+    );
+  }, 进度);
+  await page.reload();
+}
+
+/** 解锁并用出第 0 题参考答案并验证通过（预置 3 次尝试即可解锁答案） */
+async function 通过第0题(page: Page) {
+  await page.goto("/?seed=42");
+  await 预置进度(page, {
+    已通过题号: [],
+    已看提示: {},
+    已借助答案题号: [],
+    尝试次数: { "0": 3 },
+  });
+  await page.getByRole("button", { name: "查看参考答案" }).click();
+  await page.getByTestId("确认查看答案").click();
+  const 答案 = await page.getByTestId("提示与答案").locator("pre").innerText();
+  await 输入SQL(page, 答案);
+  await page.getByRole("button", { name: "验证", exact: true }).click();
+  await expect(page.getByTestId("通过反馈条")).toBeVisible({ timeout: 15000 });
+}
+
+test("通过后 1.5 秒自动跳到环形查找的下一未通过题并恢复草稿（issue #18）", async ({ page }) => {
+  // 题 1 已通过、题 0 刚通过 → 目标应为题 2；预置题 2 草稿验证跳转恢复
+  await page.goto("/?seed=42");
+  await 预置进度(page, {
+    已通过题号: [1],
+    已看提示: {},
+    已借助答案题号: [],
+    尝试次数: { "0": 3 },
+    草稿: { "2": "-- 我是第3题草稿" },
+  });
+  await page.getByRole("button", { name: "查看参考答案" }).click();
+  await page.getByTestId("确认查看答案").click();
+  const 答案 = await page.getByTestId("提示与答案").locator("pre").innerText();
+  await 输入SQL(page, 答案);
+  await page.getByRole("button", { name: "验证", exact: true }).click();
+  await expect(page.getByTestId("通过反馈条")).toBeVisible({ timeout: 15000 });
+  await expect(page.getByTestId("通过反馈条")).toContainText("第 3 题");
+
+  // 1.5 秒倒计时真实等待（含渲染余量）→ 自动切到第 3 题，草稿随之恢复
+  await expect(page.getByText("第 3/10 题")).toBeVisible({ timeout: 4000 });
+  await expect(page.locator(".cm-content")).toContainText("我是第3题草稿");
+  await expect(page.getByTestId("通过反馈条")).toBeHidden(); // 切题后反馈条消失
+});
+
+test("倒计时内继续编辑取消自动跳转，反馈条转常驻保留手动按钮（issue #18）", async ({ page }) => {
+  await 通过第0题(page);
+  // 立即在编辑器继续打字 → 取消自动跳转
+  await page.locator(".cm-content").click();
+  await page.keyboard.type("SELECT 9");
+  await expect(page.getByTestId("通过反馈条")).toContainText(
+    "下一道未通过：第 2 题",
+  );
+  await expect(page.getByTestId("下一题按钮")).toBeVisible();
+  // 超过倒计时窗口仍在原题，未跳转
+  await page.waitForTimeout(2500);
+  await expect(page.getByText("第 1/10 题")).toBeVisible();
+  await expect(page.getByTestId("通过反馈条")).toBeVisible();
+  // 手动按钮仍可立即跳转
+  await page.getByTestId("下一题按钮").click();
+  await expect(page.getByText("第 2/10 题")).toBeVisible();
+});
+
+test("已通过题再次验证不弹反馈条不跳转；全部通过时不跳转（issue #18）", async ({ page }) => {
+  await 通过第0题(page);
+  await page.waitForTimeout(2200); // 先让自动跳转过去
+  // 切回已通过的第 0 题再验证一次 → 无反馈条、无跳转
+  await page.getByRole("button", { name: /#01/ }).click();
+  await page.getByRole("button", { name: "验证", exact: true }).click();
+  await expect(page.getByText("通过！结果集与预期等价。")).toBeVisible({
+    timeout: 15000,
+  });
+  await expect(page.getByTestId("通过反馈条")).toBeHidden();
+  await page.waitForTimeout(2200);
+  await expect(page.getByText("第 1/10 题")).toBeVisible();
+
+  // 全部通过场景：题 1-9 预置已通过，通过题 0 后目标为 null → 停在原题
+  await 预置进度(page, {
+    已通过题号: [1, 2, 3, 4, 5, 6, 7, 8, 9],
+    已看提示: {},
+    已借助答案题号: [],
+    尝试次数: { "0": 3 },
+  });
+  await page.getByRole("button", { name: "查看参考答案" }).click();
+  await page.getByTestId("确认查看答案").click();
+  const 答案 = await page.getByTestId("提示与答案").locator("pre").innerText();
+  await 输入SQL(page, 答案);
+  await page.getByRole("button", { name: "验证", exact: true }).click();
+  await expect(page.getByTestId("通过反馈条")).toContainText("全部题目已通过", {
+    timeout: 15000,
+  });
+  await page.waitForTimeout(2200);
+  await expect(page.getByText("第 1/10 题")).toBeVisible(); // 不跳转，停在原题
+});

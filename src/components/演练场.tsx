@@ -31,6 +31,7 @@ import {
   答案是否解锁,
   记草稿,
   取草稿,
+  下一未通过题,
 } from "@/components/进度";
 import type { 判定结果, 题目实例 } from "@/kernel/types";
 
@@ -66,6 +67,39 @@ export default function Playground() {
     当前题号引用.current = 当前题号;
   }, [当前题号]);
 
+  // 通过后自动流转（issue #18 T7）：反馈条 + 1.5 秒倒计时跳到环形查找的下一未通过题；
+  // 倒计时内编辑或点击界面即取消跳转、反馈条转常驻；目标为 null（全部通过）不跳。
+  const [通过反馈, 设通过反馈] = useState<{
+    目标题号: number | null;
+    倒计时中: boolean;
+  } | null>(null);
+  const 通过反馈引用 = useRef(通过反馈);
+  useEffect(() => {
+    通过反馈引用.current = 通过反馈;
+  }, [通过反馈]);
+  function 取消自动跳转() {
+    设通过反馈((f) => (f?.倒计时中 ? { ...f, 倒计时中: false } : f));
+  }
+  // 倒计时期间点击界面任意处取消自动跳转（capture 兜底各种点击目标）
+  useEffect(() => {
+    if (!通过反馈?.倒计时中) return;
+    window.addEventListener("pointerdown", 取消自动跳转, { capture: true });
+    return () =>
+      window.removeEventListener("pointerdown", 取消自动跳转, { capture: true });
+  }, [通过反馈]);
+
+  // 1.5 秒静默后自动跳转：目标 = 环形查找的下一未通过题；跳转复用 切换题目（草稿落盘+恢复）
+  useEffect(() => {
+    if (!通过反馈?.倒计时中 || 通过反馈.目标题号 === null || !会话) return;
+    const 目标 = 通过反馈.目标题号;
+    const 计时器 = setTimeout(() => {
+      设通过反馈(null);
+      切换题目(目标);
+    }, 1500);
+    return () => clearTimeout(计时器);
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- 切换题目 为函数声明（组件内稳定编排逻辑），只在 通过反馈 变化时重排计时
+  }, [通过反馈, 会话]);
+
   // 禁粘贴横幅（issue #17 T6）：拦截时编辑器上方提示约 2 秒，
   // 同一页面生命周期内只弹一次（连续触发不刷屏，ADR-0003 摩擦力设计）。
   const [显示禁粘横幅, 设显示禁粘横幅] = useState(false);
@@ -98,6 +132,8 @@ export default function Playground() {
     () => (v: string) => {
       设SQL输入(v);
       草稿保存器.排程(当前题号引用.current, v);
+      // 倒计时中学生开始编辑 → 取消自动跳转（引用取实时反馈态，避免陈旧闭包）
+      if (通过反馈引用.current?.倒计时中) 取消自动跳转();
     },
     [草稿保存器],
   );
@@ -137,7 +173,13 @@ export default function Playground() {
       设结果(结果);
       if (结果.判定 === "通过") {
         // 通过的提交不计尝试（issue #16 口径）
+        const 此前未通过 = !是否已通过(进度存储.取快照(), 发起题号);
         迁移进度((p) => 记通过(p, 发起题号));
+        // 仅首次通过触发自动流转（issue #18）：已通过题再次验证不弹反馈条
+        if (此前未通过) {
+          const 目标 = 下一未通过题(进度存储.取快照(), 发起题号, 会话.题目.length);
+          设通过反馈({ 目标题号: 目标, 倒计时中: 目标 !== null });
+        }
       } else {
         // 不通过/错误均计一次尝试
         迁移进度((p) => 记尝试(p, 发起题号));
@@ -157,6 +199,7 @@ export default function Playground() {
     设结果(null);
     设SQL输入("");
     设当前题号(0);
+    设通过反馈(null); // 换会话后旧反馈条与倒计时不再有意义
   }
 
   function 换一套() {
@@ -342,6 +385,36 @@ export default function Playground() {
                 <p className="落章 硬阴影 硬阴影-通过 rounded-none border-2 border-pass bg-panel px-4 py-2 font-bold text-pass">
                   通过！结果集与预期等价。
                 </p>
+              )}
+              {/* 通过反馈条（issue #18 T7）：倒计时自动流转 + 手动"下一题"；编辑/点击取消后常驻 */}
+              {结果.判定 === "通过" && 通过反馈 && (
+                <div
+                  data-testid="通过反馈条"
+                  className="硬阴影 硬阴影-通过 入场 flex flex-wrap items-center gap-3 rounded-none border-2 border-pass bg-panel px-4 py-2 text-sm"
+                >
+                  {通过反馈.目标题号 === null ? (
+                    <span className="font-bold text-pass">全部题目已通过！</span>
+                  ) : (
+                    <>
+                      <span className="text-ink/70">
+                        {通过反馈.倒计时中
+                          ? `即将进入第 ${通过反馈.目标题号 + 1} 题（继续编辑可留下）……`
+                          : `下一道未通过：第 ${通过反馈.目标题号 + 1} 题`}
+                      </span>
+                      <button
+                        data-testid="下一题按钮"
+                        onClick={() => {
+                          const 目标 = 通过反馈.目标题号;
+                          设通过反馈(null);
+                          if (目标 !== null) 切换题目(目标);
+                        }}
+                        className="霓虹按钮 硬阴影 按压 rounded-none border-2 border-border-strong bg-pass px-3 py-1 font-bold text-bg"
+                      >
+                        下一题 →
+                      </button>
+                    </>
+                  )}
+                </div>
               )}
               {结果.判定 === "拦截" && (
                 <p className="硬阴影 硬阴影-错误 rounded-none border-2 border-warn bg-panel px-4 py-2 text-warn">
