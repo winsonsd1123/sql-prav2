@@ -73,6 +73,18 @@ export function 借助答案(进度: 进度记录, 题号: number): 进度记录
   return { ...进度, 已借助答案题号: [...进度.已借助答案题号, 题号] };
 }
 
+/**
+ * 从当前题号向后环形查找第一个未通过的题（issue #18 T7）：
+ * 跳着做题不遗漏（绕回题首），任意做题顺序都收敛；全部通过返回 null。
+ */
+export function 下一未通过题(进度: 进度记录, 当前题号: number, 总题数: number): number | null {
+  for (let 步 = 1; 步 <= 总题数; 步++) {
+    const 题号 = (当前题号 + 步) % 总题数;
+    if (!进度.已通过题号.includes(题号)) return 题号;
+  }
+  return null;
+}
+
 /** 完成度：x/总题数 */
 export function 完成度(进度: 进度记录, 总题数: number): { 已完成: number; 总数: number } {
   return { 已完成: 进度.已通过题号.length, 总数: 总题数 };
