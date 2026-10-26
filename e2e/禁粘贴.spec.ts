@@ -92,7 +92,16 @@ test("表名自动补全仍可用", async ({ page }) => {
 
 test("提示与答案展示区不禁复制", async ({ page }) => {
   await 打开演练场(page);
+  // T5 两级解锁（#16）后答案按钮需尝试门槛：预置 3 次尝试解锁参考答案
+  await page.evaluate(() => {
+    localStorage.setItem(
+      "sql-playground:progress:student-course-grade:42",
+      JSON.stringify({ 已通过题号: [], 已看提示: {}, 已借助答案题号: [], 尝试次数: { "0": 3 } }),
+    );
+  });
+  await page.reload();
   await page.getByRole("button", { name: "查看参考答案" }).click();
+  await page.getByTestId("确认查看答案").click();
   const 可复制 = await page.getByTestId("提示与答案").locator("pre").evaluate((el) => {
     // user-select 未被禁用即可选中复制（工单：展示区不禁复制）
     return getComputedStyle(el).userSelect !== "none";
