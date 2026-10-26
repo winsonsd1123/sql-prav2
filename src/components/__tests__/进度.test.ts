@@ -13,6 +13,8 @@ import {
   是否已通过,
   提示是否解锁,
   答案是否解锁,
+  记草稿,
+  取草稿,
 } from "@/components/进度";
 
 describe("进度状态机", () => {
@@ -53,13 +55,37 @@ describe("进度状态机", () => {
     expect(是否借助答案(p, 5)).toBe(false);
   });
 
+  it("记草稿：按题号保存与覆盖，相同内容原样返回（幂等）", () => {
+    const p1 = 记草稿(空进度, 0, "SELECT 1");
+    expect(取草稿(p1, 0)).toBe("SELECT 1");
+    expect(取草稿(p1, 1)).toBe(""); // 其他题无草稿，回退空串
+    const p2 = 记草稿(p1, 0, "SELECT 2");
+    expect(取草稿(p2, 0)).toBe("SELECT 2"); // 覆盖
+    const p3 = 记草稿(p2, 0, "SELECT 2");
+    expect(p3).toBe(p2); // 内容未变则原样返回
+    expect(取草稿(p1, 0)).toBe("SELECT 1"); // 原 state 未被修改
+  });
+
+  it("记草稿：空串清除该题草稿（不留空串残迹）", () => {
+    const p1 = 记草稿(空进度, 3, "SELECT 1");
+    const p2 = 记草稿(p1, 3, "");
+    expect(取草稿(p2, 3)).toBe("");
+    expect(p2.草稿["3"]).toBeUndefined();
+  });
+
+  it("草稿按题号隔离：互不干扰", () => {
+    const p = 记草稿(记草稿(空进度, 1, "SELECT a"), 2, "SELECT b");
+    expect(取草稿(p, 1)).toBe("SELECT a");
+    expect(取草稿(p, 2)).toBe("SELECT b");
+  });
+
   it("进度键随域包与种子区分（换一套/换域包即换键）", () => {
     expect(进度键("packA", 1)).not.toBe(进度键("packA", 2));
     expect(进度键("packA", 1)).not.toBe(进度键("packB", 1));
   });
 
-  it("解析进度：合法 JSON 还原；非法回退空进度", () => {
-    const 原 = 借助答案(记通过(揭示下一层提示(空进度, 1)[0], 0), 1);
+  it("解析进度：合法 JSON 还原（含草稿）；非法回退空进度", () => {
+    const 原 = 记草稿(借助答案(记通过(揭示下一层提示(空进度, 1)[0], 0), 1), 2, "SELECT c");
     expect(解析进度(JSON.stringify(原))).toEqual(原);
     expect(解析进度(null)).toEqual(空进度);
     expect(解析进度("不是JSON")).toEqual(空进度);
@@ -69,7 +95,22 @@ describe("进度状态机", () => {
       已看提示: {},
       已借助答案题号: [3],
       尝试次数: {},
+      草稿: {},
     });
+  });
+
+  it("解析进度：旧数据缺草稿字段回退为空草稿（向后兼容）", () => {
+    const 旧数据 = '{"已通过题号":[0],"已看提示":{"0":1},"已借助答案题号":[]}';
+    const p = 解析进度(旧数据);
+    expect(p).toEqual({ 已通过题号: [0], 已看提示: { "0": 1 }, 已借助答案题号: [], 草稿: {} });
+    expect(取草稿(p, 0)).toBe("");
+  });
+
+  it("解析进度：草稿字段只收留数字题号→字符串的条目", () => {
+    const p = 解析进度(
+      '{"已通过题号":[],"已看提示":{},"已借助答案题号":[],"草稿":{"1":"SELECT 1","x":"SELECT x","2":3,"3":"SELECT 3"}}',
+    );
+    expect(p.草稿).toEqual({ "1": "SELECT 1", "3": "SELECT 3" });
   });
 });
 

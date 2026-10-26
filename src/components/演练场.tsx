@@ -16,6 +16,7 @@ import {
   设域包,
   实例名,
   域包注册表,
+  创建草稿保存器,
 } from "@/components/会话存储";
 import {
   空进度,
@@ -28,6 +29,8 @@ import {
   是否已通过,
   提示是否解锁,
   答案是否解锁,
+  记草稿,
+  取草稿,
 } from "@/components/进度";
 import type { 判定结果, 题目实例 } from "@/kernel/types";
 
@@ -83,6 +86,39 @@ export default function Playground() {
   // 进度随会话（域包+种子）持久于 localStorage；换一套/换域包即换键，天然重置
   const 进度 = useSyncExternalStore(进度存储.订阅, 进度存储.取快照, () => 空进度);
 
+  // SQL 草稿按题保留并随进度持久（issue #15）：逐键编辑走防抖写（500ms 静默窗口），
+  // 切题/换会话/卸载前立即刷新，避免丢最后一次编辑。
+  const 草稿保存器 = useMemo(
+    () => 创建草稿保存器((题号, SQL) => 迁移进度((p) => 记草稿(p, 题号, SQL))),
+    [],
+  );
+  // 编辑回调必须引用稳定：SQL编辑器 的 updateListener 在创建时捕获 onChange，
+  // 内联箭头函数会是陈旧闭包（当前题号恒为首渲染值），故经 当前题号引用 取实时题号。
+  const 编辑回调 = useMemo(
+    () => (v: string) => {
+      设SQL输入(v);
+      草稿保存器.排程(当前题号引用.current, v);
+    },
+    [草稿保存器],
+  );
+  // 会话就绪（种子非空）后恢复第 0 题草稿——SSR 期间进度为空快照，草稿在客户端载入
+  const 草稿已恢复 = useRef(false);
+  useEffect(() => {
+    if (!草稿已恢复.current && 种子 !== null) {
+      草稿已恢复.current = true;
+      设SQL输入(取草稿(进度存储.取快照(), 0));
+    }
+  }, [种子]);
+  // 刷新/关闭页面前与组件卸载时落盘待写草稿
+  useEffect(() => {
+    const 落盘 = () => 草稿保存器.立即刷新();
+    window.addEventListener("beforeunload", 落盘);
+    return () => {
+      window.removeEventListener("beforeunload", 落盘);
+      落盘();
+    };
+  }, [草稿保存器]);
+
   if (!会话) {
     return <p className="p-8 text-ink/60">正在生成会话……</p>;
   }
@@ -124,14 +160,24 @@ export default function Playground() {
   }
 
   function 换一套() {
+    草稿保存器.立即刷新(); // 先把待写草稿落盘到旧会话的进度键，再换键
     换一套种子();
     重置作答();
   }
 
   function 切换域包(目标域包ID: string) {
     if (目标域包ID === 域包.域包ID) return;
+    草稿保存器.立即刷新(); // 同上：落盘后再换键，避免草稿写进新会话
     设域包(目标域包ID);
     重置作答();
+  }
+
+  /** 切题：先落盘当前题待写草稿，再切换并恢复目标题已有草稿（issue #15） */
+  function 切换题目(目标题号: number) {
+    草稿保存器.立即刷新();
+    设当前题号(目标题号);
+    设结果(null);
+    设SQL输入(取草稿(进度, 目标题号));
   }
 
   /** 左栏题目目录行：状态章样式（已过=通过描边 / 借助答案=紫 / 未做=虚线 / 当前=强调实底） */
@@ -201,11 +247,7 @@ export default function Playground() {
                 <button
                   key={i}
                   title={`${题.知识点}（难度 ${题.难度}）`}
-                  onClick={() => {
-                    设当前题号(i);
-                    设结果(null);
-                    设SQL输入("");
-                  }}
+                  onClick={() => 切换题目(i)}
                   className={`flex items-center gap-2 border-b border-dashed border-ink/20 px-3 py-1.5 text-left text-xs last:border-b-0 hover:bg-ink/5 ${题目行类(i)}`}
                 >
                   <span className="font-mono font-semibold">#{String(i + 1).padStart(2, "0")}</span>
@@ -267,7 +309,7 @@ export default function Playground() {
               </div>
               <SQL编辑器
                 值={SQL输入}
-                onChange={设SQL输入}
+                onChange={编辑回调}
                 onSubmit={验证}
                 表={会话.库.表}
                 on拦截粘贴={提示禁粘贴}
