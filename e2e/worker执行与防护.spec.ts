@@ -61,8 +61,7 @@ test("首次加载 WASM 有加载指示，随后就绪", async ({ page }) => {
 
 test("结果行数上限：三表笛卡尔积触发产品提示", async ({ page }) => {
   await 打开演练场(page);
-  // 库浏览器为免遮罩浮层（issue #14 T3）：先唤出再读表名
-  await page.keyboard.press("ControlOrMeta+b");
+  // 表结构默认可见，直接读表名
   const 全部表名 = await page.locator('[data-testid="库表"]').evaluateAll((els) =>
     els.map((e) => e.getAttribute("data-表名") as string),
   );
@@ -76,21 +75,17 @@ test("结果行数上限：三表笛卡尔积触发产品提示", async ({ page 
 
 test("执行超时：产品提示、期间 UI 可交互、Worker 重建后可继续判题", async ({ page }) => {
   await 打开演练场(page, 42, "&timeoutMs=300");
-  // 库浏览器浮层（issue #14 T3）：唤出后取实际表名
-  await page.keyboard.press("ControlOrMeta+b");
   const 表名 = await 取表名(page);
   // 六重自笛卡尔积 COUNT（20^6 次组合，结果 1 行，纯耗时）必然超过 300ms
   await 输入SQL(page, `SELECT COUNT(*) FROM ${表名} a, ${表名} b, ${表名} c, ${表名} d, ${表名} e, ${表名} f`);
-  // 浮层 fixed 覆盖主区左侧，先发起验证再用快捷键唤出浮层（不遮挡验证按钮点击）
   await page.getByRole("button", { name: "验证", exact: true }).click();
-  // 判定期间 UI 保持可交互：快捷键唤出浮层，收起按钮立即可点
-  await page.keyboard.press("ControlOrMeta+b");
+  // 判定期间 UI 保持可交互：表结构已展开，收起按钮立即可点
   await expect(page.getByRole("button", { name: "收起" })).toBeEnabled();
   await page.getByRole("button", { name: "收起" }).click();
   // 超时提示（产品文案，非 MySQL 错误）
   await expect(page.getByText(/秒上限，已自动终止/)).toBeVisible({ timeout: 10_000 });
   await expect(page.getByText("mysql&gt;")).toBeHidden();
-  // Worker 被终止后自动重建：普通查询可继续判题（快捷键再唤浮层确认表结构仍在）
+  // Worker 被终止后自动重建：普通查询可继续判题（快捷键再展开表结构）
   await page.keyboard.press("ControlOrMeta+b");
   await 输入SQL(page, "SELECT 1");
   await page.getByRole("button", { name: "验证", exact: true }).click();

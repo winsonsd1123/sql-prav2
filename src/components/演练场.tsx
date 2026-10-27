@@ -39,7 +39,16 @@ import 会话总结 from "@/components/会话总结";
 import type { 判定结果, 题目实例 } from "@/kernel/types";
 
 // UI 编排组件：会话级本地状态（种子/域包/进度）在 会话存储，判题在 Worker，
-// 本组件只负责把它们接到界面与交互上。视觉层为「霓虹练习簿」（issue #12 T1）。
+// 本组件只负责把它们接到界面与交互上。视觉层为「静室」：点阵画布、三栏工作台。
+
+// 桌面断点（lg 1024px）作为外部系统订阅：SSR 按桌面快照渲染，客户端按真实视口纠正，
+// 视口变化（旋转/缩放）实时跟随；用户一旦切换面板（按钮/Cmd+B/ESC）即覆盖默认值。
+const 订阅桌面断点 = (回调: () => void) => {
+  const 查询 = window.matchMedia("(min-width: 1024px)");
+  查询.addEventListener("change", 回调);
+  return () => 查询.removeEventListener("change", 回调);
+};
+const 取桌面快照 = () => window.matchMedia("(min-width: 1024px)").matches;
 
 export default function Playground() {
   // 种子/域包/进度：三个外部存储，写入走共享通知总线（见 会话存储）
@@ -61,18 +70,31 @@ export default function Playground() {
   const [SQL输入, 设SQL输入] = useState("");
   const [结果, 设结果] = useState<判定结果 | null>(null);
   const [判定中, 设判定中] = useState(false);
-  // 库浏览器免遮罩浮层（issue #14 T3）：默认隐藏，顶栏按钮 / Cmd/Ctrl+B 切换
-  const [库浏览器开, 设库浏览器开] = useState(false);
-  const 关闭库浏览器 = useCallback(() => 设库浏览器开(false), []);
+  // 表结构右栏（默认展开，写 SQL 时列名保持可见）。顶栏按钮 / Cmd/Ctrl+B 切换，Esc 收起。
+  // 点编辑器不收起。
+  // 表结构面板可见性：桌面默认展开、窄屏默认收起（不堆在编辑器下方）；
+  // 用户切换（null=未干预）覆盖断点默认值。
+  const 是桌面视口 = useSyncExternalStore(订阅桌面断点, 取桌面快照, () => true);
+  const [用户切换面板, 设用户切换面板] = useState<boolean | null>(null);
+  const 库浏览器开 = 用户切换面板 ?? 是桌面视口;
+  // 快捷键 effect 只挂载一次，经 ref 读最新的用户切换值
+  const 用户切换面板Ref = useRef<boolean | null>(null);
   useEffect(() => {
-    // 全局快捷键：Cmd/Ctrl+B 随时切换；ESC 仅在浮层打开时收起（不劫持编辑器输入）。
-    // 捕获阶段监听，避免 CodeMirror 内先行拦截。
+    用户切换面板Ref.current = 用户切换面板;
+  }, [用户切换面板]);
+  const 关闭库浏览器 = useCallback(() => 设用户切换面板(false), []);
+  useEffect(() => {
+    // 全局快捷键：Cmd/Ctrl+B 随时切换；ESC 仅在面板展开时收起（不劫持编辑器输入；
+    // 焦点在编辑器内按 ESC 属编辑动作（如取消补全），不连带收起）。
+    // 捕获阶段监听，避免 CodeMirror 内先行拦截。effect 内直接读断点，规避陈旧闭包。
     function 按键(e: KeyboardEvent) {
+      const 面板当前开 = 用户切换面板Ref.current ?? window.matchMedia("(min-width: 1024px)").matches;
       if ((e.metaKey || e.ctrlKey) && !e.altKey && e.key.toLowerCase() === "b") {
         e.preventDefault();
-        设库浏览器开((开) => !开);
+        设用户切换面板(!面板当前开);
       } else if (e.key === "Escape") {
-        设库浏览器开((开) => (开 ? false : 开));
+        if ((e.target as HTMLElement | null)?.closest?.(".cm-editor")) return;
+        if (面板当前开) 设用户切换面板(false);
       }
     }
     window.addEventListener("keydown", 按键, true);
@@ -192,7 +214,11 @@ export default function Playground() {
   }, [草稿保存器]);
 
   if (!会话) {
-    return <p className="p-8 text-ink/60">正在生成会话……</p>;
+    return (
+      <p className="标题 flex min-h-screen items-center justify-center text-lg text-muted">
+        正在生成会话……
+      </p>
+    );
   }
 
   const 题目: 题目实例 = 会话.题目[当前题号];
@@ -271,26 +297,23 @@ export default function Playground() {
     if (进度.已通过题号.includes(i)) return "通过";
     return "未做";
   }
-  // 行样式：已过=通过描边 / 借助答案=紫 / 未做=虚线 / 当前=强调实底
-  const 题目行类表: Record<题目行状态, string> = {
-    当前: "bg-accent text-bg border-border-strong",
-    借助: "text-assist border-assist",
-    通过: "text-pass border-pass",
-    未做: "text-ink/70 border-dashed border-ink/40",
+  // 行状态只靠小圆点：当前=墨 / 借助=紫 / 通过=绿 / 未做=空心
+  const 题目行点: Record<题目行状态, string> = {
+    当前: "bg-ink/55",
+    借助: "bg-assist",
+    通过: "bg-pass",
+    未做: "bg-transparent ring-1 ring-ink/30",
   };
-  const 题目行章表: Record<题目行状态, string> = { 当前: "▶", 借助: "✗", 通过: "✓", 未做: "·" };
+  const 题目分组: { 知识点: string; 序号: number[] }[] = [];
+  for (let i = 0; i < 会话.题目.length; i++) {
+    const 知识点 = 会话.题目[i].知识点;
+    const 末组 = 题目分组[题目分组.length - 1];
+    if (!末组 || 末组.知识点 !== 知识点) 题目分组.push({ 知识点, 序号: [i] });
+    else 末组.序号.push(i);
+  }
 
   return (
-    <div className="flex min-h-screen flex-col">
-      {/* 库浏览器免遮罩浮层：fixed 左侧滑入，不占布局、无遮罩层（issue #14 T3） */}
-      <库浏览器
-        表={会话.库.表}
-        实例名={实例名(会话.种子)}
-        打开={库浏览器开}
-        on关闭={关闭库浏览器}
-      />
-
-      {/* 会话总结卡（issue #19 T8）：全部通过时右下滑入，免遮罩不挡回顾 */}
+    <div className="mx-auto flex min-h-screen w-full max-w-[1440px] flex-col px-4 py-4 lg:px-6">
       {总结开 && 会话 && (
         <会话总结
           分档={完成分档统计(进度, 会话.题目.length)}
@@ -301,121 +324,117 @@ export default function Playground() {
         />
       )}
 
-      {/* 顶栏：glitch Logo + 域包分段控件 + 换一套 + 完成度迷你进度条 */}
-      <header className="卡片 flex flex-wrap items-center justify-between gap-3 border-x-0 border-t-0 px-5 py-3">
-        <h1 className="glitch标题 text-xl">SQL 演练场</h1>
-        <div className="flex flex-wrap items-center gap-3 text-sm">
-          {/* 会话完成度：进度持久于 localStorage，刷新保留（黑框内霓虹填充） */}
-          <span
-            data-testid="完成度"
-            className="卡片 硬阴影 硬阴影-强调 按压 flex items-center gap-2 rounded-none px-2.5 py-1 font-mono text-xs"
-          >
-            已完成 {已完成}/{总数}
-          </span>
-          {/* 业务域切换：同种子下在两个域包间交替练习（黑框胶囊组） */}
-          <span className="卡片 flex overflow-hidden rounded-none p-0">
+      <header className="mb-4 flex flex-wrap items-center justify-between gap-x-4 gap-y-3">
+        <h1 className="标题 text-[1.65rem] leading-none">SQL 演练场</h1>
+        <div className="flex flex-wrap items-center gap-2">
+          <span className="inline-flex rounded-full bg-ink/[0.06] p-0.5">
             {域包注册表.map((d) => (
               <button
                 key={d.域包ID}
                 onClick={() => 切换域包(d.域包ID)}
-                className={`border-r-2 border-border-strong px-3 py-1 last:border-r-0 ${
+                className={`rounded-full px-3 py-1 text-xs ${
                   d.域包ID === 域包.域包ID
-                    ? "bg-accent font-medium text-bg"
-                    : "text-ink/70 hover:bg-ink/5"
+                    ? "bg-panel font-medium text-ink shadow-sm"
+                    : "text-muted hover:text-ink"
                 }`}
               >
                 {d.名称}
               </button>
             ))}
           </span>
-          <button
-            onClick={换一套}
-            className="卡片 硬阴影 按压 rounded-none px-3 py-1 font-medium"
-          >
+          <span className="inline-flex items-center gap-2 px-1">
+            <span className="h-1 w-14 overflow-hidden rounded-full bg-ink/10" aria-hidden>
+              <span
+                className="block h-full rounded-full bg-ink/40"
+                style={{ width: `${总数 === 0 ? 0 : (已完成 / 总数) * 100}%` }}
+              />
+            </span>
+            <span data-testid="完成度" className="font-mono text-xs text-muted">
+              已完成 {已完成}/{总数}
+            </span>
+          </span>
+          <button onClick={换一套} className="次按钮 px-3 py-1.5 text-xs">
             换一套（新种子）
           </button>
-          {/* 库浏览器浮层开关（issue #14 T3）：data 属性供浮层点外收起时豁免自身 */}
           <button
-            data-库浏览器开关
-            onClick={() => 设库浏览器开((开) => !开)}
+            onClick={() => 设用户切换面板(!库浏览器开)}
             aria-expanded={库浏览器开}
-            className="卡片 硬阴影 按压 rounded-none px-3 py-1 font-medium"
+            className={`次按钮 px-3 py-1.5 text-xs ${库浏览器开 ? "ring-1 ring-ink/15" : ""}`}
           >
-            库（Ctrl/⌘+B）
+            表结构（Ctrl/⌘+B）
           </button>
         </div>
       </header>
 
-      {/* 三栏：左题目目录 / 中工作区 / 右辅助卡；小屏全单列 */}
-      <div className="flex flex-1 flex-col gap-4 p-4 lg:flex-row">
-        {/* 左栏：题目目录（票据风，虚线分行；点击行为与原题号圆点一致） */}
-        <aside className="入场 w-full shrink-0 lg:w-52">
-          <div className="卡片 硬阴影 rounded-none">
-            <p className="border-b-2 border-dashed border-ink/30 px-3 py-2 text-xs font-medium text-ink/60">
-              题目目录（{会话.题目.length} 题）
-            </p>
-            <nav className="flex flex-col">
-              {会话.题目.map((题, i) => (
-                <button
-                  key={i}
-                  title={`${题.知识点}（难度 ${题.难度}）`}
-                  onClick={() => 切换题目(i)}
-                  className={`flex items-center gap-2 border-b border-dashed border-ink/20 px-3 py-1.5 text-left text-xs last:border-b-0 hover:bg-ink/5 ${题目行类表[题目行状态(i)]}`}
-                >
-                  <span className="font-mono font-semibold">#{String(i + 1).padStart(2, "0")}</span>
-                  <span className="min-w-0 flex-1 truncate">{题.知识点}</span>
-                  <span className="font-mono">{题目行章表[题目行状态(i)]}</span>
-                </button>
-              ))}
-            </nav>
-          </div>
+      {/* 窄屏单列：题目 → 题面与编辑器 → 表结构 → 提示。桌面三栏并排。 */}
+      <div className="flex flex-1 flex-col items-start gap-4 lg:flex-row">
+        <aside className="入场 w-full shrink-0 lg:sticky lg:top-4 lg:max-h-[calc(100vh-2rem)] lg:w-56 lg:overflow-y-auto">
+          <nav className="卡片 横滑 flex gap-1 overflow-x-auto p-2 lg:block lg:overflow-visible">
+            <p className="hidden px-2 py-1.5 text-xs text-muted lg:block">题目 · {会话.题目.length}</p>
+            {题目分组.map((组) => (
+              <div key={组.知识点} className="flex shrink-0 items-center gap-1 lg:mb-1 lg:block">
+                <p className="hidden px-2 pt-2 pb-1 text-[11px] font-medium text-muted lg:block">
+                  {组.知识点}
+                </p>
+                {组.序号.map((i) => {
+                  const 状态 = 题目行状态(i);
+                  return (
+                    <button
+                      key={i}
+                      title={`${会话.题目[i].知识点}（难度 ${会话.题目[i].难度}）`}
+                      onClick={() => 切换题目(i)}
+                      className={`flex shrink-0 items-center gap-2 rounded-lg px-2 py-1.5 text-left text-xs lg:w-full ${
+                        状态 === "当前"
+                          ? "bg-ink/[0.06] font-medium text-ink"
+                          : "text-ink hover:bg-ink/[0.04]"
+                      }`}
+                    >
+                      <span className={`h-1.5 w-1.5 shrink-0 rounded-full ${题目行点[状态]}`} />
+                      <span className="font-mono">#{String(i + 1).padStart(2, "0")}</span>
+                    </button>
+                  );
+                })}
+              </div>
+            ))}
+          </nav>
         </aside>
 
-        {/* 中栏：题目贴纸卡 → 终端窗口编辑器 → 结果 → 验证 */}
-        <main className="入场 入场-2 min-w-0 flex-1 space-y-4">
-          <section className="卡片 硬阴影 rounded-none p-4">
-            <p className="mb-2 flex flex-wrap items-center gap-2 text-xs">
-              {/* 知识点霓虹底小旗标 */}
-              <span className="border-2 border-border-strong bg-accent px-2 py-0.5 font-medium text-bg">
+        <main className="入场 入场-2 min-w-0 w-full flex-1 space-y-4">
+          <section className="卡片 p-5">
+            <p className="mb-3 flex flex-wrap items-center gap-2 text-xs">
+              <span className="rounded-full bg-ink/[0.06] px-2.5 py-0.5 font-medium text-ink">
                 {题目.知识点}
               </span>
               {是否借助答案(进度, 当前题号) && (
-                <span className="border-2 border-assist bg-panel px-2 py-0.5 font-medium text-assist">
+                <span className="rounded-full bg-assist/10 px-2.5 py-0.5 font-medium text-assist">
                   已借助答案
                 </span>
               )}
-              <span className="ml-auto font-mono text-ink/50">
+              <span className="ml-auto font-mono text-muted">
                 第 {当前题号 + 1}/{会话.题目.length} 题 · 难度{"★".repeat(题目.难度)}
               </span>
             </p>
-            <p className="mb-0 text-[17px] leading-[1.75]">{题目.题面}</p>
+            <p className="text-[17px] leading-[1.75]">{题目.题面}</p>
           </section>
 
-          <section className="space-y-2">
-            {/* 禁粘贴横幅（issue #17 T6）：拦截粘贴/拖入时短暂出现 */}
+          <section className="space-y-3">
             {显示禁粘横幅 && (
               <p
                 data-testid="禁粘横幅"
-                className="硬阴影 硬阴影-警示 入场 rounded-none border-2 border-warn bg-panel px-4 py-2 text-sm font-bold text-warn"
+                className="卡片 入场 border-l-4 border-l-warn px-4 py-2.5 text-sm text-warn"
               >
                 请手动输入 SQL，粘贴已禁用
               </p>
             )}
-            {/* 终端窗口装饰的编辑器：标题栏三窗口点 + 文件名 + 引擎状态灯 */}
-            <div className="卡片 硬阴影 overflow-hidden rounded-none">
-              <div className="flex items-center gap-2 border-b-2 border-border-strong bg-ink/5 px-3 py-1.5 text-xs text-ink/60">
-                <span className="flex gap-1.5" aria-hidden>
-                  <i className="h-2.5 w-2.5 rounded-full bg-fail" />
-                  <i className="h-2.5 w-2.5 rounded-full bg-warn" />
-                  <i className="h-2.5 w-2.5 rounded-full bg-pass" />
-                </span>
+            <div className="卡片 overflow-hidden">
+              <div className="flex items-center gap-2 border-b border-border-strong px-3 py-2 text-xs text-muted">
                 <span className="font-mono">query.sql</span>
                 <span
                   className={`ml-auto inline-flex items-center gap-1.5 font-mono ${
                     引擎就绪 ? "text-pass" : "呼吸 text-warn"
                   }`}
                 >
-                  <i className="h-2 w-2 rounded-full bg-current" />
+                  <i className="h-1.5 w-1.5 rounded-full bg-current" />
                   {引擎就绪 ? "引擎就绪" : "引擎加载中"}
                 </span>
               </div>
@@ -427,21 +446,39 @@ export default function Playground() {
                 on拦截粘贴={提示禁粘贴}
               />
             </div>
-            {/* WASM 首次加载指示：Worker 预热引擎期间可见（保留 testid 供 e2e 断言） */}
             {!引擎就绪 && (
               <p data-testid="引擎加载中" className="font-mono text-xs text-warn">
                 数据库引擎（WASM）加载中……首次载入约需一两秒。
               </p>
             )}
+            <div className="卡片 p-4">
+              <p className="mb-3 text-xs font-medium text-muted">提示与答案</p>
+              <提示与答案
+                key={当前题号}
+                提示={题目.提示}
+                参考答案={题目.参考答案}
+                已看层数={进度.已看提示[String(当前题号)] ?? 0}
+                已借助答案={是否借助答案(进度, 当前题号)}
+                解锁状态={{
+                  已通过: 是否已通过(进度, 当前题号),
+                  提示已解锁: 提示是否解锁(进度, 当前题号),
+                  答案已解锁: 答案是否解锁(进度, 当前题号),
+                  尝试次数: 进度.尝试次数[String(当前题号)] ?? 0,
+                }}
+                答案还差尝试={答案解锁还差尝试(进度, 当前题号)}
+                on揭示提示={() => 迁移进度((p) => 揭示下一层提示(p, 当前题号)[0])}
+                on查看答案={() => 迁移进度((p) => 查看答案(p, 当前题号)[0])}
+              />
+            </div>
             <div className="flex flex-wrap items-center gap-3">
               <button
                 onClick={验证}
                 disabled={判定中 || SQL输入.trim().length === 0}
-                className="霓虹按钮 硬阴影 硬阴影-强调 按压 rounded-none border-2 border-border-strong bg-accent px-5 py-1.5 text-sm font-bold text-bg disabled:opacity-40 disabled:hover:translate-x-0 disabled:hover:shadow-none"
+                className="主按钮 px-5 py-2 text-sm"
               >
                 {判定中 ? "判定中……" : "验证"}
               </button>
-              <span className="text-xs text-ink/50">
+              <span className="text-xs text-muted">
                 Ctrl/⌘ + Enter 快速验证{判定中 ? "（判定在后台进行，可继续编辑或切换题目）" : ""}
               </span>
             </div>
@@ -450,22 +487,20 @@ export default function Playground() {
           {结果 && (
             <section className="入场 space-y-3">
               {结果.判定 === "通过" && (
-                /* 通过章：pass 色描边章 + 落章弹跳 */
-                <p className="落章 硬阴影 硬阴影-通过 rounded-none border-2 border-pass bg-panel px-4 py-2 font-bold text-pass">
+                <p className="落章 卡片 border-l-4 border-l-pass px-4 py-2.5 font-medium text-pass">
                   通过！结果集与预期等价。
                 </p>
               )}
-              {/* 通过反馈条（issue #18 T7）：倒计时自动流转 + 手动"下一题"；编辑/点击取消后常驻 */}
               {结果.判定 === "通过" && 通过反馈 && (
                 <div
                   data-testid="通过反馈条"
-                  className="硬阴影 硬阴影-通过 入场 flex flex-wrap items-center gap-3 rounded-none border-2 border-pass bg-panel px-4 py-2 text-sm"
+                  className="卡片 入场 flex flex-wrap items-center gap-3 border-l-4 border-l-pass px-4 py-2.5 text-sm"
                 >
                   {通过反馈.目标题号 === null ? (
-                    <span className="font-bold text-pass">全部题目已通过！</span>
+                    <span className="font-medium text-pass">全部题目已通过！</span>
                   ) : (
                     <>
-                      <span className="text-ink/70">
+                      <span className="text-ink">
                         {通过反馈.倒计时中
                           ? `即将进入第 ${通过反馈.目标题号 + 1} 题（继续编辑可留下）……`
                           : `下一道未通过：第 ${通过反馈.目标题号 + 1} 题`}
@@ -477,7 +512,7 @@ export default function Playground() {
                           设通过反馈(null);
                           if (目标 !== null) 切换题目(目标);
                         }}
-                        className="霓虹按钮 硬阴影 按压 rounded-none border-2 border-border-strong bg-pass px-3 py-1 font-bold text-bg"
+                        className="主按钮 px-3 py-1 text-sm"
                       >
                         下一题 →
                       </button>
@@ -486,14 +521,13 @@ export default function Playground() {
                 </div>
               )}
               {结果.判定 === "拦截" && (
-                <p className="硬阴影 硬阴影-警示 rounded-none border-2 border-warn bg-panel px-4 py-2 text-warn">
+                <p className="卡片 border-l-4 border-l-warn px-4 py-2.5 text-warn">
                   {结果.错误信息}
                 </p>
               )}
               {结果.判定 === "错误" && (
-                /* 错误终端：mysql> 黑窗、等宽、fail 色错误文本 */
-                <pre className="硬阴影 硬阴影-错误 overflow-auto rounded-none border-2 border-border-strong bg-deep p-3 font-mono text-sm leading-relaxed">
-                  <span className="text-ink/50">mysql&gt; </span>
+                <pre className="卡片 overflow-auto bg-deep p-3 font-mono text-sm leading-relaxed">
+                  <span className="text-muted">mysql&gt; </span>
                   <span className="text-ink">{SQL输入}</span>
                   {"\n"}
                   <span className="text-fail">{结果.错误信息}</span>
@@ -501,7 +535,7 @@ export default function Playground() {
               )}
               {结果.判定 === "不通过" && (
                 <div className="space-y-3">
-                  <p className="硬阴影 硬阴影-错误 rounded-none border-2 border-fail bg-panel px-4 py-2 font-bold text-fail">
+                  <p className="卡片 border-l-4 border-l-fail px-4 py-2.5 font-medium text-fail">
                     不通过：结果集与预期不等价，请对照两侧差异。
                   </p>
                   <差异对照
@@ -515,41 +549,21 @@ export default function Playground() {
           )}
         </main>
 
-        {/* 右栏：提示与答案 + 完成度/种子信息卡（库浏览器已抽为免遮罩浮层，见 issue #14 T3） */}
-        <aside className="入场 入场-3 w-full shrink-0 space-y-4 lg:w-72">
-          <div className="卡片 硬阴影 rounded-none p-3">
-            <提示与答案
-              key={当前题号}
-              提示={题目.提示}
-              参考答案={题目.参考答案}
-              已看层数={进度.已看提示[String(当前题号)] ?? 0}
-              已借助答案={是否借助答案(进度, 当前题号)}
-              解锁状态={{
-                已通过: 是否已通过(进度, 当前题号),
-                提示已解锁: 提示是否解锁(进度, 当前题号),
-                答案已解锁: 答案是否解锁(进度, 当前题号),
-                尝试次数: 进度.尝试次数[String(当前题号)] ?? 0,
-              }}
-              答案还差尝试={答案解锁还差尝试(进度, 当前题号)}
-              on揭示提示={() => 迁移进度((p) => 揭示下一层提示(p, 当前题号)[0])}
-              on查看答案={() => 迁移进度((p) => 查看答案(p, 当前题号)[0])}
-            />
-          </div>
-
-          {/* 完成度进度条 + 种子信息卡 */}
-          <div className="卡片 硬阴影 rounded-none p-3 font-mono text-xs">
-            <p className="mb-2 text-ink/60">会话进度</p>
-            <div className="mb-2 h-3 border-2 border-border-strong bg-bg">
-              {/* 中性墨色填充：右栏避免与提示 warn/答案 assist/通过 pass 语义色同屏并置抢焦点 */}
-              <div
-                className="h-full bg-ink"
-                style={{ width: `${总数 === 0 ? 0 : (已完成 / 总数) * 100}%` }}
-              />
-            </div>
-            <p className="text-ink/60">
-              会话种子：<span className="text-ink">{会话.种子}</span>
-            </p>
-          </div>
+        {/* 右栏常挂载（保住表级折叠态），收起时整列让位、主区恢复全宽（spec 故事 28） */}
+        <aside
+          className={`入场 入场-3 flex w-full shrink-0 flex-col gap-3 lg:sticky lg:top-4 lg:h-[calc(100vh-2rem)] lg:max-h-[calc(100vh-2rem)] lg:min-h-0 lg:overflow-hidden ${
+            库浏览器开 ? "lg:w-[22rem]" : "lg:w-0 lg:gap-0 lg:border-0"
+          }`}
+        >
+          <库浏览器
+            表={会话.库.表}
+            实例名={实例名(会话.种子)}
+            打开={库浏览器开}
+            on关闭={关闭库浏览器}
+          />
+          {库浏览器开 && (
+            <p className="shrink-0 px-1 font-mono text-[11px] text-muted">会话种子 {会话.种子}</p>
+          )}
         </aside>
       </div>
     </div>
