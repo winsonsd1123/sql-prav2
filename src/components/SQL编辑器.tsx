@@ -60,18 +60,33 @@ export default function SQL编辑器({ 值, onChange, onSubmit, 表, 禁用, on�
       syntaxHighlighting(defaultHighlightStyle, { fallback: true }),
       cm占位("在此输入单条 SELECT 语句……"),
       EditorView.lineWrapping,
-      // 主题注入（issue #12 T1）：颜色走语义 token 变量，随亮暗主题自动切换；
-      // 只调主题与外层窗口装饰，扩展结构与受控同步不动。
+      // 颜色走语义 token，随亮暗主题切换。扩展结构与受控同步不动。
       EditorView.theme({
-        "&": { fontSize: "14px", backgroundColor: "var(--色-面板, #fff)", color: "var(--色-墨, #111)" },
-        ".cm-content": { fontFamily: "var(--font-jetbrains-mono), ui-monospace, monospace" },
+        "&": {
+          fontSize: "14px",
+          minHeight: "168px",
+          backgroundColor: "var(--色-面板, #fff)",
+          color: "var(--色-墨, #111)",
+        },
+        ".cm-content": {
+          fontFamily: "var(--font-jetbrains-mono), ui-monospace, monospace",
+          padding: "8px 0",
+        },
         ".cm-gutters": {
-          backgroundColor: "color-mix(in srgb, var(--色-墨, #111) 5%, transparent)",
-          color: "color-mix(in srgb, var(--色-墨, #111) 45%, transparent)",
+          backgroundColor: "transparent",
+          color: "var(--色-次文)",
           border: "none",
         },
-        ".cm-activeLine": { backgroundColor: "color-mix(in srgb, var(--色-强调, #0090a8) 8%, transparent)" },
-        "&.cm-focused": { outline: "2px solid var(--色-强调, #0090a8)" },
+        ".cm-placeholder": {
+          color: "var(--色-次文)",
+        },
+        ".cm-activeLine": {
+          backgroundColor: "color-mix(in srgb, var(--色-墨, #111) 4%, transparent)",
+        },
+        ".cm-activeLineGutter": { backgroundColor: "transparent" },
+        "&.cm-focused": {
+          outline: "1px solid color-mix(in srgb, var(--色-墨, #111) 18%, transparent)",
+        },
       }),
       Prec.highest(
         keymap.of([

@@ -40,42 +40,48 @@ test("CodeMirror 编辑器渲染、行号与快捷键提交", async ({ page }) =
   await expect(page.getByText("预期结果")).toBeVisible();
 });
 
-// 库浏览器浮层（issue #14 T3）：默认隐藏，顶栏「库」按钮与 Cmd/Ctrl+B 切换，
-// 点击浮层外部（含编辑器）或按 ESC 收起；无遮罩层；表级折叠与数据预览保留。
-test("库浏览器浮层：默认隐藏，按钮与 Cmd/Ctrl+B 均可唤出", async ({ page }) => {
+// 表结构右栏：桌面默认可见。顶栏「表结构」、Esc、Cmd/Ctrl+B 可收起。
+// 点击编辑器不收起。表级折叠与数据预览保留。
+test("表结构面板：桌面默认可见，按钮、Esc 与快捷键可收起", async ({ page }) => {
   await 打开演练场(page);
-  // 默认不可见
-  await expect(page.getByTestId("库浏览器浮层")).toBeHidden();
-  // 顶栏「库」按钮唤出
-  await page.getByRole("button", { name: "库（Ctrl/⌘+B）" }).click();
-  await expect(page.getByTestId("库浏览器浮层")).toBeVisible();
-  // ESC 收起
+  await expect(page.getByTestId("库浏览器面板")).toBeVisible();
+  await page.getByRole("button", { name: /表结构/ }).click();
+  await expect(page.getByTestId("库浏览器面板")).toBeHidden();
+  await page.getByRole("button", { name: /表结构/ }).click();
+  await expect(page.getByTestId("库浏览器面板")).toBeVisible();
   await page.keyboard.press("Escape");
-  await expect(page.getByTestId("库浏览器浮层")).toBeHidden();
-  // Cmd/Ctrl+B 唤出，再按一次切换收起
+  await expect(page.getByTestId("库浏览器面板")).toBeHidden();
   await page.keyboard.press("ControlOrMeta+b");
-  await expect(page.getByTestId("库浏览器浮层")).toBeVisible();
+  await expect(page.getByTestId("库浏览器面板")).toBeVisible();
   await page.keyboard.press("ControlOrMeta+b");
-  await expect(page.getByTestId("库浏览器浮层")).toBeHidden();
-  // 浮层关闭时焦点在编辑器内，按 ESC 不应弹出（无劫持）
+  await expect(page.getByTestId("库浏览器面板")).toBeHidden();
+  // 关闭后焦点在编辑器内，按 ESC 不应重新打开
   await 输入SQL(page, "SELECT 1");
   await page.keyboard.press("Escape");
-  await expect(page.getByTestId("库浏览器浮层")).toBeHidden();
+  await expect(page.getByTestId("库浏览器面板")).toBeHidden();
 });
 
-test("库浏览器浮层：点击外部任意处（含编辑器）收起；表级折叠与预览保留", async ({ page }) => {
+// 窄屏（lg 断点以下）：表结构默认收起，不堆叠在编辑器下方；快捷键仍可唤出
+test("表结构面板：窄屏默认收起，快捷键可唤出", async ({ page }) => {
+  await page.setViewportSize({ width: 375, height: 720 });
   await 打开演练场(page);
+  await expect(page.getByTestId("库浏览器面板")).toBeHidden();
   await page.keyboard.press("ControlOrMeta+b");
+  await expect(page.getByTestId("库浏览器面板")).toBeVisible();
+});
+
+test("库浏览器：点击编辑器不收起；表级折叠与预览保留", async ({ page }) => {
+  await 打开演练场(page);
+  await expect(page.getByTestId("库浏览器面板")).toBeVisible();
   const 首表 = page.locator('details[data-testid="库表"]').first();
   const summary = 首表.locator("summary");
-  await summary.click(); // 收起
+  await summary.click();
   await expect(首表.locator("table")).toBeHidden();
-  await summary.click(); // 再展开
+  await summary.click();
   await expect(首表.locator("table")).toBeVisible();
   await expect(首表.locator("li").first()).toContainText(/INTEGER|TEXT/);
-  // 点击编辑器（浮层外）→ 浮层收起、无遮罩层
   await page.locator(".cm-content").click();
-  await expect(page.getByTestId("库浏览器浮层")).toBeHidden();
+  await expect(page.getByTestId("库浏览器面板")).toBeVisible();
   await expect(page.locator(".cm-editor")).toBeVisible();
 });
 

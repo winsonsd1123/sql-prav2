@@ -1,11 +1,25 @@
 import type { Metadata } from "next";
-import { JetBrains_Mono } from "next/font/google";
+import { JetBrains_Mono, Noto_Sans_SC, Noto_Serif_SC } from "next/font/google";
 import "./globals.css";
 
-// 代码/SQL/题号/种子/表格数据/进度数字统一用 JetBrains Mono（issue #12 视觉方案）
+// 标题用宋体，界面用黑体，代码/题号/种子仍用 JetBrains Mono
 const jetbrainsMono = JetBrains_Mono({
   variable: "--font-jetbrains-mono",
   subsets: ["latin"],
+});
+
+const notoSans = Noto_Sans_SC({
+  variable: "--font-noto-sans",
+  subsets: ["latin"],
+  weight: ["400", "500", "700"],
+  display: "swap",
+});
+
+const notoSerif = Noto_Serif_SC({
+  variable: "--font-noto-serif",
+  subsets: ["latin"],
+  weight: ["600", "700"],
+  display: "swap",
 });
 
 export const metadata: Metadata = {
@@ -15,7 +29,10 @@ export const metadata: Metadata = {
 
 export default function RootLayout({ children }: LayoutProps<"/">) {
   return (
-    <html lang="zh-CN" className={`${jetbrainsMono.variable} h-full antialiased`}>
+    <html
+      lang="zh-CN"
+      className={`${jetbrainsMono.variable} ${notoSans.variable} ${notoSerif.variable} h-full antialiased`}
+    >
       <body className="min-h-full flex flex-col">{children}</body>
     </html>
   );
