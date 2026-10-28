@@ -39,7 +39,7 @@ async function openLoginPage(page: Page) {
 }
 
 function matchPath(path: string) {
-  return (url: URL) => decodeURIComponent(url.pathname) === path;
+  return (url: URL) => url.pathname === path;
 }
 
 /** 结构合法的假 JWT（base64url 头.载荷.签名，exp 在未来）：auth-js 的 setSession 会校验 JWT 结构后才落登录态 */

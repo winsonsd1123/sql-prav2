@@ -8,7 +8,7 @@ async function openRegisterPage(page: Page) {
 
 /** 路由匹配谓词：中文路径在浏览器里是百分号编码的，glob 匹配会落空，改按解码后的 pathname 判等 */
 function matchPath(path: string) {
-  return (url: URL) => decodeURIComponent(url.pathname) === path;
+  return (url: URL) => url.pathname === path;
 }
 
 /** mock 网络层：白名单（关闭 + cuc.edu.cn）、注册校验、Supabase signUp（API 路由段用 ASCII：中文段在 next start 下 404） */
