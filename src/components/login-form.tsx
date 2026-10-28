@@ -8,65 +8,9 @@ import { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { parseLoginIdentifier } from "@/lib/registration-validation";
 import { browserClient } from "@/lib/supabase/browser-client";
+import { initCaptcha } from "@/lib/aliyun-captcha-loader";
 
 type CaptchaStatus = "初始化中" | "就绪" | "不可用";
-
-interface AliyunCaptchaConfig {
-  SceneId: string;
-  mode: string;
-  element: string;
-  button: string;
-  captchaVerifyCallback: (ticket: string) => Promise<{ captchaResult: boolean; bizResult?: boolean }>;
-  getInstance?: (instance: unknown) => void;
-  language?: string;
-  slideStyle?: { width: number; height: number };
-}
-
-declare global {
-  interface Window {
-    initAliyunCaptcha?: (config: AliyunCaptchaConfig) => void;
-    AliyunCaptchaConfig?: { region: string; prefix?: string };
-  }
-}
-
-const CAPTCHA_SCRIPT_URL = "https://o.alicdn.com/captcha-frontend/aliyunCaptcha/AliyunCaptcha.js";
-
-/** 动态加载阿里验证码脚本（必须动态加载、不本地缓存）；已注入的全局 initAliyunCaptcha 优先（测试接缝） */
-function initCaptcha(
-  callback: AliyunCaptchaConfig["captchaVerifyCallback"],
-  onReady: () => void,
-  onFailure: () => void,
-) {
-  const apply = (inject: (config: AliyunCaptchaConfig) => void) => {
-    inject({
-      SceneId: process.env.NEXT_PUBLIC_ALIYUN_CAPTCHA_SCENE_CODE ?? "",
-      mode: "popup",
-      element: "#aliyun-captcha-element",
-      button: "#login-submit-button",
-      language: "cn",
-      slideStyle: { width: 320, height: 40 },
-      captchaVerifyCallback: callback,
-    });
-    onReady();
-  };
-
-  if (typeof window.initAliyunCaptcha === "function") {
-    apply(window.initAliyunCaptcha);
-    return;
-  }
-  // 前置全局配置（prefix 在 AliyunCaptchaConfig，不在 initAliyunCaptcha 参数里）
-  const prefix = process.env.NEXT_PUBLIC_ALIYUN_CAPTCHA_PREFIX;
-  window.AliyunCaptchaConfig = { region: process.env.NEXT_PUBLIC_ALIYUN_CAPTCHA_REGION ?? "cn", ...(prefix ? { prefix } : {}) };
-  const script = document.createElement("script");
-  script.src = CAPTCHA_SCRIPT_URL;
-  script.async = true;
-  script.onload = () => {
-    if (typeof window.initAliyunCaptcha === "function") apply(window.initAliyunCaptcha);
-    else onFailure();
-  };
-  script.onerror = onFailure;
-  document.head.appendChild(script);
-}
 
 export default function LoginForm() {
   const router = useRouter();
