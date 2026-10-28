@@ -1,15 +1,17 @@
 "use client";
 
 // 邮箱验证回调：验证邮件链接落地页（?code=…，PKCE），手动 exchangeCodeForSession 换会话并呈现成功/失败态。
+// 密码重置链接也走此回调：PKCE verifier 带 recovery 标记时换会话后转入 /reset-password。
 import { Suspense, useEffect, useState } from "react";
 import Link from "next/link";
-import { useSearchParams } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import { 浏览器客户端 } from "@/lib/supabase/浏览器客户端";
 
 type 回调状态 = "换会话中" | "成功" | "失败";
 
 function CallbackContent() {
   const 参数 = useSearchParams();
+  const 路由 = useRouter();
   const code = 参数.get("code");
   // 缺 code 直接判失败（初始态而非 effect 内 setState，避免级联渲染）
   const [状态, 设状态] = useState<回调状态>(code ? "换会话中" : "失败");
@@ -21,10 +23,14 @@ function CallbackContent() {
     if (!code) return;
     浏览器客户端()
       .auth.exchangeCodeForSession(code)
-      .then(({ error }) => {
+      .then(({ data, error }) => {
         if (error) {
           设状态("失败");
           设失败原因(error.message);
+        } else if ((data as { redirectType?: string | null }).redirectType === "recovery") {
+          // 密码重置链接（PKCE recovery）：换会话成功后进入新密码页（issue #26）
+          // （auth-js 运行时返回 redirectType，但 AuthTokenResponse 类型未收录，故窄化断言）
+          路由.replace("/reset-password");
         } else {
           设状态("成功");
         }
@@ -33,7 +39,7 @@ function CallbackContent() {
         设状态("失败");
         设失败原因("网络异常，请稍后重试");
       });
-  }, [code]);
+  }, [code, 路由]);
 
   return (
     <div className="卡片 入场 w-full max-w-md p-6 text-center">
