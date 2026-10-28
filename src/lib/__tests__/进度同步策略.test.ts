@@ -6,7 +6,7 @@ import {
   创建进度节流器,
   初始同步状态,
   同步状态机,
-} from "@/lib/进度同步";
+} from "@/lib/进度同步策略";
 import { 空进度, 记通过, 记尝试, 记草稿, type 进度记录 } from "@/components/进度";
 
 const 本地一条 = {

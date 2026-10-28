@@ -14,7 +14,7 @@ function 假JWT(): string {
   ].join(".");
 }
 
-const 会话载荷 = () => ({
+const 登录态载荷 = () => ({
   access_token: 假JWT(),
   refresh_token: "e2e-rt",
   expires_in: 3600,
@@ -22,7 +22,7 @@ const 会话载荷 = () => ({
   user: { id: "u1", email: "zhang@cuc.edu.cn", aud: "authenticated" },
 });
 
-/** mock Supabase auth 网络层：recover（请求重置）、token?grant_type=pkce（回调换会话）、user（改密）、logout（登出） */
+/** mock Supabase auth 网络层：recover（请求重置）、token?grant_type=pkce（回调换登录态）、user（改密）、logout（登出） */
 async function mockSupabase认证层(page: Page, 选项: { 改密失败?: boolean } = {}) {
   const 请求记录: { 端点: string; 载荷?: unknown }[] = [];
   await page.route("**/auth/v1/**", async (路由) => {
@@ -32,13 +32,13 @@ async function mockSupabase认证层(page: Page, 选项: { 改密失败?: boolea
     if (url.pathname.endsWith("/recover")) {
       await 路由.fulfill({ status: 200, json: {} });
     } else if (url.pathname.endsWith("/token")) {
-      // PKCE 换会话：redirectType 由客户端本地 verifier 决定，无需服务端参与
-      await 路由.fulfill({ status: 200, json: 会话载荷() });
+      // PKCE 换登录态：redirectType 由客户端本地 verifier 决定，无需服务端参与
+      await 路由.fulfill({ status: 200, json: 登录态载荷() });
     } else if (url.pathname.endsWith("/user") && 路由.request().method() === "PUT") {
       await 路由.fulfill(
         选项.改密失败
           ? { status: 400, json: { error_code: "weak_password", msg: "密码强度不足" } }
-          : { status: 200, json: 会话载荷().user },
+          : { status: 200, json: 登录态载荷().user },
       );
     } else if (url.pathname.endsWith("/logout")) {
       await 路由.fulfill({ status: 204, body: "" });
@@ -94,7 +94,7 @@ test.describe("忘记密码", () => {
     await page.getByTestId("发送重置邮件按钮").click();
     await expect(page.getByTestId("重置请求已提交")).toBeVisible();
 
-    // ② 模拟用户点击邮件链接：落回调页（?code=…），换会话后按 recovery 转入新密码页
+    // ② 模拟用户点击邮件链接：落回调页（?code=…），换登录态后按 recovery 转入新密码页
     await page.goto("/auth/callback?code=e2e-recovery-code");
     await expect(page).toHaveURL(/\/reset-password/, { timeout: 15000 });
     await expect(page.getByTestId("重置密码按钮")).toBeVisible();
@@ -142,7 +142,7 @@ test.describe("忘记密码", () => {
     expect(请求记录.some((r) => r.端点 === "user")).toBe(false);
   });
 
-  test("无会话直达新密码页：提示链接无效", async ({ page }) => {
+  test("无登录态直达新密码页：提示链接无效", async ({ page }) => {
     await page.goto("/reset-password");
     await expect(page.getByTestId("重置链接无效")).toBeVisible();
   });

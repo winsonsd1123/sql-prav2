@@ -3,14 +3,14 @@
 import { describe, expect, it, vi } from "vitest";
 import { 执行登录, 解释凭据错误, type 登录依赖 } from "@/服务端/登录服务";
 
-const 会话 = { access_token: "at", refresh_token: "rt", expires_in: 3600, token_type: "bearer" };
-const 成功会话载荷 = { 会话, 用户: { id: "u1", email: "zhang@cuc.edu.cn" } };
+const 登录态 = { access_token: "at", refresh_token: "rt", expires_in: 3600, token_type: "bearer" };
+const 成功登录态载荷 = { 登录态, 用户: { id: "u1", email: "zhang@cuc.edu.cn" } };
 
 function 造依赖(覆盖: Partial<登录依赖> = {}): 登录依赖 {
   return {
     核验验证码: async () => true,
     按学号查邮箱: async (学号: string) => (学号 === "2022110001" ? "zhang@cuc.edu.cn" : null),
-    密码登录: async () => ({ 状态: "成功" as const, ...成功会话载荷 }),
+    密码登录: async () => ({ 状态: "成功" as const, ...成功登录态载荷 }),
     ...覆盖,
   };
 }
@@ -38,7 +38,7 @@ describe("执行登录", () => {
       { 标识: "9999999999", 密码: "whatever1", 验证票据: "t" },
       造依赖(),
     );
-    expect(结果).toEqual({ 状态: "账号或密码不正确" });
+    expect(结果).toEqual({ 状态: "学号/邮箱或密码不正确" });
   });
 
   it("密码错误：统一防枚举响应（不区分邮箱是否存在）", async () => {
@@ -46,7 +46,7 @@ describe("执行登录", () => {
       { 标识: "zhang@cuc.edu.cn", 密码: "wrong123", 验证票据: "t" },
       造依赖({ 密码登录: async () => ({ 状态: "凭据不符" }) }),
     );
-    expect(结果).toEqual({ 状态: "账号或密码不正确" });
+    expect(结果).toEqual({ 状态: "学号/邮箱或密码不正确" });
   });
 
   it("邮箱未验证：明确拦截提示（可区分，spec 允许）", async () => {
@@ -57,14 +57,14 @@ describe("执行登录", () => {
     expect(结果).toEqual({ 状态: "邮箱未验证" });
   });
 
-  it("学号登录成功：先经学号→邮箱映射再密码登录，返回会话", async () => {
-    const 密码登录 = vi.fn(async () => ({ 状态: "成功" as const, ...成功会话载荷 }));
+  it("学号登录成功：先经学号→邮箱映射再密码登录，返回登录态", async () => {
+    const 密码登录 = vi.fn(async () => ({ 状态: "成功" as const, ...成功登录态载荷 }));
     const 结果 = await 执行登录(
       { 标识: " 2022110001 ", 密码: "play2026", 验证票据: "真票据" },
       造依赖({ 密码登录 }),
     );
     expect(密码登录).toHaveBeenCalledWith("zhang@cuc.edu.cn", "play2026");
-    expect(结果).toEqual({ 状态: "成功", ...成功会话载荷 });
+    expect(结果).toEqual({ 状态: "成功", ...成功登录态载荷 });
   });
 
   it("邮箱登录成功：直用邮箱，不查用户档案", async () => {

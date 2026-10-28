@@ -24,7 +24,7 @@ export default function ForgotPasswordForm() {
       const { error } = await 浏览器客户端().auth.resetPasswordForEmail(邮箱.trim(), {
         redirectTo: `${window.location.origin}/auth/callback?next=/reset-password`,
       });
-      // 无论 error 与否都展示统一提示（防枚举：网络/服务端错误也不区分账号存在性）
+      // 无论 error 与否都展示统一提示（防枚举：网络/服务端错误也不区分用户存在性）
       void error;
       设已提交(true);
     } catch {

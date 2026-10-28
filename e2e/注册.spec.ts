@@ -121,8 +121,8 @@ test.describe("提交与提示", () => {
 });
 
 test.describe("邮箱验证回调", () => {
-  test("code 换会话成功：展示成功态", async ({ page }) => {
-    // PKCE 换会话端点（supabase-js exchangeCodeForSession）
+  test("code 换登录态成功：展示成功态", async ({ page }) => {
+    // PKCE 换登录态端点（supabase-js exchangeCodeForSession）
     await page.route("**/auth/v1/token**", (路由) =>
       路由.fulfill({ status: 200, json: { access_token: "at", token_type: "bearer", expires_in: 3600, refresh_token: "rt", user: { id: "u1" } } }),
     );

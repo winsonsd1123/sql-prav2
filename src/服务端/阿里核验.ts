@@ -22,7 +22,7 @@ function 核验客户端(): 核验客户端类型 {
 
 /**
  * 核验前端透传的验证码票据。只认正常响应里的 VerifyResult；
- * 调用层异常（超时/5xx/DNS）按官方容灾建议放行——false 必拦截，异常交由上层 5xx。
+ * 调用层异常（超时/5xx/DNS）一律拒绝登录——false 必拦截，异常交由上层 5xx（spec：无降级路径）。
  */
 export async function 核验阿里票据(票据: string): Promise<boolean> {
   const 场景码 = process.env.NEXT_PUBLIC_ALIYUN_CAPTCHA_SCENE_CODE;
