@@ -36,6 +36,8 @@ import {
   完成分档统计,
 } from "@/components/进度";
 import 会话总结 from "@/components/会话总结";
+import { usePermissions } from "@/components/当前权限";
+import { 持有权限, 权限点常量 } from "@/lib/权限";
 import type { 判定结果, 题目实例 } from "@/kernel/types";
 
 // UI 编排组件：会话级本地状态（种子/域包/进度）在 会话存储，判题在 Worker，
@@ -67,6 +69,10 @@ export default function Playground() {
     [种子, 域包],
   );
   const [当前题号, 设当前题号] = useState(0);
+  // 当前用户权限点（T5）：持「随时查看参考答案」者豁免答案门槛（教学检视，不记借助）；
+  // 无权限点（含加载失败回退）一律走学生摩擦力
+  const 权限点集合 = usePermissions();
+  const 答案豁免 = 持有权限(权限点集合, 权限点常量.随时查看参考答案);
   const [SQL输入, 设SQL输入] = useState("");
   const [结果, 设结果] = useState<判定结果 | null>(null);
   const [判定中, 设判定中] = useState(false);
@@ -462,12 +468,13 @@ export default function Playground() {
                 解锁状态={{
                   已通过: 是否已通过(进度, 当前题号),
                   提示已解锁: 提示是否解锁(进度, 当前题号),
-                  答案已解锁: 答案是否解锁(进度, 当前题号),
+                  答案已解锁: 答案是否解锁(进度, 当前题号, 答案豁免),
                   尝试次数: 进度.尝试次数[String(当前题号)] ?? 0,
                 }}
-                答案还差尝试={答案解锁还差尝试(进度, 当前题号)}
+                答案还差尝试={答案解锁还差尝试(进度, 当前题号, 答案豁免)}
+                答案豁免={答案豁免}
                 on揭示提示={() => 迁移进度((p) => 揭示下一层提示(p, 当前题号)[0])}
-                on查看答案={() => 迁移进度((p) => 查看答案(p, 当前题号)[0])}
+                on查看答案={() => 迁移进度((p) => 查看答案(p, 当前题号, 答案豁免)[0])}
               />
             </div>
             <div className="flex flex-wrap items-center gap-3">
