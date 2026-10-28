@@ -1,4 +1,9 @@
 import { test, expect, type Page } from "@playwright/test";
+import { presetLoginState } from "./helpers";
+
+test.beforeEach(async ({ page }) => {
+  await presetLoginState(page);
+});
 
 // SQL 草稿按题保留与持久化（issue #15）：
 // 切题恢复、刷新保留、换一套/换域包随会话重置三场景。

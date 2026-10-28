@@ -1,10 +1,8 @@
 import type { NextConfig } from "next";
 
 const nextConfig: NextConfig = {
-  /* config options here */
-  // 静态导出（issue #10）：全部计算在浏览器端完成，无任何后端；
-  // pnpm build 产出 out/，可直接静态托管（Vercel 会自动识别 out 目录）。
-  output: "export",
+  // Next.js 全栈形态（issue #22 / ADR-0004）：移除静态导出，
+  // Route Handlers 承担后端（Supabase 认证与数据），判题内核仍在浏览器执行。
   turbopack: {
     rules: {
       "*.css": {

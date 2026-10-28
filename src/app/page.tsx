@@ -1,5 +1,10 @@
-import 演练场 from "@/components/演练场";
+import Playground from "@/components/演练场";
+import LoginGuard from "@/components/login-guard";
 
 export default function Home() {
-  return <演练场 />;
+  return (
+    <LoginGuard>
+      <Playground />
+    </LoginGuard>
+  );
 }

@@ -44,8 +44,13 @@ export function 提示是否解锁(进度: 进度记录, 题号: number): boolea
   return (进度.尝试次数[String(题号)] ?? 0) >= 1;
 }
 
-/** 答案解锁门槛：不通过尝试累计 ≥3，或已看提示且尝试 ≥2；已通过的题全解锁 */
-export function 答案是否解锁(进度: 进度记录, 题号: number): boolean {
+/**
+ * 答案解锁门槛：不通过尝试累计 ≥3，或已看提示且尝试 ≥2；已通过的题全解锁。
+ * 豁免（T5，ADR-0003 修订 v3）：持「随时查看参考答案」权限点者免门槛直接解锁；
+ * 缺省 false，学生路径零变化。
+ */
+export function 答案是否解锁(进度: 进度记录, 题号: number, 豁免 = false): boolean {
+  if (豁免) return true;
   if (是否已通过(进度, 题号)) return true;
   const 尝试 = 进度.尝试次数[String(题号)] ?? 0;
   if (尝试 >= 3) return true;
@@ -58,8 +63,8 @@ export function 答案是否解锁(进度: 进度记录, 题号: number): boolea
  * 已通过或已解锁返回 0；否则按门槛（已看提示 ≥1 层为 2 次，否则 3 次）减去已有尝试。
  * 门槛知识归本模块单一来源，UI 只展示不重述。
  */
-export function 答案解锁还差尝试(进度: 进度记录, 题号: number): number {
-  if (答案是否解锁(进度, 题号)) return 0;
+export function 答案解锁还差尝试(进度: 进度记录, 题号: number, 豁免 = false): number {
+  if (答案是否解锁(进度, 题号, 豁免)) return 0;
   const 尝试 = 进度.尝试次数[String(题号)] ?? 0;
   const 已看 = 进度.已看提示[String(题号)] ?? 0;
   const 门槛 = 已看 >= 1 ? 2 : 3;
@@ -120,8 +125,11 @@ export function 完成分档统计(
 /**
  * 查看参考答案（ADR-0003 语义收紧）：通过前查看记入"已借助答案"并挂徽章，
  * 通过后查看仅展示不记录。返回 [新进度, 是否记入借助]。
+ * 豁免（T5，ADR-0003 修订 v3）：持「随时查看参考答案」权限点者的查看属教学检视，
+ * 不写入「已借助答案」、不计完成分档——进度原样返回。
  */
-export function 查看答案(进度: 进度记录, 题号: number): [进度记录, boolean] {
+export function 查看答案(进度: 进度记录, 题号: number, 豁免 = false): [进度记录, boolean] {
+  if (豁免) return [进度, false];
   if (是否已通过(进度, 题号)) return [进度, false];
   if (进度.已借助答案题号.includes(题号)) return [进度, true];
   return [{ ...进度, 已借助答案题号: [...进度.已借助答案题号, 题号] }, true];

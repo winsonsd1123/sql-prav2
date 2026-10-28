@@ -36,6 +36,8 @@ import {
   完成分档统计,
 } from "@/components/进度";
 import 会话总结 from "@/components/会话总结";
+import { usePermissions } from "@/components/current-permissions";
+import { hasPermission, PERMISSIONS } from "@/lib/permissions";
 import type { 判定结果, 题目实例 } from "@/kernel/types";
 
 // UI 编排组件：会话级本地状态（种子/域包/进度）在 会话存储，判题在 Worker，
@@ -67,6 +69,10 @@ export default function Playground() {
     [种子, 域包],
   );
   const [当前题号, 设当前题号] = useState(0);
+  // 当前用户权限点（T5）：持「随时查看参考答案」者豁免答案门槛（教学检视，不记借助）；
+  // 无权限点（含加载失败回退）一律走学生摩擦力
+  const permissionSet = usePermissions();
+  const 答案豁免 = hasPermission(permissionSet, PERMISSIONS.viewAnswersAnytime);
   const [SQL输入, 设SQL输入] = useState("");
   const [结果, 设结果] = useState<判定结果 | null>(null);
   const [判定中, 设判定中] = useState(false);
@@ -188,6 +194,7 @@ export default function Playground() {
   // 内联箭头函数会是陈旧闭包（当前题号恒为首渲染值），故经 当前题号引用 取实时题号。
   const 编辑回调 = useMemo(
     () => (v: string) => {
+      用户已编辑.current = true; // 首次编辑后不再自动跟随进度恢复草稿
       设SQL输入(v);
       草稿保存器.排程(当前题号引用.current, v);
       // 倒计时中学生开始编辑 → 取消自动跳转（引用取实时反馈态，避免陈旧闭包）
@@ -195,14 +202,14 @@ export default function Playground() {
     },
     [草稿保存器],
   );
-  // 会话就绪（种子非空）后恢复第 0 题草稿——SSR 期间进度为空快照，草稿在客户端载入
-  const 草稿已恢复 = useRef(false);
+  // 会话就绪（种子非空）后恢复第 0 题草稿——SSR 期间进度为空快照，草稿在客户端载入。
+  // 云端进度恢复（T6）可能在首帧后才写回本地：在用户首次编辑前持续跟随 进度 快照，
+  // 使云端草稿恢复后同步进编辑器；一旦编辑则以用户输入为准（切题恢复由 切换题目 承担）。
+  const 用户已编辑 = useRef(false);
   useEffect(() => {
-    if (!草稿已恢复.current && 种子 !== null) {
-      草稿已恢复.current = true;
-      设SQL输入(取草稿(进度存储.取快照(), 0));
-    }
-  }, [种子]);
+    if (种子 === null || 用户已编辑.current) return;
+    设SQL输入(取草稿(进度存储.取快照(), 当前题号));
+  }, [种子, 进度, 当前题号]);
   // 刷新/关闭页面前与组件卸载时落盘待写草稿
   useEffect(() => {
     const 落盘 = () => 草稿保存器.立即刷新();
@@ -462,12 +469,13 @@ export default function Playground() {
                 解锁状态={{
                   已通过: 是否已通过(进度, 当前题号),
                   提示已解锁: 提示是否解锁(进度, 当前题号),
-                  答案已解锁: 答案是否解锁(进度, 当前题号),
+                  答案已解锁: 答案是否解锁(进度, 当前题号, 答案豁免),
                   尝试次数: 进度.尝试次数[String(当前题号)] ?? 0,
                 }}
-                答案还差尝试={答案解锁还差尝试(进度, 当前题号)}
+                答案还差尝试={答案解锁还差尝试(进度, 当前题号, 答案豁免)}
+                答案豁免={答案豁免}
                 on揭示提示={() => 迁移进度((p) => 揭示下一层提示(p, 当前题号)[0])}
-                on查看答案={() => 迁移进度((p) => 查看答案(p, 当前题号)[0])}
+                on查看答案={() => 迁移进度((p) => 查看答案(p, 当前题号, 答案豁免)[0])}
               />
             </div>
             <div className="flex flex-wrap items-center gap-3">

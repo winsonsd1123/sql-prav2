@@ -25,6 +25,11 @@ export interface 提示与答案属性 {
   解锁状态: 解锁状态类型;
   /** 距答案解锁还差的尝试次数（门槛口径归 进度 模块，0 表示已解锁） */
   答案还差尝试: number;
+  /**
+   * 参考答案豁免（T5，ADR-0003 修订 v3）：持「随时查看参考答案」权限点者
+   * 免摩擦力门槛直接查看；查看属教学检视，不弹确认框、不记「借助答案」。
+   */
+  答案豁免?: boolean;
   on揭示提示: () => void;
   on查看答案: () => void;
 }
@@ -36,12 +41,15 @@ export default function HintsPanel({
   已借助答案,
   解锁状态,
   答案还差尝试,
+  答案豁免 = false,
   on揭示提示,
   on查看答案,
 }: 提示与答案属性) {
   const [答案已展开, 设答案已展开] = useState(false);
   const [等待确认, 设等待确认] = useState(false);
-  const { 已通过, 提示已解锁, 答案已解锁 } = 解锁状态;
+  const { 已通过, 提示已解锁 } = 解锁状态;
+  // 豁免者免门槛：答案恒解锁，锁定说明不出现
+  const 答案已解锁 = 答案豁免 || 解锁状态.答案已解锁;
 
   // 锁定态按钮直接标明解锁条件（spec 用户故事 16）；次数口径来自 进度.答案解锁还差尝试
   const 提示锁定说明 = 已通过 ? "" : "先验证一次解锁提示";
@@ -93,9 +101,11 @@ export default function HintsPanel({
         <div className="flex flex-col items-start gap-2">
           <button
             onClick={() => {
-              // 通过后查看仅展示不记录（语义收紧）；通过前先弹确认框
-              if (已通过) 设答案已展开(true);
-              else 设等待确认(true);
+              // 通过后查看仅展示不记录（语义收紧，进度原样返回，无需调用回调）；
+              // 豁免查看同属展示不记录（教学检视）；通过前（无豁免）先弹确认框
+              if (已通过 || 答案豁免) {
+                设答案已展开(true);
+              } else 设等待确认(true);
             }}
             disabled={!答案已解锁}
             data-testid="答案按钮"
@@ -106,6 +116,11 @@ export default function HintsPanel({
           {!答案已解锁 && (
             <span data-testid="答案锁定说明" className="text-xs text-muted">
               {答案锁定说明}
+            </span>
+          )}
+          {答案豁免 && (
+            <span data-testid="答案豁免说明" className="text-xs text-muted">
+              教学检视：免门槛查看，不计「借助答案」
             </span>
           )}
           {等待确认 && (
