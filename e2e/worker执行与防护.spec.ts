@@ -1,4 +1,9 @@
 import { test, expect, type Page } from "@playwright/test";
+import { 预置登录态 } from "./辅助";
+
+test.beforeEach(async ({ page }) => {
+  await 预置登录态(page);
+});
 
 // Worker 执行路径与大查询防护（issue #10 / T10 验收）：
 // 1. 验证按钮在 Worker 模式下工作（建库+查询+比对全部在 Worker 内）；

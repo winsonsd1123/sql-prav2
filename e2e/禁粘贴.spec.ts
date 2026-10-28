@@ -1,4 +1,9 @@
 import { test, expect, type Page } from "@playwright/test";
+import { 预置登录态 } from "./辅助";
+
+test.beforeEach(async ({ page }) => {
+  await 预置登录态(page);
+});
 
 // 编辑器禁粘贴与拖入（issue #17，T6）：粘贴/拖入无效果、
 // 拦截横幅出现与约 2 秒消失、同会话不重复弹、补全保留、展示区可复制。
