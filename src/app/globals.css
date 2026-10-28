@@ -125,6 +125,32 @@ body {
   cursor: not-allowed;
 }
 
+/* 输入框（派生规范：底/边与主按钮同层，焦点态照抄编辑器的墨色 18% outline） */
+.输入框 {
+  background: var(--色-主底);
+  color: var(--色-主字);
+  border: 1px solid var(--色-主边);
+  border-radius: 10px;
+  font-size: 0.875rem;
+  line-height: 1.25rem;
+  padding: 0.5rem 0.75rem; /* py-2 px-3，与按钮标准内距一致 */
+  width: 100%;
+}
+.输入框::placeholder {
+  color: var(--色-次文);
+}
+.输入框:focus {
+  outline: 1px solid color-mix(in srgb, var(--色-墨) 18%, transparent);
+  outline-offset: 0;
+}
+.输入框:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+.输入框.错误 {
+  border-color: var(--色-错误);
+}
+
 @keyframes 入场上浮 {
   from {
     opacity: 0;
