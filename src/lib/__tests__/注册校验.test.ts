@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { 校验注册表单 } from "@/lib/注册校验";
+import { 解析登录标识, 校验注册表单 } from "@/lib/注册校验";
 
 const 合法白名单 = { 放开任意域名: false, 域名清单: ["cuc.edu.cn"] };
 
@@ -87,5 +87,44 @@ describe("注册表单校验", () => {
     expect(Object.keys(错误)).toEqual(["学号", "姓名", "昵称", "邮箱", "密码"]);
     // 每条提示都是非空中文文案
     for (const 提示 of Object.values(错误)) expect(提示!.length).toBeGreaterThan(0);
+  });
+});
+
+describe("登录标识解析", () => {
+  it("纯数字：判为学号", () => {
+    expect(解析登录标识("2022110001")).toEqual({ 类型: "学号", 值: "2022110001" });
+  });
+
+  it("含 @：判为邮箱", () => {
+    expect(解析登录标识("zhang@cuc.edu.cn")).toEqual({ 类型: "邮箱", 值: "zhang@cuc.edu.cn" });
+  });
+
+  it("字母数字学号格式：判为学号", () => {
+    expect(解析登录标识("s2022110001")).toEqual({ 类型: "学号", 值: "s2022110001" });
+  });
+
+  it("首尾空白：去除后再判定", () => {
+    expect(解析登录标识("  2022110001 \n")).toEqual({ 类型: "学号", 值: "2022110001" });
+    expect(解析登录标识(" zhang@cuc.edu.cn ")).toEqual({ 类型: "邮箱", 值: "zhang@cuc.edu.cn" });
+  });
+
+  it("空输入：判为无效并给原因", () => {
+    const 结果 = 解析登录标识("   ");
+    expect(结果.类型).toBe("无效");
+    if (结果.类型 === "无效") expect(结果.原因).toBeTruthy();
+  });
+
+  it("含非法字符且不含 @（如带空格/连字符）：判为无效", () => {
+    expect(解析登录标识("2022 110").类型).toBe("无效");
+    expect(解析登录标识("2022-110").类型).toBe("无效");
+  });
+
+  it("仅 @ 无域名：判为无效（不是合法邮箱）", () => {
+    expect(解析登录标识("zhang@").类型).toBe("无效");
+    expect(解析登录标识("@cuc.edu.cn").类型).toBe("无效");
+  });
+
+  it("超长学号格式（>20 位）：判为无效", () => {
+    expect(解析登录标识("2".repeat(21)).类型).toBe("无效");
   });
 });

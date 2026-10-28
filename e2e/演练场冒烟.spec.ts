@@ -1,4 +1,9 @@
 import { test, expect, type Page } from "@playwright/test";
+import { 预置登录态 } from "./辅助";
+
+test.beforeEach(async ({ page }) => {
+  await 预置登录态(page);
+});
 
 // 演练场 UI 关键路径冒烟（issue #9）：编辑器、库浏览器折叠、差异对照、
 // 提示逐层揭示、参考答案标注、进度持久与换一套重置。
