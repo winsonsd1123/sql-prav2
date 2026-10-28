@@ -25,21 +25,21 @@ beforeEach(() => 执行登录Mock.mockReset());
 
 describe("登录路由", () => {
   it("载荷原样透传业务层（标识/密码/验证票据）", async () => {
-    执行登录Mock.mockResolvedValue({ 状态: "账号或密码不正确" });
+    执行登录Mock.mockResolvedValue({ 状态: "学号/邮箱或密码不正确" });
     await 登录请求(合法载荷);
     expect(执行登录Mock).toHaveBeenCalledWith(合法载荷);
   });
 
-  it("成功：200 返回会话载荷", async () => {
+  it("成功：200 返回登录态载荷", async () => {
     执行登录Mock.mockResolvedValue({
       状态: "成功",
-      会话: { access_token: "at", refresh_token: "rt" },
+      登录态: { access_token: "at", refresh_token: "rt" },
       用户: { id: "u1", email: "zhang@cuc.edu.cn" },
     });
     const 响应 = await 登录请求(合法载荷);
     expect(响应.status).toBe(200);
     await expect(响应.json()).resolves.toEqual({
-      会话: { access_token: "at", refresh_token: "rt" },
+      登录态: { access_token: "at", refresh_token: "rt" },
       用户: { id: "u1", email: "zhang@cuc.edu.cn" },
     });
   });
@@ -52,10 +52,10 @@ describe("登录路由", () => {
   });
 
   it("防枚举拒绝：401 统一文案", async () => {
-    执行登录Mock.mockResolvedValue({ 状态: "账号或密码不正确" });
+    执行登录Mock.mockResolvedValue({ 状态: "学号/邮箱或密码不正确" });
     const 响应 = await 登录请求(合法载荷);
     expect(响应.status).toBe(401);
-    await expect(响应.json()).resolves.toEqual({ 错误: "账号或密码不正确" });
+    await expect(响应.json()).resolves.toEqual({ 错误: "学号/邮箱或密码不正确" });
   });
 
   it("邮箱未验证：403 明确拦截提示", async () => {

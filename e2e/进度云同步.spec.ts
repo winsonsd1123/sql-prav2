@@ -1,6 +1,6 @@
 // T6 · 进度上云 E2E（issue #28）：Supabase REST 网络层 mock（云端进度桩，见 辅助.ts）。
 // 覆盖：判定后节流静默上云；刷新/新会话从云端恢复完整进度（尝试/草稿/通过状态）；
-// 跨浏览器上下文（新 context 预置会话）进度恢复；断网（云写失败）兜底静默 + 恢复后自动冲写。
+// 跨浏览器上下文（新 context 预置登录态）进度恢复；断网（云写失败）兜底静默 + 恢复后自动冲写。
 import { expect, test, type Page } from "@playwright/test";
 import { 预置登录态, 创建云端进度桩, type 云端进度行 } from "./辅助";
 
@@ -68,7 +68,7 @@ test("云端已有进度：进入同会话即完整恢复（通过状态、尝�
   await expect(page.locator(".cm-content")).toContainText("SELECT 云端草稿");
 });
 
-test("跨浏览器上下文：新 context 同账号同会话，进度从云端恢复", async ({ page, browser }) => {
+test("跨浏览器上下文：新 context 同用户同会话，进度从云端恢复", async ({ page, browser }) => {
   const 桩 = 创建云端进度桩();
   await 桩.挂(page);
   await 打开演练场(page, 63);
@@ -77,7 +77,7 @@ test("跨浏览器上下文：新 context 同账号同会话，进度从云端�
   await expect
     .poll(() => 桩.收到的写.some((r) => r.种子 === 63), { timeout: 10_000 })
     .toBe(true);
-  // 新浏览器上下文（另一台设备的等价物）：预置同账号会话 + 同一张云
+  // 新浏览器上下文（另一台设备的等价物）：预置同用户登录态 + 同一张云
   const 上下文B = await browser.newContext();
   const 页B = await 上下文B.newPage();
   await 预置登录态(页B);

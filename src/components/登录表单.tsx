@@ -2,7 +2,7 @@
 
 // 登录表单（客户端）：静室主题；学号或邮箱 + 密码 + 阿里云验证码 2.0（每次登录必过，无降级）。
 // 提交流程：点登录按钮 → 阿里组件弹验证 → captchaVerifyCallback 拿到票据 → POST /api/auth/login
-// → 后端先核验票据再走账号体系；成功后浏览器客户端 setSession 恢复会话并进入演练场。
+// → 后端先核验票据再走用户体系；成功后浏览器客户端 setSession 恢复登录态并进入演练场。
 // 验证码接缝：window.initAliyunCaptcha 已存在时直接使用（e2e 用 addInitScript 注入 stub 即可整体替换）。
 import { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
@@ -100,11 +100,10 @@ export default function LoginForm() {
         // 验证码未通过：告知组件刷新滑块；其余错误验证码已消耗但无需刷新
         return { captchaResult: 载荷.错误 !== "验证码未通过，请重试" };
       }
-      // 成功：浏览器客户端恢复会话（PKCE 单例），再进入演练场
-      // 成功：浏览器客户端恢复会话（PKCE 单例），再进入演练场
+      // 成功：浏览器客户端恢复登录态（PKCE 单例），再进入演练场
       await 浏览器客户端().auth.setSession({
-        access_token: 载荷.会话.access_token,
-        refresh_token: 载荷.会话.refresh_token,
+        access_token: 载荷.登录态.access_token,
+        refresh_token: 载荷.登录态.refresh_token,
       });
       路由.replace("/");
       return { captchaResult: true, bizResult: true };

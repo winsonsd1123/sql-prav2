@@ -64,7 +64,9 @@ test("教师（mock「随时查看参考答案」）0 尝试即直接可见答�
   const 原始进度 = await page.evaluate(() =>
     localStorage.getItem("sql-playground:progress:student-course-grade:42"),
   );
-  expect(原始进度 && JSON.parse(原始进度).已借助答案题号).toEqual([]);
+  // 纯查看不触发进度写入；即便已有进度记录，也已借助答案题号为空（查看后一行还会自行通过验证）
+  const 借助答案 = 原始进度 ? JSON.parse(原始进度).已借助答案题号 : [];
+  expect(借助答案).toEqual([]);
 
   // 教师看答案后自行通过 → 语义仍是独立完成（豁免不吞分档）
   await page.locator(".cm-content").click();

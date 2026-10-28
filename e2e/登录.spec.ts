@@ -41,7 +41,7 @@ function 匹配路径(路径: string) {
   return (url: URL) => decodeURIComponent(url.pathname) === 路径;
 }
 
-/** 结构合法的假 JWT（base64url 头.载荷.签名，exp 在未来）：auth-js 的 setSession 会校验 JWT 结构后才落会话 */
+/** 结构合法的假 JWT（base64url 头.载荷.签名，exp 在未来）：auth-js 的 setSession 会校验 JWT 结构后才落登录态 */
 function 假JWT(声明: Record<string, unknown> = {}): string {
   const 编码 = (值: object) => btoa(JSON.stringify(值)).replace(/\+/g, "-").replace(/\//g, "_").replace(/=+$/, "");
   return [
@@ -63,7 +63,7 @@ test.describe("强制登录", () => {
     await expect(page.getByTestId("登录按钮")).toBeVisible();
   });
 
-  test("已预置会话：直接进入演练场", async ({ page }) => {
+  test("已预置登录态：直接进入演练场", async ({ page }) => {
     const { 预置登录态 } = await import("./辅助");
     await 预置登录态(page);
     await page.goto("/?seed=42");
@@ -94,7 +94,7 @@ test.describe("登录流程", () => {
       await 路由.fulfill({
         status: 200,
         json: {
-          会话: { access_token: 假JWT(), refresh_token: "rt", token_type: "bearer", expires_in: 3600 },
+          登录态: { access_token: 假JWT(), refresh_token: "rt", token_type: "bearer", expires_in: 3600 },
           用户: { id: "u1", email: "zhang@cuc.edu.cn" },
         },
       });
@@ -117,7 +117,7 @@ test.describe("登录流程", () => {
 
   test("登录失败：统一防枚举错误，停留登录页", async ({ page }) => {
     await page.route(匹配路径("/api/auth/login"), (路由) =>
-      路由.fulfill({ status: 401, json: { 错误: "账号或密码不正确" } }),
+      路由.fulfill({ status: 401, json: { 错误: "学号/邮箱或密码不正确" } }),
     );
 
     await 打开登录页(page);
@@ -125,7 +125,7 @@ test.describe("登录流程", () => {
     await page.getByTestId("密码输入").fill("wrong123");
     await page.getByTestId("登录按钮").click();
 
-    await expect(page.getByTestId("提交错误")).toHaveText("账号或密码不正确");
+    await expect(page.getByTestId("提交错误")).toHaveText("学号/邮箱或密码不正确");
     await expect(page).toHaveURL(/\/login/);
   });
 

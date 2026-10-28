@@ -101,11 +101,10 @@ export default function HintsPanel({
         <div className="flex flex-col items-start gap-2">
           <button
             onClick={() => {
-              // 通过后查看仅展示不记录（语义收紧）；豁免查看同属展示不记录（教学检视）；
-              // 通过前（无豁免）先弹确认框
+              // 通过后查看仅展示不记录（语义收紧，进度原样返回，无需调用回调）；
+              // 豁免查看同属展示不记录（教学检视）；通过前（无豁免）先弹确认框
               if (已通过 || 答案豁免) {
                 设答案已展开(true);
-                on查看答案(); // 豁免查看在 进度.查看答案 中原样返回、不记借助
               } else 设等待确认(true);
             }}
             disabled={!答案已解锁}
