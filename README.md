@@ -45,24 +45,58 @@ The easiest way to deploy your Next.js app is to use the [Vercel Platform](https
 
 Check out our [Next.js deployment documentation](https://nextjs.com/docs/app/building-your-application/deploying) for more details.
 
-## 静态导出与部署（issue #10）
+## 部署（issue #22 / ADR-0004）
 
-本项目无任何后端：全部计算（随机建库、判题、防护）在浏览器端完成，SQL 执行跑在 Web Worker 中（`src/kernel/执行worker.ts`）。`next.config.ts` 已启用 `output: "export"`：
+### 部署形态：Vercel + Node runtime
+
+用户系统迭代（issue #22）后项目为 **Next.js 全栈形态**，不再是纯静态站点，静态托管不再适用：
+
+- **判题仍在浏览器**：随机建库、判题、防粘贴等全部计算在浏览器端完成，SQL 执行跑在 Web Worker 中（`src/kernel/执行worker.ts`）。
+- **后端仅承担认证与数据**：Route Handlers（`app/api/`）+ Supabase（Auth、数据库）；登录统一走 `/api/auth/登录` 等服务端路由，进度按（用户、种子、域包）节流上云。
+- `next.config.ts` 已移除 `output: "export"`；Vercel 直接导入仓库、按默认 Next.js Framework Preset 部署即可（Serverless Node runtime），构建命令与环境变量见下。
+
+### 环境变量（六键）
+
+以 `.env.example` 为模板（本地复制为 `.env.local`；Vercel 在 Project Settings → Environment Variables 配置同名变量）：
+
+| 变量 | 可见性 | 说明 |
+|---|---|---|
+| `NEXT_PUBLIC_SUPABASE_URL` | 公开 | Supabase 项目 URL（Dashboard → Settings → API） |
+| `NEXT_PUBLIC_SUPABASE_ANON_KEY` | 公开 | anon/publishable key（公开设计，配合 RLS） |
+| `SUPABASE_SERVICE_ROLE_KEY` | **仅服务端** | 最高权限，绝不可带 `NEXT_PUBLIC_` 前缀 |
+| `NEXT_PUBLIC_ALIYUN_CAPTCHA_SCENE_CODE` | 公开 | 阿里云验证码 2.0 场景码（前端组件初始化） |
+| `ALIYUN_CAPTCHA_ACCESS_KEY_ID` | **仅服务端** | RAM 子账号 AccessKey（仅验证码核验权限） |
+| `ALIYUN_CAPTCHA_ACCESS_KEY_SECRET` | **仅服务端** | 同上 |
+
+### Supabase 初始化
+
+1. 创建 Supabase 项目（区域建议东京/新加坡，贴近主要用户降低延迟）。
+2. SQL Editor 按时间戳顺序执行 `supabase/migrations/` 三个迁移文件：
+   `20261028000001_用户档案与邮箱白名单.sql` → `20261028000002_角色与权限点.sql` → `20261028000003_练习进度.sql`（含 RLS 兜底、角色/权限点种子、白名单初始值）。
+3. Auth 设置：
+   - Authentication → Providers → Email：**Confirm email 开启**（未验证不能登录）。
+   - Authentication → URL Configuration：Site URL 设为部署域名；Redirect URLs 加入 `https://<部署域>/auth/callback`（以及本地 `http://localhost:3000/**`）。
+4. SMTP 提醒：第一版用 Supabase 内置邮件服务，**配额仅 2 封/小时**，正式上线前须在 Authentication → Emails 切换自定义 SMTP（已记上线待办，见下方清单）。
+
+### 阿里云验证码 2.0
+
+1. 开通验证码 2.0 实例，在控制台拿到**场景码**（SceneCode）→ `NEXT_PUBLIC_ALIYUN_CAPTCHA_SCENE_CODE`。
+2. 创建 **RAM 子账号**并仅授予验证码核验相关权限，生成 AccessKey → `ALIYUN_CAPTCHA_ACCESS_KEY_ID/SECRET`（服务端核验票据用；验证码不通过直接拒绝登录，无降级路径）。
+
+### 本地开发
 
 ```bash
-pnpm build   # 产出 out/，可直接静态托管
+cp .env.example .env.local   # 填入六键真实值
+pnpm install
+pnpm dev
 ```
 
-本地预览静态产物（静态导出后 `next start` 不可用）：
+## 上线前检查清单
 
-```bash
-node scripts/静态服务.mjs out 3311
-```
-
-### Vercel 部署要点
-
-- 直接导入仓库即可：Vercel 对 `output: "export"` 的 Next.js 项目会自动识别 `out/` 目录并按静态站点部署，无需 Framework Preset 之外的额外配置（无 Serverless / Node 运行时）。
-- 构建命令无需自定义：Vercel 侧自动执行 `pnpm install && pnpm build`，仓库不含构建产物。
-- 静态资源约束：`public/sql-wasm.wasm`（sql.js 引擎）与 Turbopack 产物中的 Worker 脚本（`_next/static/chunks/turbopack-worker-*.js`）均为静态文件，Vercel 默认静态服务即可（`.wasm` 的 MIME 由 Vercel 自动处理）。
-- 无需环境变量；进度与种子存于浏览器 localStorage / URL，无任何后端状态。
-- 注意：`cacheComponents`/PPR 与静态导出不兼容，故未启用（Next.js 16 的 `output: "export"` 会在 build 时校验并报错）。
+- [ ] **迁移已执行**：云端 Supabase SQL Editor 按时间戳序跑完三个迁移文件，表结构与本地一致。
+- [ ] **Auth 设置**：Confirm email 已开启；Site URL / Redirect URLs 已含部署域与 `/auth/callback`。
+- [ ] **SMTP**：已切换自定义 SMTP（内置邮件服务仅 2 封/小时，不够验证邮件 + 重置邮件用量）。
+- [ ] **白名单开关初始值**：`邮箱白名单配置` 表种子为「放开任意域名 = false（仅白名单域名可注册）」，域名清单初始仅 `cuc.edu.cn`；如需调整直接改表（第一版无管理 UI）。
+- [ ] **密码策略确认**：Supabase Auth 密码最低 8 位 + 内置强度校验（注册/重置均生效）。
+- [ ] **调试期测试账号清理**：删除调试冒烟注册的测试账号（如 `dbg@cuc.edu.cn`，Supabase Dashboard → Authentication → Users 可删，同时清理 `用户档案` 关联行）。
+- [ ] **角色分配**：第一版无管理界面，助教/教师角色在 Studio 直接改 `用户-角色` 表（挂「随时查看参考答案」权限点见 `角色-权限` 表与 ADR-0005）。
