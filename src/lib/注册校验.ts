@@ -16,6 +16,36 @@ export type 注册表单错误 = Partial<Record<keyof 注册表单, string>>;
 
 const 邮箱正则 = /^[^\s@]+@[^\s@]+$/;
 
+// ── 密码强度（共用规则）：注册与重置新密码同一套判定 ──
+
+/** 单字段密码强度校验：通过返回 null，否则返回中文错误提示 */
+export function 校验密码强度(密码: string): string | null {
+  if (密码.length < 8) return "密码至少 8 位";
+  if (!(/[a-zA-Z]/.test(密码) && /\d/.test(密码))) return "密码须同时包含字母与数字";
+  return null;
+}
+
+/** 重置密码时的新密码表单校验（强度 + 两次一致）：通过返回 null */
+export function 校验新密码(密码: string, 确认密码: string): string | null {
+  const 强度错误 = 校验密码强度(密码);
+  if (强度错误) return 强度错误;
+  if (密码 !== 确认密码) return "两次输入的密码不一致";
+  return null;
+}
+
+// ── 忘记密码（issue #26）：请求邮箱校验 + 防枚举统一提示 ──
+
+/** 重置请求邮箱校验：通过返回 null；只判格式，不判白名单（找回面向已注册邮箱） */
+export function 校验重置请求邮箱(邮箱: string): string | null {
+  const 值 = 邮箱.trim();
+  if (值 === "") return "邮箱必填";
+  if (!邮箱正则.test(值)) return "邮箱格式不正确";
+  return null;
+}
+
+/** 防枚举统一提示：请求成功与否文案一致（与服务端注册校验的防枚举语义一致） */
+export const 重置请求统一提示 = "若该邮箱已注册，则会收到一封重置密码邮件，请查收（包括垃圾邮件文件夹）。";
+
 export function 校验注册表单(表单: 注册表单, 白名单: 白名单配置): 注册表单错误 {
   const 错误: 注册表单错误 = {};
 
@@ -36,9 +66,8 @@ export function 校验注册表单(表单: 注册表单, 白名单: 白名单配
     if (!判定.允许) 错误.邮箱 = 判定.原因 ?? "邮箱不可注册";
   }
 
-  const 密码 = 表单.密码;
-  if (密码.length < 8) 错误.密码 = "密码至少 8 位";
-  else if (!(/[a-zA-Z]/.test(密码) && /\d/.test(密码))) 错误.密码 = "密码须同时包含字母与数字";
+  const 密码错误 = 校验密码强度(表单.密码);
+  if (密码错误) 错误.密码 = 密码错误;
 
   return 错误;
 }

@@ -184,8 +184,9 @@ export default function LoginForm() {
         登录
       </button>
 
-      <p className="mt-3 text-xs text-muted">
-        还没有账号？<a className="text-ink underline underline-offset-2" href="/register">去注册</a>
+      <p className="mt-3 flex items-baseline justify-between text-xs text-muted">
+        <span>还没有账号？<a className="text-ink underline underline-offset-2" href="/register">去注册</a></span>
+        <a className="text-ink underline underline-offset-2" href="/forgot-password" data-testid="忘记密码入口">忘记密码？</a>
       </p>
     </form>
   );
