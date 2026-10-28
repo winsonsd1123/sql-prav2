@@ -1,8 +1,8 @@
 import { test, expect, type Page } from "@playwright/test";
-import { 预置登录态 } from "./辅助";
+import { presetLoginState } from "./helpers";
 
 test.beforeEach(async ({ page }) => {
-  await 预置登录态(page);
+  await presetLoginState(page);
 });
 
 // 演练场 UI 关键路径冒烟（issue #9）：编辑器、库浏览器折叠、差异对照、

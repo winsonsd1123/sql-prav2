@@ -1,8 +1,8 @@
 import { test, expect, type Page } from "@playwright/test";
-import { 预置登录态 } from "./辅助";
+import { presetLoginState } from "./helpers";
 
 test.beforeEach(async ({ page }) => {
-  await 预置登录态(page);
+  await presetLoginState(page);
 });
 
 // SQL 草稿按题保留与持久化（issue #15）：
