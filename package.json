@@ -7,7 +7,8 @@
     "build": "next build",
     "start": "next start",
     "lint": "eslint",
-    "test": "vitest run"
+    "test": "vitest run",
+    "check:naming": "node scripts/check-naming.mjs"
   },
   "dependencies": {
     "@alicloud/captcha20230305": "^1.1.4",
