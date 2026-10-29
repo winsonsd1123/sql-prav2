@@ -2,6 +2,8 @@
 
 NT1–NT6 的**唯一译名来源**：GLOSSARY 词条英文名为基准，本表为全量映射。**禁止现场发明译名**——表里没有的先入表后使用。camelCase（函数/变量/props）、PascalCase（类型/组件）、SCREAMING_SNAKE（模块级常量）。
 
+**节域规则**：各表格的译名仅在该节所述文件/语境生效；通用速查是缺省映射。同词在不同节出现不同译名（如「项」通用 item、worker 语境 entry）不是矛盾——按所在文件查所属节，无专属节时用速查。
+
 ## 三条已定边界（勿再议）
 
 1. `data-testid` 的中文值**保留**（UI 定位契约，改动 = 全量 e2e 选择器 churn）
@@ -159,6 +161,8 @@ NT1–NT6 的**唯一译名来源**：GLOSSARY 词条英文名为基准，本表
 
 同词多处出现，统一按此译；组合词按「修饰语+核心词」拼接（如 基准表名→baseTableName、固定时刻→fixedTime、找异名种子→findRenamedSeed）：
 
+（速查区的「题目」指局部变量持有的题目实例 QuestionInstance，非鼓励用「题目」称呼模板——词条 Avoid 边界不变）
+
 会话→session · 种子→seed · 域包→pack/domainPack · 题目→question · 题号→questionIndex · 进度→progress · 结果→result · 表→table · 列→column · 行→row · 键→key · 值→value · 名→name · 文本→text · 当前→current · 下一个→next · 首/第一个→first · 项→item · 项列表→items · 列表→list · 集→set · 计数→count · 深度→depth · 大写→upper · 后→next · 起→start · 止→end · 区→range · 索引→index · 序→order · 状态→state · 视图→view · 实例→instance · 存储简化（测试）→store · 保存器→saver · 写入→writeFn · 回调→callback · 退订→unsubscribe · 夹具→fixture · 样本→sample · 基准→baseline · 变体→variant · 候选→candidates · 错误→error · 期望→expected · 学生→student · 预期→expected · 计时器→timer · 待写→pendingWrite · 落盘→flush · 随机→random · 域包们→packs · 种子列表→seeds · 序号们→indices · 已见→seen · 有差异→hasDiff · 全量→full · 列序颠倒→reverseColumnOrder · 含排序→hasOrderBy · 原计数→remaining……（剩余通用词按同一规则类推）
 
 ## ⚠️ 深水区：interface 字段 = 跨文件数据契约
@@ -195,11 +199,11 @@ NT1–NT6 的**唯一译名来源**：GLOSSARY 词条英文名为基准，本表
 | 名词 | identifierTokens | 表词 | tableToken | 别名词 | aliasToken |
 | 第二 | second | 第三 | third | 定位 | locate |
 | 解析列 | resolveColumn | 解析 | resolved | 指向 | aliasTarget |
-| 首个 | firstViolation | 文案 | MessageType | 中断 | broken |
+| 首个（首个违规引用） | firstViolation | 文案（错误文案类型） | ErrorMessageKind | 中断 | broken |
 | 跳过括号 | skipParens | 区 | range | 起 | start |
 | 止 | end | 索引 | index | 事件 | events |
 | 模式 | pattern | 写法 | usage | 子句 | clause |
-| 库名 | dbName | 错误 | errors | 首 | first |
+| 库名 | dbName | 错误 | errors | 首（第一个元素） | first |
 | 清洗 | sanitized | 映射 | mapped | 学生结果 | studentResult |
 | 预期结果 | expectedResult | 语法错误 | syntaxError | 分组错误 | groupByError |
 | 解析器 | parser | 边界 | wordBoundary | 引 | quote |
@@ -226,7 +230,7 @@ NT1–NT6 的**唯一译名来源**：GLOSSARY 词条英文名为基准，本表
 | 等待中 | pending | 引擎就绪订阅 | engineReadySubscribers | 当前超时毫秒 | currentTimeoutMs |
 | 覆盖 | override | 通报就绪 | notifyReady | 拒绝全部 | rejectAll |
 | 创建worker | createWorker | 消息 | message | 等待者们 | waiters |
-| 项 | entry | 确保worker就绪 | ensureWorkerReady | 超时器 | timer |
+| 项（等待中映射条目） | entry | 确保worker就绪 | ensureWorkerReady | 超时器 | timer |
 | 请求 | request | 超时文案 | timeoutMessage | 上下文 | ctx |
 | 在浏览器 | isBrowser | 占位 | placeholders | 文本 | text |
 
@@ -333,5 +337,5 @@ NT1–NT6 的**唯一译名来源**：GLOSSARY 词条英文名为基准，本表
 | 种子 | seed | 值 | value | 当前 | current |
 | 后 | next | 大写 | upper | 候选 | candidates |
 | 样本 | sample | 别名 | aliases | 列序颠倒 | reverseColumnOrder |
-| 词列表 | tokens | 项列表 | orderItems | 全允许 | allowedAll |
+| 词列表 | tokens | 项列表（ORDER 子句） | orderItems | 全允许 | allowedAll |
 | [表词 | [tableToken | [进度 | [progress | 记入 | recorded |
