@@ -432,6 +432,6 @@ NT1–NT6 的**唯一译名来源**：GLOSSARY 词条英文名为基准，本表
 | 目标域包ID（切换域包参数） | targetPackId | Playground 内部 |
 | 知识点 / 序号（题目分组字段）、组 / 状态 | knowledgeArea / indices、group / state | Playground 左栏目录 |
 | 落盘（beforeunload 内局部函数） | flush | Playground 内部 |
-| 题 / 行 / 值 / 列（库浏览器/差异对照 map 参数） | table→tableInstance、row、value、column | 渲染层局部 |
+| 题 / 行 / 值 / 列（渲染层 map 参数） | tableInstance / row / value / column | 与其他行格式一致 |
 | 标题 / 侧 / 格 | title / side / cell | DiffComparison 内部 |
 

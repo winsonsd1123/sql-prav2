@@ -49,7 +49,7 @@ export default function HintsAndAnswer({
   const [awaitingConfirm, setAwaitingConfirm] = useState(false);
   const { passed, hintUnlocked } = unlockState;
   // 豁免者免门槛：答案恒解锁，锁定说明不出现
-  const answerUnlocked = answerExemption || unlockState.answerUnlocked;
+  const effectiveAnswerUnlocked = answerExemption || unlockState.answerUnlocked;
 
   // 锁定态按钮直接标明解锁条件（spec 用户故事 16）；次数口径来自 进度.答案解锁还差尝试
   const hintLockHint = passed ? "" : "先验证一次解锁提示";
@@ -107,13 +107,13 @@ export default function HintsAndAnswer({
                 setAnswerExpanded(true);
               } else setAwaitingConfirm(true);
             }}
-            disabled={!answerUnlocked}
+            disabled={!effectiveAnswerUnlocked}
             data-testid="答案按钮"
             className="次按钮 px-3 py-2 text-left text-sm disabled:opacity-40"
           >
             {answerExpanded ? "参考答案已显示" : "查看参考答案"}
           </button>
-          {!answerUnlocked && (
+          {!effectiveAnswerUnlocked && (
             <span data-testid="答案锁定说明" className="text-xs text-muted">
               {answerLockHint}
             </span>
