@@ -17,6 +17,7 @@ function makeDeps(overrides: Partial<AdminDeps> = {}): AdminDeps {
     fetchBannedUserIds: async () => new Set<string>(),
     // T3 新增的角色读写接缝：白名单用例不触发，给空实现补齐 AdminDeps 形状
     fetchValidRoleNames: async () => [],
+    fetchRolePermissions: async () => [],
     fetchUserRolesByUser: async () => [],
     writeUserRoleChanges: async () => ({ add: [], remove: [] }),
     setUserBanned: async () => undefined,

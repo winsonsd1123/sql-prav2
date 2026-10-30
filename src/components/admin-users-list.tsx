@@ -4,7 +4,7 @@
 // 请求带浏览器会话的 Bearer token（ADR-0007：安全边界在服务端，本组件只做展示与交互）。
 // 观感与演练场同一设计语言：卡片容器、语义 class、宋体标题、JetBrains Mono 数字列。
 import { useEffect, useState } from "react";
-import { browserClient } from "@/lib/supabase/browser-client";
+import { bearerHeaders, getSessionAuth, readErrorMessage } from "@/lib/admin-api-client";
 import { ADMIN_ROLE_CANDIDATES, ADMIN_ROLE_NAME, type AdminUserRow } from "@/lib/admin-users";
 
 interface UsersPageData {
@@ -47,10 +47,9 @@ export default function AdminUsersList() {
     let cancelled = false;
     (async () => {
       try {
-        const { data: sessionData } = await browserClient().auth.getSession();
-        const token = sessionData.session?.access_token;
+        const { token, userId } = await getSessionAuth();
         if (cancelled) return;
-        setCurrentUserId(sessionData.session?.user?.id ?? null);
+        setCurrentUserId(userId);
         setLoading(true);
         setError(null);
         if (!token) {
@@ -58,11 +57,10 @@ export default function AdminUsersList() {
           return;
         }
         const params = new URLSearchParams({ q: search, page: String(page) });
-        const response = await fetch(`/api/admin/users?${params}`, { headers: { authorization: `Bearer ${token}` } });
+        const response = await fetch(`/api/admin/users?${params}`, { headers: bearerHeaders(token) });
         if (cancelled) return;
         if (!response.ok) {
-          const body = (await response.json().catch(() => null)) as { error?: string } | null;
-          setError(body?.error ?? "用户列表加载失败");
+          setError(await readErrorMessage(response, "用户列表加载失败"));
           return;
         }
         setData((await response.json()) as UsersPageData);
@@ -91,20 +89,18 @@ export default function AdminUsersList() {
     try {
       setBanSavingUserId(user.userId);
       setBanError(null);
-      const { data: sessionData } = await browserClient().auth.getSession();
-      const token = sessionData.session?.access_token;
+      const { token } = await getSessionAuth();
       if (!token) {
         setBanError("登录态已失效，请重新登录");
         return;
       }
       const response = await fetch(`/api/admin/users/${encodeURIComponent(user.userId)}`, {
         method: "PATCH",
-        headers: { authorization: `Bearer ${token}`, "content-type": "application/json" },
+        headers: bearerHeaders(token, { "content-type": "application/json" }),
         body: JSON.stringify({ banned: !user.banned }),
       });
       if (!response.ok) {
-        const body = (await response.json().catch(() => null)) as { error?: string } | null;
-        setBanError(body?.error ?? "账号状态更新失败，请稍后重试");
+        setBanError(await readErrorMessage(response, "账号状态更新失败，请稍后重试"));
         return;
       }
       const body = (await response.json()) as { banned: boolean };
@@ -137,20 +133,18 @@ export default function AdminUsersList() {
     try {
       setSaving(true);
       setRoleError(null);
-      const { data: sessionData } = await browserClient().auth.getSession();
-      const token = sessionData.session?.access_token;
+      const { token } = await getSessionAuth();
       if (!token) {
         setRoleError("登录态已失效，请重新登录");
         return;
       }
       const response = await fetch(`/api/admin/users/${encodeURIComponent(user.userId)}/roles`, {
         method: "PUT",
-        headers: { authorization: `Bearer ${token}`, "content-type": "application/json" },
+        headers: bearerHeaders(token, { "content-type": "application/json" }),
         body: JSON.stringify({ roles: editingRoles }),
       });
       if (!response.ok) {
-        const body = (await response.json().catch(() => null)) as { error?: string } | null;
-        setRoleError(body?.error ?? "角色保存失败，请稍后重试");
+        setRoleError(await readErrorMessage(response, "角色保存失败，请稍后重试"));
         return;
       }
       const body = (await response.json()) as { roles: string[] };

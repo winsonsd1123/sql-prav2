@@ -7,8 +7,8 @@
 // 真正的安全边界在服务端管理 API（后续票），本组件只管理界面可达性。
 import { useEffect, useState, type ReactNode } from "react";
 import { useRouter } from "next/navigation";
-import { browserClient } from "@/lib/supabase/browser-client";
 import { fetchUserRolePermissions } from "@/components/current-permissions";
+import { getSessionAuth } from "@/lib/admin-api-client";
 import { hasPermission, mergePermissions, PERMISSIONS } from "@/lib/permissions";
 
 export default function AdminGuard({ children }: { children: ReactNode }) {
@@ -19,8 +19,7 @@ export default function AdminGuard({ children }: { children: ReactNode }) {
     let cancelled = false;
     (async () => {
       try {
-        const { data } = await browserClient().auth.getSession();
-        const userId = data.session?.user?.id;
+        const { userId } = await getSessionAuth();
         if (cancelled) return;
         if (!userId) {
           router.replace("/login");

@@ -3,7 +3,8 @@ import { describe, expect, it, vi, beforeEach } from "vitest";
 
 const setAdminUserBanMock = vi.fn();
 
-vi.mock("@/server/admin-service", () => ({
+vi.mock("@/server/admin-service", async (importOriginal) => ({
+  ...(await importOriginal<typeof import("@/server/admin-service")>()),
   setAdminUserBan: (...args: unknown[]) => setAdminUserBanMock(...args),
 }));
 

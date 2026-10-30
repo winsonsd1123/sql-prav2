@@ -3,9 +3,8 @@
 // 无/坏 token 401（unauthorized），无权限点 403（forbidden）。全部 /api/admin/* 路由复用，route 薄壳不含鉴权细节。
 // 外部依赖（token 验证、数据库、认证管理 API）经 AdminDeps 注入（照 LoginDeps 模式），只测编排不测网络层。
 import { serverAnonClient, serverPrivilegedClient } from "@/lib/supabase/server-client";
-import { PERMISSIONS, hasPermission } from "@/lib/permissions";
+import { PERMISSIONS, hasPermission, mergePermissions } from "@/lib/permissions";
 import {
-  ADMIN_ROLE_NAME,
   ADMIN_USERS_PAGE_SIZE,
   mergeUserRows,
   normalizeUsersQuery,
@@ -35,7 +34,6 @@ export type AdminSetRolesResult =
   | { status: "self_protection" }
   | { status: "error" };
 
-/** 可注入依赖（测试接缝）：token 验证 / 权限并集 / profiles 分页 / 全量角色 / 封禁集合 / 角色合法集 / 角色写入 */
 /** 白名单域名条目（管理视图含备注；备注可空） */
 export interface AdminWhitelistDomain {
   domain: string;
@@ -78,6 +76,7 @@ export interface AdminDeps {
   fetchAllUserRoles(): Promise<AdminRoleRow[]>;
   fetchBannedUserIds(): Promise<Set<string>>;
   fetchValidRoleNames(): Promise<string[]>;
+  fetchRolePermissions(roles: string[]): Promise<string[][]>;
   fetchUserRolesByUser(userId: string): Promise<string[]>;
   writeUserRoleChanges(userId: string, changes: { add: string[]; remove: string[] }): Promise<{ add: string[]; remove: string[] }>;
   setUserBanned(userId: string, banned: boolean): Promise<void>;
@@ -134,13 +133,22 @@ export const defaultAdminDeps: AdminDeps = {
     return (data ?? []) as AdminRoleRow[];
   },
 
-  // 认证服务封禁状态（账号禁用真源）：banned_until 晚于当前时刻 = 已禁用
+  // 认证服务封禁状态（账号禁用真源）：banned_until 晚于当前时刻 = 已禁用。
+  // listUsers 默认每页 75 条且不自动翻页，单页会漏掉大用户量下的后续页 →
+  // 以 perPage 上限 1000 循环翻页拉全量，直到某页返回不足一页（无更多数据）。
   fetchBannedUserIds: async () => {
-    const { data } = await serverPrivilegedClient().auth.admin.listUsers();
+    const PER_PAGE = 1000;
     const banned = new Set<string>();
-    for (const user of data?.users ?? []) {
-      const until = user.banned_until ? Date.parse(user.banned_until) : NaN;
-      if (!Number.isNaN(until) && until > Date.now()) banned.add(user.id);
+    let page = 1;
+    for (;;) {
+      const { data } = await serverPrivilegedClient().auth.admin.listUsers({ page, perPage: PER_PAGE });
+      const users = data?.users ?? [];
+      for (const user of users) {
+        const until = user.banned_until ? Date.parse(user.banned_until) : NaN;
+        if (!Number.isNaN(until) && until > Date.now()) banned.add(user.id);
+      }
+      if (users.length < PER_PAGE) break;
+      page += 1;
     }
     return banned;
   },
@@ -149,6 +157,18 @@ export const defaultAdminDeps: AdminDeps = {
   fetchValidRoleNames: async () => {
     const { data } = await serverPrivilegedClient().from("roles").select("name");
     return ((data ?? []) as { name: string }[]).map((row) => row.name);
+  },
+
+  // 按角色集合查各角色权限点列表（service_role 读，供自我保护判定并集是否含「访问后台」）
+  fetchRolePermissions: async (roles) => {
+    if (roles.length === 0) return [];
+    const { data } = await serverPrivilegedClient().from("role_permissions").select("role,permission").in("role", roles);
+    // 每个角色一行一组（同角色多权限点合并进同一组），无权限点角色给空组占位以便并集判定
+    const byRole = new Map<string, string[]>(roles.map((role) => [role, []]));
+    for (const row of (data ?? []) as { role: string; permission: string }[]) {
+      byRole.get(row.role)?.push(row.permission);
+    }
+    return [...byRole.values()];
   },
 
   // 指定用户现有角色（service_role 读，供差集计算）
@@ -208,6 +228,19 @@ export const defaultAdminDeps: AdminDeps = {
   },
 };
 
+/** 共享状态 → HTTP 响应映射（全部 /api/admin/* route 复用）：401 / 403 / 500 及固定中文文案只此一处；
+ *  业务专属状态（invalid_* / self_protection 等）文案与状态码由各 route 自行映射。 */
+export function adminErrorResponse(status: "unauthorized" | "forbidden" | "error"): Response {
+  switch (status) {
+    case "unauthorized":
+      return Response.json({ error: "未登录或登录态已失效" }, { status: 401 });
+    case "forbidden":
+      return Response.json({ error: "没有访问后台的权限" }, { status: 403 });
+    default:
+      return Response.json({ error: "管理服务暂不可用，请稍后重试" }, { status: 500 });
+  }
+}
+
 /** 鉴权链（共享收口，全部管理 API 复用）：Bearer → 验明身份 → 权限并集 → 持「访问后台」放行 */
 export async function authorizeAdminRequest(
   authorization: string | null,
@@ -257,7 +290,8 @@ export async function listAdminUsers(
 
 /** 角色全量设置编排（T3，spec #41）：鉴权前置 → 载荷与角色合法集校验 → 自我保护 → 差集增删。
  *  全量语义：roles 为目标用户应有的完整角色集合，按现有差集增删 user_roles，重复提交幂等。
- *  自我保护（ADR-0007）：操作者==目标用户且新集合不含「管理员」→ 服务端强制拒绝，不落库。 */
+ *  自我保护（ADR-0007 / ADR-0005）：操作者==目标用户且新角色集合的权限点并集不含「访问后台」→ 服务端强制拒绝，不落库。
+ *  判定只认权限点不认角色名：将来其他角色挂「访问后台」时不会被误拒。 */
 export async function setAdminUserRoles(
   targetUserId: string,
   roles: unknown,
@@ -276,9 +310,12 @@ export async function setAdminUserRoles(
   const validRoleNames: ReadonlySet<string> = new Set(await deps.fetchValidRoleNames());
   if (requested.some((role) => !validRoleNames.has(role))) return { status: "invalid_roles" };
 
-  // 自我保护：不能回收自己的「管理员」角色（体验层禁用之外的服务端强制）
-  if (auth.userId === targetUserId && !requested.includes(ADMIN_ROLE_NAME)) {
-    return { status: "self_protection" };
+  // 自我保护：新角色集合的权限点并集不含「访问后台」= 会移除自己的后台访问，拒绝（ADR-0005 只认权限点）
+  if (auth.userId === targetUserId) {
+    const rolePermissions = await deps.fetchRolePermissions(requested);
+    if (!hasPermission(mergePermissions(rolePermissions), PERMISSIONS.adminConsole)) {
+      return { status: "self_protection" };
+    }
   }
 
   try {

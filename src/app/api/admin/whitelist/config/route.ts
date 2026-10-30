@@ -1,7 +1,7 @@
 // 白名单总开关路由（协议层，spec #41 / T5）：解析请求体 → 调后台管理服务 → 映射响应。
 // 鉴权细节全部收口在服务层（ADR-0007）。
 // PATCH /api/admin/whitelist/config { allowAnyDomain } → 200 | 400 | 401 | 403 | 500
-import { updateAdminWhitelistConfig } from "@/server/admin-service";
+import { updateAdminWhitelistConfig, adminErrorResponse } from "@/server/admin-service";
 
 export async function PATCH(request: Request) {
   let body: unknown;
@@ -20,15 +20,15 @@ export async function PATCH(request: Request) {
       case "ok":
         return Response.json({ ok: true });
       case "unauthorized":
-        return Response.json({ error: "未登录或登录态已失效" }, { status: 401 });
+        return adminErrorResponse("unauthorized");
       case "forbidden":
-        return Response.json({ error: "没有访问后台的权限" }, { status: 403 });
+        return adminErrorResponse("forbidden");
       case "invalid":
         return Response.json({ error: result.error }, { status: 400 });
       case "error":
-        return Response.json({ error: "管理服务暂不可用，请稍后重试" }, { status: 500 });
+        return adminErrorResponse("error");
     }
   } catch {
-    return Response.json({ error: "管理服务暂不可用，请稍后重试" }, { status: 500 });
+    return adminErrorResponse("error");
   }
 }

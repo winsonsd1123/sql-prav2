@@ -5,7 +5,8 @@ const getAdminWhitelistMock = vi.fn();
 const saveAdminWhitelistDomainsMock = vi.fn();
 const updateAdminWhitelistConfigMock = vi.fn();
 
-vi.mock("@/server/admin-service", () => ({
+vi.mock("@/server/admin-service", async (importOriginal) => ({
+  ...(await importOriginal<typeof import("@/server/admin-service")>()),
   getAdminWhitelist: (...args: unknown[]) => getAdminWhitelistMock(...args),
   saveAdminWhitelistDomains: (...args: unknown[]) => saveAdminWhitelistDomainsMock(...args),
   updateAdminWhitelistConfig: (...args: unknown[]) => updateAdminWhitelistConfigMock(...args),

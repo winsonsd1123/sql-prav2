@@ -1,7 +1,7 @@
 // 白名单域名清单全量保存路由（协议层，spec #41 / T5）：解析请求体 → 调后台管理服务 → 映射响应。
 // 鉴权细节全部收口在服务层（ADR-0007）；幂等全量设置，空清单合法（全关时无人可注册）。
 // PUT /api/admin/whitelist/domains { domains: [{ domain, note? }] } → 200 | 400 | 401 | 403 | 500
-import { saveAdminWhitelistDomains } from "@/server/admin-service";
+import { saveAdminWhitelistDomains, adminErrorResponse } from "@/server/admin-service";
 
 /** 请求体形状校验：domains 数组且每条含非空 domain 字符串；note 可选字符串 */
 function parseDomainsBody(body: unknown): { domain: string; note?: string | null }[] | null {
@@ -34,15 +34,15 @@ export async function PUT(request: Request) {
       case "ok":
         return Response.json({ ok: true });
       case "unauthorized":
-        return Response.json({ error: "未登录或登录态已失效" }, { status: 401 });
+        return adminErrorResponse("unauthorized");
       case "forbidden":
-        return Response.json({ error: "没有访问后台的权限" }, { status: 403 });
+        return adminErrorResponse("forbidden");
       case "invalid":
         return Response.json({ error: result.error }, { status: 400 });
       case "error":
-        return Response.json({ error: "管理服务暂不可用，请稍后重试" }, { status: 500 });
+        return adminErrorResponse("error");
     }
   } catch {
-    return Response.json({ error: "管理服务暂不可用，请稍后重试" }, { status: 500 });
+    return adminErrorResponse("error");
   }
 }

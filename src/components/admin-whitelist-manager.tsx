@@ -5,7 +5,7 @@
 // 交互：总开关切换（PATCH 即时生效）；域名清单增删改 + 全量保存（PUT 幂等）；保存后重拉最新配置。
 // 观感与演练场同一设计语言：卡片容器、语义 class、宋体标题、域名走 JetBrains Mono。
 import { useCallback, useEffect, useState } from "react";
-import { browserClient } from "@/lib/supabase/browser-client";
+import { bearerHeaders, getSessionAuth, readErrorMessage } from "@/lib/admin-api-client";
 
 /** 页面自持的清单条目（编辑中允许空行，保存前交服务层校验） */
 interface DraftDomain {
@@ -16,18 +16,6 @@ interface DraftDomain {
 interface WhitelistData {
   allowAnyDomain: boolean;
   domains: { domain: string; note: string | null }[];
-}
-
-/** 取浏览器会话 token；无会话返回 null（由调用方提示重新登录） */
-async function getSessionToken(): Promise<string | null> {
-  const { data } = await browserClient().auth.getSession();
-  return data.session?.access_token ?? null;
-}
-
-/** 统一错误文案提取：优先回传 error 字段，兜底通用文案 */
-async function readError(response: Response, fallback: string): Promise<string> {
-  const body = (await response.json().catch(() => null)) as { error?: string } | null;
-  return body?.error ?? fallback;
 }
 
 export default function AdminWhitelistManager() {
@@ -42,14 +30,14 @@ export default function AdminWhitelistManager() {
   /** 拉取当前配置并同步到本地草稿（保存/切换成功后复用，保证展示的是最新配置） */
   const refresh = useCallback(async () => {
     try {
-      const token = await getSessionToken();
+      const { token } = await getSessionAuth();
       if (!token) {
         setError("登录态已失效，请重新登录");
         return;
       }
-      const response = await fetch("/api/admin/whitelist", { headers: { authorization: `Bearer ${token}` } });
+      const response = await fetch("/api/admin/whitelist", { headers: bearerHeaders(token) });
       if (!response.ok) {
-        setError(await readError(response, "白名单配置加载失败"));
+        setError(await readErrorMessage(response, "白名单配置加载失败"));
         return;
       }
       const data = (await response.json()) as WhitelistData;
@@ -77,18 +65,18 @@ export default function AdminWhitelistManager() {
     setSwitching(true);
     setNotice(null);
     try {
-      const token = await getSessionToken();
+      const { token } = await getSessionAuth();
       if (!token) {
         setError("登录态已失效，请重新登录");
         return;
       }
       const response = await fetch("/api/admin/whitelist/config", {
         method: "PATCH",
-        headers: { "content-type": "application/json", authorization: `Bearer ${token}` },
+        headers: bearerHeaders(token, { "content-type": "application/json" }),
         body: JSON.stringify({ allowAnyDomain: !allowAnyDomain }),
       });
       if (!response.ok) {
-        setError(await readError(response, "总开关切换失败"));
+        setError(await readErrorMessage(response, "总开关切换失败"));
         return;
       }
       await refresh();
@@ -106,14 +94,14 @@ export default function AdminWhitelistManager() {
     setSaving(true);
     setNotice(null);
     try {
-      const token = await getSessionToken();
+      const { token } = await getSessionAuth();
       if (!token) {
         setError("登录态已失效，请重新登录");
         return;
       }
       const response = await fetch("/api/admin/whitelist/domains", {
         method: "PUT",
-        headers: { "content-type": "application/json", authorization: `Bearer ${token}` },
+        headers: bearerHeaders(token, { "content-type": "application/json" }),
         body: JSON.stringify({
           domains: drafts.map((draft) => ({
             domain: draft.domain,
@@ -122,7 +110,7 @@ export default function AdminWhitelistManager() {
         }),
       });
       if (!response.ok) {
-        setError(await readError(response, "域名清单保存失败"));
+        setError(await readErrorMessage(response, "域名清单保存失败"));
         return;
       }
       await refresh();

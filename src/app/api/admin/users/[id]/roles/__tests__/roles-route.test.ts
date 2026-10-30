@@ -3,7 +3,8 @@ import { describe, expect, it, vi, beforeEach } from "vitest";
 
 const setAdminUserRolesMock = vi.fn();
 
-vi.mock("@/server/admin-service", () => ({
+vi.mock("@/server/admin-service", async (importOriginal) => ({
+  ...(await importOriginal<typeof import("@/server/admin-service")>()),
   setAdminUserRoles: (...args: unknown[]) => setAdminUserRolesMock(...args),
 }));
 
@@ -45,7 +46,7 @@ describe("角色全量设置路由", () => {
     setAdminUserRolesMock.mockResolvedValue({ status: "self_protection" });
     const response = await putRequest({ roles: ["学生"] });
     expect(response.status).toBe(400);
-    await expect(response.json()).resolves.toEqual({ error: "不能回收自己的管理员角色" });
+    await expect(response.json()).resolves.toEqual({ error: "不能移除自己的后台访问权限" });
   });
 
   it("放行：200 返回全量集合", async () => {

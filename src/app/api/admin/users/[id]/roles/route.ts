@@ -1,7 +1,7 @@
 // 角色全量设置路由（协议层，spec #41 / T3）：解析路径 id、载荷与 Authorization 头 → 调后台管理服务 → 映射响应。
 // 鉴权与自我保护全部收口在服务层（ADR-0007），本文件不含任何权限判定逻辑。
 // PUT /api/admin/users/:id/roles  body { roles: string[] } → 200 { roles } | 400（载荷/角色名非法/自我保护）| 401 | 403 | 500
-import { setAdminUserRoles } from "@/server/admin-service";
+import { setAdminUserRoles, adminErrorResponse } from "@/server/admin-service";
 
 export async function PUT(request: Request, context: { params: Promise<{ id: string }> }) {
   const { id } = await context.params;
@@ -21,15 +21,15 @@ export async function PUT(request: Request, context: { params: Promise<{ id: str
       case "invalid_roles":
         return Response.json({ error: "角色名不合法" }, { status: 400 });
       case "self_protection":
-        return Response.json({ error: "不能回收自己的管理员角色" }, { status: 400 });
+        return Response.json({ error: "不能移除自己的后台访问权限" }, { status: 400 });
       case "unauthorized":
-        return Response.json({ error: "未登录或登录态已失效" }, { status: 401 });
+        return adminErrorResponse("unauthorized");
       case "forbidden":
-        return Response.json({ error: "没有访问后台的权限" }, { status: 403 });
+        return adminErrorResponse("forbidden");
       case "error":
-        return Response.json({ error: "管理服务暂不可用，请稍后重试" }, { status: 500 });
+        return adminErrorResponse("error");
     }
   } catch {
-    return Response.json({ error: "管理服务暂不可用，请稍后重试" }, { status: 500 });
+    return adminErrorResponse("error");
   }
 }

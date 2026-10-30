@@ -3,7 +3,8 @@ import { describe, expect, it, vi, beforeEach } from "vitest";
 
 const listAdminUsersMock = vi.fn();
 
-vi.mock("@/server/admin-service", () => ({
+vi.mock("@/server/admin-service", async (importOriginal) => ({
+  ...(await importOriginal<typeof import("@/server/admin-service")>()),
   listAdminUsers: (...args: unknown[]) => listAdminUsersMock(...args),
 }));
 

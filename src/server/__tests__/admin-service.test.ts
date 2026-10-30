@@ -18,6 +18,8 @@ function makeDeps(overrides: Partial<AdminDeps> = {}): AdminDeps {
     fetchAllUserRoles: async () => [],
     fetchBannedUserIds: async () => new Set<string>(),
     fetchValidRoleNames: async () => ["学生", "助教", "教师", "管理员"],
+    // 默认映射：仅「管理员」挂「访问后台」（与生产初态一致），测试可按场景覆写
+    fetchRolePermissions: async (roles) => roles.map((role) => (role === "管理员" ? ["访问后台"] : [])),
     fetchUserRolesByUser: async () => [],
     writeUserRoleChanges: async () => ({ add: [], remove: [] }),
     setUserBanned: async () => undefined,
@@ -179,7 +181,7 @@ describe("角色全量设置编排", () => {
     expect(await setAdminUserRoles("u1", ["学生", 42], "Bearer valid-token", makeDeps())).toEqual({ status: "invalid_roles" });
   });
 
-  it("自我保护：操作者==目标且新集合不含「管理员」：拒绝且不落库（服务端强制）", async () => {
+  it("自我保护：操作者==目标且新角色集合的权限点并集不含「访问后台」：拒绝且不落库（服务端强制）", async () => {
     const writeUserRoleChanges = vi.fn();
     // admin-1 为 makeDeps 中 valid-token 对应的操作者 id
     const result = await setAdminUserRoles("admin-1", ["学生", "助教"], "Bearer valid-token", makeDeps({ writeUserRoleChanges: writeUserRoleChanges as never }));
@@ -187,7 +189,27 @@ describe("角色全量设置编排", () => {
     expect(writeUserRoleChanges).not.toHaveBeenCalled();
   });
 
-  it("自我保护不误伤他人：对别的用户提交不含「管理员」的集合正常落库", async () => {
+  it("自我保护只认权限点：新集合含「管理员」但该角色未挂「访问后台」→ 仍拒绝（判定不看角色名）", async () => {
+    const writeUserRoleChanges = vi.fn();
+    const result = await setAdminUserRoles(
+      "admin-1", ["管理员"], "Bearer valid-token",
+      makeDeps({ fetchRolePermissions: async () => [[]], writeUserRoleChanges: writeUserRoleChanges as never }),
+    );
+    expect(result).toEqual({ status: "self_protection" });
+    expect(writeUserRoleChanges).not.toHaveBeenCalled();
+  });
+
+  it("自我保护只认权限点：新集合不含「管理员」但某角色挂「访问后台」→ 放行（将来其他角色可挂后台权限）", async () => {
+    const writeUserRoleChanges = vi.fn(async (_userId: string, changes: { add: string[]; remove: string[] }) => changes);
+    const result = await setAdminUserRoles(
+      "admin-1", ["教师"], "Bearer valid-token",
+      makeDeps({ fetchRolePermissions: async (roles) => roles.map((role) => (role === "教师" ? ["访问后台"] : [])), writeUserRoleChanges: writeUserRoleChanges as never }),
+    );
+    expect(result).toEqual({ status: "ok", roles: ["教师"] });
+    expect(writeUserRoleChanges).toHaveBeenCalled();
+  });
+
+  it("自我保护不误伤他人：对别的用户提交不含「访问后台」权限点的集合正常落库", async () => {
     const result = await setAdminUserRoles("u1", ["学生", "助教"], "Bearer valid-token", makeDeps());
     expect(result).toEqual({ status: "ok", roles: ["学生", "助教"] });
   });
