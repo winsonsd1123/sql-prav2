@@ -16,7 +16,7 @@ import { sql, SQLite } from "@codemirror/lang-sql";
 import { autocompletion } from "@codemirror/autocomplete";
 import { defaultKeymap, history, historyKeymap, indentWithTab } from "@codemirror/commands";
 import { syntaxHighlighting, defaultHighlightStyle, bracketMatching } from "@codemirror/language";
-import type { 表实例 } from "@/kernel/types";
+import type { TableInstance } from "@/kernel/types";
 
 export interface SQL编辑器属性 {
   值: string;
@@ -24,15 +24,15 @@ export interface SQL编辑器属性 {
   /** Ctrl/Cmd + Enter 提交（验证） */
   onSubmit: () => void;
   /** 库实例：注入 SQL 补全 schema（表名/列名） */
-  表: 表实例[];
+  表: TableInstance[];
   禁用?: boolean;
   /** 粘贴/拖入被拦截时回调（issue #17 T6：用于编辑器上方横幅提示） */
   on拦截粘贴?: () => void;
 }
 
 /** CodeMirror 需要的 schema 形态：表名 → 列名数组 */
-export function 构造schema(表: 表实例[]): Record<string, string[]> {
-  return Object.fromEntries(表.map((t) => [t.表名, t.列名]));
+export function 构造schema(表: TableInstance[]): Record<string, string[]> {
+  return Object.fromEntries(表.map((t) => [t.tableName, t.columnNames]));
 }
 
 export default function SQL编辑器({ 值, onChange, onSubmit, 表, 禁用, on拦截粘贴 }: SQL编辑器属性) {

@@ -7,381 +7,381 @@
 
 # ── 知识点一：单表查询与投影（4 题）──────────────────────────
 
-- 模板ID: emp-select-all
-  知识点: 单表查询与投影
-  难度: 1
-  题面: 查询所有员工的姓名。
-  提示:
+- templateId: emp-select-all
+  knowledgeArea: 单表查询与投影
+  difficulty: 1
+  prompt: 查询所有员工的姓名。
+  hints:
     - "思路：只需要一个列，从员工表里全部取出。"
     - "关键子句：SELECT {{col.员工.姓名}} FROM {{table.员工}}"
-  参考答案: "SELECT {{col.员工.姓名}} FROM {{table.员工}}"
-  错误写法: "SELECT {{col.员工.姓名}}, {{col.员工.职位}} FROM {{table.员工}}"
+  referenceAnswer: "SELECT {{col.员工.姓名}} FROM {{table.员工}}"
+  commonMistake: "SELECT {{col.员工.姓名}}, {{col.员工.职位}} FROM {{table.员工}}"
   ordered: false
 
-- 模板ID: emp-select-distinct-position
-  知识点: 单表查询与投影
-  难度: 1
-  题面: 查询公司里出现过的不同职位（去除重复，不含空值）。
-  提示:
+- templateId: emp-select-distinct-position
+  knowledgeArea: 单表查询与投影
+  difficulty: 1
+  prompt: 查询公司里出现过的不同职位（去除重复，不含空值）。
+  hints:
     - "思路：职位有重复值，需要去重后再列出。"
     - "关键子句：SELECT DISTINCT {{col.员工.职位}} FROM {{table.员工}} WHERE {{col.员工.职位}} IS NOT NULL"
-  参考答案: "SELECT DISTINCT {{col.员工.职位}} FROM {{table.员工}} WHERE {{col.员工.职位}} IS NOT NULL"
-  错误写法: "SELECT {{col.员工.职位}} FROM {{table.员工}} WHERE {{col.员工.职位}} IS NOT NULL"
+  referenceAnswer: "SELECT DISTINCT {{col.员工.职位}} FROM {{table.员工}} WHERE {{col.员工.职位}} IS NOT NULL"
+  commonMistake: "SELECT {{col.员工.职位}} FROM {{table.员工}} WHERE {{col.员工.职位}} IS NOT NULL"
   ordered: false
 
-- 模板ID: emp-alias-expr
-  知识点: 单表查询与投影
-  难度: 2
-  题面: 查询每位员工的姓名与按 12 个月折算的年度薪资（列别名「年度薪资」）。
-  提示:
+- templateId: emp-alias-expr
+  knowledgeArea: 单表查询与投影
+  difficulty: 2
+  prompt: 查询每位员工的姓名与按 12 个月折算的年度薪资（列别名「年度薪资」）。
+  hints:
     - "思路：投影列可以是表达式，乘法直接写在 SELECT 里并用 AS 起别名。"
     - "关键子句：SELECT {{col.员工.姓名}}, {{col.员工.月薪}} * 12 AS 年度薪资"
-  参考答案: "SELECT {{col.员工.姓名}}, {{col.员工.月薪}} * 12 AS 年度薪资 FROM {{table.员工}}"
-  错误写法: "SELECT {{col.员工.姓名}}, {{col.员工.月薪}} * 10 AS 年度薪资 FROM {{table.员工}}"
+  referenceAnswer: "SELECT {{col.员工.姓名}}, {{col.员工.月薪}} * 12 AS 年度薪资 FROM {{table.员工}}"
+  commonMistake: "SELECT {{col.员工.姓名}}, {{col.员工.月薪}} * 10 AS 年度薪资 FROM {{table.员工}}"
   ordered: false
 
-- 模板ID: emp-concat
-  知识点: 单表查询与投影
-  难度: 2
-  题面: 查询每位部门的「部门名·城市」拼接结果（中间用·连接，列别名「驻地」）。
-  提示:
+- templateId: emp-concat
+  knowledgeArea: 单表查询与投影
+  difficulty: 2
+  prompt: 查询每位部门的「部门名·城市」拼接结果（中间用·连接，列别名「驻地」）。
+  hints:
     - "思路：字符串拼接用 CONCAT 函数，参数依次为部门名、连接符、城市。"
     - "关键子句：SELECT CONCAT({{col.部门.部门名}}, '·', {{col.部门.城市}}) AS 驻地"
-  参考答案: "SELECT CONCAT({{col.部门.部门名}}, '·', {{col.部门.城市}}) AS 驻地 FROM {{table.部门}}"
-  错误写法: "SELECT CONCAT({{col.部门.部门名}}, {{col.部门.城市}}) AS 驻地 FROM {{table.部门}}"
+  referenceAnswer: "SELECT CONCAT({{col.部门.部门名}}, '·', {{col.部门.城市}}) AS 驻地 FROM {{table.部门}}"
+  commonMistake: "SELECT CONCAT({{col.部门.部门名}}, {{col.部门.城市}}) AS 驻地 FROM {{table.部门}}"
   ordered: false
 
 # ── 知识点二：条件筛选与排序（6 题）──────────────────────────
 
-- 模板ID: pay-where-amount
-  知识点: 条件筛选与排序
-  难度: 2
-  题面: "查询发放金额不低于 {{param.线}} 元的薪资发放记录，返回员工号与发放金额。"
-  提示:
+- templateId: pay-where-amount
+  knowledgeArea: 条件筛选与排序
+  difficulty: 2
+  prompt: "查询发放金额不低于 {{param.线}} 元的薪资发放记录，返回员工号与发放金额。"
+  hints:
     - "思路：用 WHERE 条件筛选金额，注意包含等于阈值的情况。"
     - "关键子句：WHERE {{col.薪资发放.发放金额}} >= {{param.线}}"
-  参考答案: "SELECT {{col.薪资发放.员工号}}, {{col.薪资发放.发放金额}} FROM {{table.薪资发放}} WHERE {{col.薪资发放.发放金额}} >= {{param.线}}"
-  错误写法: "SELECT {{col.薪资发放.员工号}}, {{col.薪资发放.发放金额}} FROM {{table.薪资发放}}"
+  referenceAnswer: "SELECT {{col.薪资发放.员工号}}, {{col.薪资发放.发放金额}} FROM {{table.薪资发放}} WHERE {{col.薪资发放.发放金额}} >= {{param.线}}"
+  commonMistake: "SELECT {{col.薪资发放.员工号}}, {{col.薪资发放.发放金额}} FROM {{table.薪资发放}}"
   ordered: false
-  参数:
+  paramPool:
     线: [10000, 12000, 15000]
 
-- 模板ID: emp-where-position
-  知识点: 条件筛选与排序
-  难度: 2
-  题面: "查询职位为「{{param.职位}}」的员工姓名。"
-  提示:
+- templateId: emp-where-position
+  knowledgeArea: 条件筛选与排序
+  difficulty: 2
+  prompt: "查询职位为「{{param.职位}}」的员工姓名。"
+  hints:
     - "思路：字符串等值筛选用 WHERE 列名 = '关键词'，注意引号。"
     - "关键子句：WHERE {{col.员工.职位}} = '{{param.职位}}'"
-  参考答案: "SELECT {{col.员工.姓名}} FROM {{table.员工}} WHERE {{col.员工.职位}} = '{{param.职位}}'"
-  错误写法: "SELECT {{col.员工.姓名}} FROM {{table.员工}} WHERE {{col.员工.职位}} = '实习生'"
+  referenceAnswer: "SELECT {{col.员工.姓名}} FROM {{table.员工}} WHERE {{col.员工.职位}} = '{{param.职位}}'"
+  commonMistake: "SELECT {{col.员工.姓名}} FROM {{table.员工}} WHERE {{col.员工.职位}} = '实习生'"
   ordered: false
-  参数:
+  paramPool:
     职位: [工程师, 经理, 分析师, 设计师]
 
-- 模板ID: pay-where-null
-  知识点: 条件筛选与排序
-  难度: 2
-  题面: 查询发放金额为空的薪资发放记录，返回员工号与发放序号。
-  提示:
+- templateId: pay-where-null
+  knowledgeArea: 条件筛选与排序
+  difficulty: 2
+  prompt: 查询发放金额为空的薪资发放记录，返回员工号与发放序号。
+  hints:
     - "思路：判断空值不能用 = NULL，要用 IS NULL。"
     - "关键子句：WHERE {{col.薪资发放.发放金额}} IS NULL"
-  参考答案: "SELECT {{col.薪资发放.员工号}}, {{col.薪资发放.发放序号}} FROM {{table.薪资发放}} WHERE {{col.薪资发放.发放金额}} IS NULL"
-  错误写法: "SELECT {{col.薪资发放.员工号}}, {{col.薪资发放.发放序号}} FROM {{table.薪资发放}} WHERE {{col.薪资发放.发放金额}} = NULL"
+  referenceAnswer: "SELECT {{col.薪资发放.员工号}}, {{col.薪资发放.发放序号}} FROM {{table.薪资发放}} WHERE {{col.薪资发放.发放金额}} IS NULL"
+  commonMistake: "SELECT {{col.薪资发放.员工号}}, {{col.薪资发放.发放序号}} FROM {{table.薪资发放}} WHERE {{col.薪资发放.发放金额}} = NULL"
   ordered: false
 
-- 模板ID: pay-between
-  知识点: 条件筛选与排序
-  难度: 2
-  题面: "查询发放金额在 {{param.区间.下}} 到 {{param.区间.上}} 元之间（含两端）的记录，返回员工号与发放金额。"
-  提示:
+- templateId: pay-between
+  knowledgeArea: 条件筛选与排序
+  difficulty: 2
+  prompt: "查询发放金额在 {{param.区间.下}} 到 {{param.区间.上}} 元之间（含两端）的记录，返回员工号与发放金额。"
+  hints:
     - "思路：闭区间筛选用 BETWEEN ... AND ...，注意下界在前、上界在后。"
     - "关键子句：WHERE {{col.薪资发放.发放金额}} BETWEEN {{param.区间.下}} AND {{param.区间.上}}"
-  参考答案: "SELECT {{col.薪资发放.员工号}}, {{col.薪资发放.发放金额}} FROM {{table.薪资发放}} WHERE {{col.薪资发放.发放金额}} BETWEEN {{param.区间.下}} AND {{param.区间.上}}"
-  错误写法: "SELECT {{col.薪资发放.员工号}}, {{col.薪资发放.发放金额}} FROM {{table.薪资发放}} WHERE {{col.薪资发放.发放金额}} BETWEEN {{param.区间.上}} AND {{param.区间.下}}"
+  referenceAnswer: "SELECT {{col.薪资发放.员工号}}, {{col.薪资发放.发放金额}} FROM {{table.薪资发放}} WHERE {{col.薪资发放.发放金额}} BETWEEN {{param.区间.下}} AND {{param.区间.上}}"
+  commonMistake: "SELECT {{col.薪资发放.员工号}}, {{col.薪资发放.发放金额}} FROM {{table.薪资发放}} WHERE {{col.薪资发放.发放金额}} BETWEEN {{param.区间.上}} AND {{param.区间.下}}"
   ordered: false
-  参数:
+  paramPool:
     区间:
       - { 下: 6000, 上: 12000 }
       - { 下: 8000, 上: 20000 }
 
-- 模板ID: emp-order-by-salary
-  知识点: 条件筛选与排序
-  难度: 2
-  题面: "查询每位员工的姓名与月薪，按月薪{{param.排序方向.描述}}排序（月薪相同时按员工号升序）。"
-  提示:
+- templateId: emp-order-by-salary
+  knowledgeArea: 条件筛选与排序
+  difficulty: 2
+  prompt: "查询每位员工的姓名与月薪，按月薪{{param.排序方向.描述}}排序（月薪相同时按员工号升序）。"
+  hints:
     - "思路：排序用 ORDER BY，方向由题面决定；并列时用员工号作决胜列保证顺序确定。"
     - "关键子句：ORDER BY {{col.员工.月薪}} {{param.排序方向.SQL}}, {{col.员工.员工号}}"
-  参考答案: "SELECT {{col.员工.姓名}}, {{col.员工.月薪}} FROM {{table.员工}} ORDER BY {{col.员工.月薪}} {{param.排序方向.SQL}}, {{col.员工.员工号}}"
-  错误写法: "SELECT {{col.员工.姓名}} FROM {{table.员工}} ORDER BY {{col.员工.月薪}} {{param.排序方向.SQL}}, {{col.员工.员工号}}"
+  referenceAnswer: "SELECT {{col.员工.姓名}}, {{col.员工.月薪}} FROM {{table.员工}} ORDER BY {{col.员工.月薪}} {{param.排序方向.SQL}}, {{col.员工.员工号}}"
+  commonMistake: "SELECT {{col.员工.姓名}} FROM {{table.员工}} ORDER BY {{col.员工.月薪}} {{param.排序方向.SQL}}, {{col.员工.员工号}}"
   ordered: true
-  参数:
+  paramPool:
     排序方向:
       - { 描述: 从高到低, SQL: DESC }
       - { 描述: 从低到高, SQL: ASC }
 
-- 模板ID: emp-limit-top
-  知识点: 条件筛选与排序
-  难度: 3
-  题面: "查询工号最靠前的 {{param.名额}} 名员工的姓名（按员工号升序）。"
-  提示:
+- templateId: emp-limit-top
+  knowledgeArea: 条件筛选与排序
+  difficulty: 3
+  prompt: "查询工号最靠前的 {{param.名额}} 名员工的姓名（按员工号升序）。"
+  hints:
     - "思路：先按员工号排序，再限制返回行数。"
     - "关键子句：ORDER BY {{col.员工.员工号}} LIMIT {{param.名额}}"
-  参考答案: "SELECT {{col.员工.姓名}} FROM {{table.员工}} ORDER BY {{col.员工.员工号}} LIMIT {{param.名额}}"
-  错误写法: "SELECT {{col.员工.姓名}} FROM {{table.员工}} ORDER BY {{col.员工.员工号}} DESC LIMIT {{param.名额}}"
+  referenceAnswer: "SELECT {{col.员工.姓名}} FROM {{table.员工}} ORDER BY {{col.员工.员工号}} LIMIT {{param.名额}}"
+  commonMistake: "SELECT {{col.员工.姓名}} FROM {{table.员工}} ORDER BY {{col.员工.员工号}} DESC LIMIT {{param.名额}}"
   ordered: true
-  参数:
+  paramPool:
     名额: [3, 5, 7]
 
 # ── 知识点三：聚合与分组（4 题）──────────────────────────────
 
-- 模板ID: pay-count-all
-  知识点: 聚合与分组
-  难度: 1
-  题面: 查询薪资发放表的总记录数（列别名「总记录数」）。
-  提示:
+- templateId: pay-count-all
+  knowledgeArea: 聚合与分组
+  difficulty: 1
+  prompt: 查询薪资发放表的总记录数（列别名「总记录数」）。
+  hints:
     - "思路：统计行数用 COUNT(*)。"
     - "关键子句：SELECT COUNT(*) AS 总记录数 FROM {{table.薪资发放}}"
-  参考答案: "SELECT COUNT(*) AS 总记录数 FROM {{table.薪资发放}}"
-  错误写法: "SELECT COUNT(*) AS 总记录数 FROM {{table.员工}}"
-  语义陷阱:
+  referenceAnswer: "SELECT COUNT(*) AS 总记录数 FROM {{table.薪资发放}}"
+  commonMistake: "SELECT COUNT(*) AS 总记录数 FROM {{table.员工}}"
+  semanticTrap:
     - "SELECT COUNT(DISTINCT {{col.薪资发放.员工号}}) AS 总记录数 FROM {{table.薪资发放}}"
   ordered: false
 
-- 模板ID: pay-count-distinct
-  知识点: 聚合与分组
-  难度: 2
-  题面: 查询薪资发放表中涉及多少位不同的员工（列别名「员工数」）。
-  提示:
+- templateId: pay-count-distinct
+  knowledgeArea: 聚合与分组
+  difficulty: 2
+  prompt: 查询薪资发放表中涉及多少位不同的员工（列别名「员工数」）。
+  hints:
     - "思路：去重计数要在聚合参数里加 DISTINCT。"
     - "关键子句：SELECT COUNT(DISTINCT {{col.薪资发放.员工号}}) AS 员工数"
-  参考答案: "SELECT COUNT(DISTINCT {{col.薪资发放.员工号}}) AS 员工数 FROM {{table.薪资发放}}"
-  错误写法: "SELECT COUNT({{col.薪资发放.员工号}}) AS 员工数 FROM {{table.薪资发放}}"
-  语义陷阱:
+  referenceAnswer: "SELECT COUNT(DISTINCT {{col.薪资发放.员工号}}) AS 员工数 FROM {{table.薪资发放}}"
+  commonMistake: "SELECT COUNT({{col.薪资发放.员工号}}) AS 员工数 FROM {{table.薪资发放}}"
+  semanticTrap:
     - "SELECT COUNT(*) AS 员工数 FROM {{table.薪资发放}}"
   ordered: false
 
-- 模板ID: pay-avg-group
-  知识点: 聚合与分组
-  难度: 3
-  题面: 查询每位员工的员工号与平均发放金额（列别名「平均发放」）。
-  提示:
+- templateId: pay-avg-group
+  knowledgeArea: 聚合与分组
+  difficulty: 3
+  prompt: 查询每位员工的员工号与平均发放金额（列别名「平均发放」）。
+  hints:
     - "思路：按员工号分组后对金额求 AVG，空值不计入平均。"
     - "关键子句：GROUP BY {{col.薪资发放.员工号}} 配合 AVG({{col.薪资发放.发放金额}})"
-  参考答案: "SELECT {{col.薪资发放.员工号}}, AVG({{col.薪资发放.发放金额}}) AS 平均发放 FROM {{table.薪资发放}} GROUP BY {{col.薪资发放.员工号}}"
-  错误写法: "SELECT {{col.薪资发放.员工号}}, SUM({{col.薪资发放.发放金额}}) AS 平均发放 FROM {{table.薪资发放}} GROUP BY {{col.薪资发放.员工号}}"
-  语义陷阱:
+  referenceAnswer: "SELECT {{col.薪资发放.员工号}}, AVG({{col.薪资发放.发放金额}}) AS 平均发放 FROM {{table.薪资发放}} GROUP BY {{col.薪资发放.员工号}}"
+  commonMistake: "SELECT {{col.薪资发放.员工号}}, SUM({{col.薪资发放.发放金额}}) AS 平均发放 FROM {{table.薪资发放}} GROUP BY {{col.薪资发放.员工号}}"
+  semanticTrap:
     - "SELECT {{col.薪资发放.发放序号}}, AVG({{col.薪资发放.发放金额}}) AS 平均发放 FROM {{table.薪资发放}} GROUP BY {{col.薪资发放.发放序号}}"
   ordered: false
 
-- 模板ID: pay-having
-  知识点: 聚合与分组
-  难度: 3
-  题面: 查询发薪达到 3 次及以上的员工号与发薪次数（列别名「发薪次数」）。
-  提示:
+- templateId: pay-having
+  knowledgeArea: 聚合与分组
+  difficulty: 3
+  prompt: 查询发薪达到 3 次及以上的员工号与发薪次数（列别名「发薪次数」）。
+  hints:
     - "思路：先按员工号分组计数，再用 HAVING 对分组结果过滤（WHERE 过滤不了聚合值）。"
     - "关键子句：GROUP BY {{col.薪资发放.员工号}} HAVING COUNT(*) >= 3"
-  参考答案: "SELECT {{col.薪资发放.员工号}}, COUNT(*) AS 发薪次数 FROM {{table.薪资发放}} GROUP BY {{col.薪资发放.员工号}} HAVING COUNT(*) >= 3"
-  错误写法: "SELECT {{col.薪资发放.员工号}}, COUNT(*) AS 发薪次数 FROM {{table.薪资发放}} GROUP BY {{col.薪资发放.员工号}} HAVING COUNT(*) = 3"
-  语义陷阱:
+  referenceAnswer: "SELECT {{col.薪资发放.员工号}}, COUNT(*) AS 发薪次数 FROM {{table.薪资发放}} GROUP BY {{col.薪资发放.员工号}} HAVING COUNT(*) >= 3"
+  commonMistake: "SELECT {{col.薪资发放.员工号}}, COUNT(*) AS 发薪次数 FROM {{table.薪资发放}} GROUP BY {{col.薪资发放.员工号}} HAVING COUNT(*) = 3"
+  semanticTrap:
     - "SELECT {{col.薪资发放.发放序号}}, COUNT(*) AS 发薪次数 FROM {{table.薪资发放}} GROUP BY {{col.薪资发放.发放序号}} HAVING COUNT(*) >= 3"
   ordered: false
 
 # ── 知识点四：多表 JOIN（5 题）──────────────────────────────
 # 连接列一律「表名.列名」限定，规避两表实例列名相同时的歧义列错误。
 
-- 模板ID: join-emp-pay
-  知识点: 多表 JOIN
-  难度: 2
-  题面: 查询每条薪资发放记录对应的员工姓名与发放金额（内连接员工表与薪资发放表）。
-  提示:
+- templateId: join-emp-pay
+  knowledgeArea: 多表 JOIN
+  difficulty: 2
+  prompt: 查询每条薪资发放记录对应的员工姓名与发放金额（内连接员工表与薪资发放表）。
+  hints:
     - "思路：按员工号相等把两张表连接起来，连接列要写全限定名。"
     - "关键子句：FROM {{table.员工}} JOIN {{table.薪资发放}} ON {{table.员工}}.{{col.员工.员工号}} = {{table.薪资发放}}.{{col.薪资发放.员工号}}"
-  参考答案: "SELECT {{col.员工.姓名}}, {{col.薪资发放.发放金额}} FROM {{table.员工}} JOIN {{table.薪资发放}} ON {{table.员工}}.{{col.员工.员工号}} = {{table.薪资发放}}.{{col.薪资发放.员工号}}"
-  错误写法: "SELECT {{col.员工.姓名}}, {{col.薪资发放.发放金额}} FROM {{table.员工}} JOIN {{table.薪资发放}} ON {{table.员工}}.{{col.员工.部门号}} = {{table.薪资发放}}.{{col.薪资发放.员工号}}"
+  referenceAnswer: "SELECT {{col.员工.姓名}}, {{col.薪资发放.发放金额}} FROM {{table.员工}} JOIN {{table.薪资发放}} ON {{table.员工}}.{{col.员工.员工号}} = {{table.薪资发放}}.{{col.薪资发放.员工号}}"
+  commonMistake: "SELECT {{col.员工.姓名}}, {{col.薪资发放.发放金额}} FROM {{table.员工}} JOIN {{table.薪资发放}} ON {{table.员工}}.{{col.员工.部门号}} = {{table.薪资发放}}.{{col.薪资发放.员工号}}"
   ordered: false
 
-- 模板ID: join-three
-  知识点: 多表 JOIN
-  难度: 3
-  题面: 查询每条薪资发放记录对应的员工姓名、部门名与发放金额（三表连接）。
-  提示:
+- templateId: join-three
+  knowledgeArea: 多表 JOIN
+  difficulty: 3
+  prompt: 查询每条薪资发放记录对应的员工姓名、部门名与发放金额（三表连接）。
+  hints:
     - "思路：员工表先连部门（部门号），再连薪资发放（员工号）。"
     - "关键子句：JOIN {{table.部门}} ON {{table.员工}}.{{col.员工.部门号}} = {{table.部门}}.{{col.部门.部门号}}"
-  参考答案: "SELECT {{col.员工.姓名}}, {{col.部门.部门名}}, {{col.薪资发放.发放金额}} FROM {{table.员工}} JOIN {{table.部门}} ON {{table.员工}}.{{col.员工.部门号}} = {{table.部门}}.{{col.部门.部门号}} JOIN {{table.薪资发放}} ON {{table.员工}}.{{col.员工.员工号}} = {{table.薪资发放}}.{{col.薪资发放.员工号}}"
-  错误写法: "SELECT {{col.员工.姓名}}, {{col.部门.部门名}}, {{col.薪资发放.发放金额}} FROM {{table.员工}} JOIN {{table.部门}} ON {{table.员工}}.{{col.员工.部门号}} = {{table.部门}}.{{col.部门.部门号}} JOIN {{table.薪资发放}} ON {{table.员工}}.{{col.员工.部门号}} = {{table.薪资发放}}.{{col.薪资发放.员工号}}"
-  语义陷阱:
+  referenceAnswer: "SELECT {{col.员工.姓名}}, {{col.部门.部门名}}, {{col.薪资发放.发放金额}} FROM {{table.员工}} JOIN {{table.部门}} ON {{table.员工}}.{{col.员工.部门号}} = {{table.部门}}.{{col.部门.部门号}} JOIN {{table.薪资发放}} ON {{table.员工}}.{{col.员工.员工号}} = {{table.薪资发放}}.{{col.薪资发放.员工号}}"
+  commonMistake: "SELECT {{col.员工.姓名}}, {{col.部门.部门名}}, {{col.薪资发放.发放金额}} FROM {{table.员工}} JOIN {{table.部门}} ON {{table.员工}}.{{col.员工.部门号}} = {{table.部门}}.{{col.部门.部门号}} JOIN {{table.薪资发放}} ON {{table.员工}}.{{col.员工.部门号}} = {{table.薪资发放}}.{{col.薪资发放.员工号}}"
+  semanticTrap:
     - "SELECT {{col.员工.姓名}}, {{col.部门.部门名}}, {{col.薪资发放.发放金额}} FROM {{table.员工}} JOIN {{table.部门}} ON {{table.员工}}.{{col.员工.员工号}} = {{table.部门}}.{{col.部门.部门号}} JOIN {{table.薪资发放}} ON {{table.员工}}.{{col.员工.员工号}} = {{table.薪资发放}}.{{col.薪资发放.员工号}}"
   ordered: false
 
-- 模板ID: join-left-null
-  知识点: 多表 JOIN
-  难度: 4
-  题面: 查询没有任何薪资发放记录的员工姓名（左连接后筛右侧为空）。
-  提示:
+- templateId: join-left-null
+  knowledgeArea: 多表 JOIN
+  difficulty: 4
+  prompt: 查询没有任何薪资发放记录的员工姓名（左连接后筛右侧为空）。
+  hints:
     - "思路：LEFT JOIN 保留全部员工，右表无匹配时其列为 NULL，用 IS NULL 找出。"
     - "关键子句：LEFT JOIN {{table.薪资发放}} ON ... WHERE {{table.薪资发放}}.{{col.薪资发放.员工号}} IS NULL"
-  参考答案: "SELECT {{col.员工.姓名}} FROM {{table.员工}} LEFT JOIN {{table.薪资发放}} ON {{table.员工}}.{{col.员工.员工号}} = {{table.薪资发放}}.{{col.薪资发放.员工号}} WHERE {{table.薪资发放}}.{{col.薪资发放.员工号}} IS NULL"
-  错误写法: "SELECT {{col.员工.姓名}} FROM {{table.员工}} JOIN {{table.薪资发放}} ON {{table.员工}}.{{col.员工.员工号}} = {{table.薪资发放}}.{{col.薪资发放.员工号}} WHERE {{table.薪资发放}}.{{col.薪资发放.员工号}} IS NOT NULL"
+  referenceAnswer: "SELECT {{col.员工.姓名}} FROM {{table.员工}} LEFT JOIN {{table.薪资发放}} ON {{table.员工}}.{{col.员工.员工号}} = {{table.薪资发放}}.{{col.薪资发放.员工号}} WHERE {{table.薪资发放}}.{{col.薪资发放.员工号}} IS NULL"
+  commonMistake: "SELECT {{col.员工.姓名}} FROM {{table.员工}} JOIN {{table.薪资发放}} ON {{table.员工}}.{{col.员工.员工号}} = {{table.薪资发放}}.{{col.薪资发放.员工号}} WHERE {{table.薪资发放}}.{{col.薪资发放.员工号}} IS NOT NULL"
   ordered: false
 
-- 模板ID: join-group-count
-  知识点: 多表 JOIN
-  难度: 4
-  题面: 查询每个部门的部门名及其员工的发薪记录条数（列别名「记录数」，部门名可重名，按部门号+部门名分组）。
-  提示:
+- templateId: join-group-count
+  knowledgeArea: 多表 JOIN
+  difficulty: 4
+  prompt: 查询每个部门的部门名及其员工的发薪记录条数（列别名「记录数」，部门名可重名，按部门号+部门名分组）。
+  hints:
     - "思路：三表连接后按部门号与部门名分组计数，重名部门不会被合并。"
     - "关键子句：GROUP BY {{table.部门}}.{{col.部门.部门号}}, {{col.部门.部门名}}"
-  参考答案: "SELECT {{col.部门.部门名}}, COUNT(*) AS 记录数 FROM {{table.部门}} JOIN {{table.员工}} ON {{table.部门}}.{{col.部门.部门号}} = {{table.员工}}.{{col.员工.部门号}} JOIN {{table.薪资发放}} ON {{table.员工}}.{{col.员工.员工号}} = {{table.薪资发放}}.{{col.薪资发放.员工号}} GROUP BY {{table.部门}}.{{col.部门.部门号}}, {{col.部门.部门名}}"
-  错误写法: "SELECT {{col.部门.部门名}}, COUNT(*) AS 记录数 FROM {{table.部门}} JOIN {{table.员工}} ON {{table.部门}}.{{col.部门.部门号}} = {{table.员工}}.{{col.员工.部门号}} JOIN {{table.薪资发放}} ON {{table.员工}}.{{col.员工.员工号}} = {{table.薪资发放}}.{{col.薪资发放.员工号}} GROUP BY {{col.部门.部门名}}"
+  referenceAnswer: "SELECT {{col.部门.部门名}}, COUNT(*) AS 记录数 FROM {{table.部门}} JOIN {{table.员工}} ON {{table.部门}}.{{col.部门.部门号}} = {{table.员工}}.{{col.员工.部门号}} JOIN {{table.薪资发放}} ON {{table.员工}}.{{col.员工.员工号}} = {{table.薪资发放}}.{{col.薪资发放.员工号}} GROUP BY {{table.部门}}.{{col.部门.部门号}}, {{col.部门.部门名}}"
+  commonMistake: "SELECT {{col.部门.部门名}}, COUNT(*) AS 记录数 FROM {{table.部门}} JOIN {{table.员工}} ON {{table.部门}}.{{col.部门.部门号}} = {{table.员工}}.{{col.员工.部门号}} JOIN {{table.薪资发放}} ON {{table.员工}}.{{col.员工.员工号}} = {{table.薪资发放}}.{{col.薪资发放.员工号}} GROUP BY {{col.部门.部门名}}"
   ordered: false
 
-- 模板ID: join-filter
-  知识点: 多表 JOIN
-  难度: 3
-  题面: "查询发放金额不低于 {{param.线}} 元的记录对应的员工姓名与发放金额。"
-  提示:
+- templateId: join-filter
+  knowledgeArea: 多表 JOIN
+  difficulty: 3
+  prompt: "查询发放金额不低于 {{param.线}} 元的记录对应的员工姓名与发放金额。"
+  hints:
     - "思路：连接员工与薪资发放后，在 WHERE 里对金额做阈值筛选。"
     - "关键子句：JOIN ... ON 员工号相等 WHERE {{col.薪资发放.发放金额}} >= {{param.线}}"
-  参考答案: "SELECT {{col.员工.姓名}}, {{col.薪资发放.发放金额}} FROM {{table.员工}} JOIN {{table.薪资发放}} ON {{table.员工}}.{{col.员工.员工号}} = {{table.薪资发放}}.{{col.薪资发放.员工号}} WHERE {{col.薪资发放.发放金额}} >= {{param.线}}"
-  错误写法: "SELECT {{col.员工.姓名}}, {{col.薪资发放.发放金额}} FROM {{table.员工}} JOIN {{table.薪资发放}} ON {{table.员工}}.{{col.员工.员工号}} = {{table.薪资发放}}.{{col.薪资发放.员工号}} WHERE {{col.薪资发放.发放金额}} < {{param.线}}"
+  referenceAnswer: "SELECT {{col.员工.姓名}}, {{col.薪资发放.发放金额}} FROM {{table.员工}} JOIN {{table.薪资发放}} ON {{table.员工}}.{{col.员工.员工号}} = {{table.薪资发放}}.{{col.薪资发放.员工号}} WHERE {{col.薪资发放.发放金额}} >= {{param.线}}"
+  commonMistake: "SELECT {{col.员工.姓名}}, {{col.薪资发放.发放金额}} FROM {{table.员工}} JOIN {{table.薪资发放}} ON {{table.员工}}.{{col.员工.员工号}} = {{table.薪资发放}}.{{col.薪资发放.员工号}} WHERE {{col.薪资发放.发放金额}} < {{param.线}}"
   ordered: false
-  参数:
+  paramPool:
     线: [12000, 20000]
 
 # ── 知识点五：子查询（4 题）─────────────────────────────────
 
-- 模板ID: sub-in
-  知识点: 子查询
-  难度: 3
-  题面: "查询至少有一次发放金额不低于 {{param.线}} 元的员工姓名（用 IN 子查询）。"
-  提示:
+- templateId: sub-in
+  knowledgeArea: 子查询
+  difficulty: 3
+  prompt: "查询至少有一次发放金额不低于 {{param.线}} 元的员工姓名（用 IN 子查询）。"
+  hints:
     - "思路：先在内层子查询找出达标的员工号，外层用 IN 匹配。"
     - "关键子句：WHERE {{col.员工.员工号}} IN (SELECT {{col.薪资发放.员工号}} FROM {{table.薪资发放}} WHERE {{col.薪资发放.发放金额}} >= {{param.线}})"
-  参考答案: "SELECT {{col.员工.姓名}} FROM {{table.员工}} WHERE {{col.员工.员工号}} IN (SELECT {{col.薪资发放.员工号}} FROM {{table.薪资发放}} WHERE {{col.薪资发放.发放金额}} >= {{param.线}})"
-  错误写法: "SELECT {{col.员工.姓名}} FROM {{table.员工}} WHERE {{col.员工.员工号}} NOT IN (SELECT {{col.薪资发放.员工号}} FROM {{table.薪资发放}} WHERE {{col.薪资发放.发放金额}} >= {{param.线}})"
+  referenceAnswer: "SELECT {{col.员工.姓名}} FROM {{table.员工}} WHERE {{col.员工.员工号}} IN (SELECT {{col.薪资发放.员工号}} FROM {{table.薪资发放}} WHERE {{col.薪资发放.发放金额}} >= {{param.线}})"
+  commonMistake: "SELECT {{col.员工.姓名}} FROM {{table.员工}} WHERE {{col.员工.员工号}} NOT IN (SELECT {{col.薪资发放.员工号}} FROM {{table.薪资发放}} WHERE {{col.薪资发放.发放金额}} >= {{param.线}})"
   ordered: false
-  参数:
+  paramPool:
     线: [12000, 15000, 20000]
 
-- 模板ID: sub-exists
-  知识点: 子查询
-  难度: 4
-  题面: 查询没有任何薪资发放记录的员工姓名（用 NOT EXISTS 相关子查询）。
-  提示:
+- templateId: sub-exists
+  knowledgeArea: 子查询
+  difficulty: 4
+  prompt: 查询没有任何薪资发放记录的员工姓名（用 NOT EXISTS 相关子查询）。
+  hints:
     - "思路：相关子查询按同一员工号关联内外两层，NOT EXISTS 表示一条匹配都没有。"
     - "关键子句：WHERE NOT EXISTS (SELECT 1 FROM {{table.薪资发放}} WHERE {{table.薪资发放}}.{{col.薪资发放.员工号}} = {{table.员工}}.{{col.员工.员工号}})"
-  参考答案: "SELECT {{col.员工.姓名}} FROM {{table.员工}} WHERE NOT EXISTS (SELECT 1 FROM {{table.薪资发放}} WHERE {{table.薪资发放}}.{{col.薪资发放.员工号}} = {{table.员工}}.{{col.员工.员工号}})"
-  错误写法: "SELECT {{col.员工.姓名}} FROM {{table.员工}} WHERE EXISTS (SELECT 1 FROM {{table.薪资发放}} WHERE {{table.薪资发放}}.{{col.薪资发放.员工号}} = {{table.员工}}.{{col.员工.员工号}})"
+  referenceAnswer: "SELECT {{col.员工.姓名}} FROM {{table.员工}} WHERE NOT EXISTS (SELECT 1 FROM {{table.薪资发放}} WHERE {{table.薪资发放}}.{{col.薪资发放.员工号}} = {{table.员工}}.{{col.员工.员工号}})"
+  commonMistake: "SELECT {{col.员工.姓名}} FROM {{table.员工}} WHERE EXISTS (SELECT 1 FROM {{table.薪资发放}} WHERE {{table.薪资发放}}.{{col.薪资发放.员工号}} = {{table.员工}}.{{col.员工.员工号}})"
   ordered: false
 
-- 模板ID: sub-scalar-max
-  知识点: 子查询
-  难度: 3
-  题面: 查询月薪最高的员工姓名（用标量子查询取最大值）。
-  提示:
+- templateId: sub-scalar-max
+  knowledgeArea: 子查询
+  difficulty: 3
+  prompt: 查询月薪最高的员工姓名（用标量子查询取最大值）。
+  hints:
     - "思路：内层 SELECT MAX(...) 只返回一个值，外层用它做等值比较。"
     - "关键子句：WHERE {{col.员工.月薪}} = (SELECT MAX({{col.员工.月薪}}) FROM {{table.员工}})"
-  参考答案: "SELECT {{col.员工.姓名}} FROM {{table.员工}} WHERE {{col.员工.月薪}} = (SELECT MAX({{col.员工.月薪}}) FROM {{table.员工}})"
-  错误写法: "SELECT {{col.员工.姓名}} FROM {{table.员工}} WHERE {{col.员工.月薪}} = (SELECT MIN({{col.员工.月薪}}) FROM {{table.员工}})"
+  referenceAnswer: "SELECT {{col.员工.姓名}} FROM {{table.员工}} WHERE {{col.员工.月薪}} = (SELECT MAX({{col.员工.月薪}}) FROM {{table.员工}})"
+  commonMistake: "SELECT {{col.员工.姓名}} FROM {{table.员工}} WHERE {{col.员工.月薪}} = (SELECT MIN({{col.员工.月薪}}) FROM {{table.员工}})"
   ordered: false
 
-- 模板ID: sub-derived
-  知识点: 子查询
-  难度: 5
-  题面: 查询发薪达到 3 次及以上的员工各发了几次薪（从按员工号分组的派生表中筛选，列别名「次数」）。
-  提示:
+- templateId: sub-derived
+  knowledgeArea: 子查询
+  difficulty: 5
+  prompt: 查询发薪达到 3 次及以上的员工各发了几次薪（从按员工号分组的派生表中筛选，列别名「次数」）。
+  hints:
     - "思路：把分组统计写成 FROM 里的派生表并起别名，外层对统计结果再筛选。"
     - "关键子句：FROM (SELECT ... GROUP BY 员工号) AS t WHERE 次数 >= 3"
-  参考答案: "SELECT 次数 FROM (SELECT {{col.薪资发放.员工号}} AS 员工号, COUNT(*) AS 次数 FROM {{table.薪资发放}} GROUP BY {{col.薪资发放.员工号}}) AS t WHERE 次数 >= 3"
-  错误写法: "SELECT 次数 FROM (SELECT {{col.薪资发放.员工号}} AS 员工号, COUNT(*) AS 次数 FROM {{table.薪资发放}} GROUP BY {{col.薪资发放.员工号}}) AS t"
+  referenceAnswer: "SELECT 次数 FROM (SELECT {{col.薪资发放.员工号}} AS 员工号, COUNT(*) AS 次数 FROM {{table.薪资发放}} GROUP BY {{col.薪资发放.员工号}}) AS t WHERE 次数 >= 3"
+  commonMistake: "SELECT 次数 FROM (SELECT {{col.薪资发放.员工号}} AS 员工号, COUNT(*) AS 次数 FROM {{table.薪资发放}} GROUP BY {{col.薪资发放.员工号}}) AS t"
   ordered: false
 
 # ── 知识点六：日期函数（4 题，只用固定日期列，规避 NOW/CURDATE）──
 
-- 模板ID: date-year-group
-  知识点: 日期函数
-  难度: 3
-  题面: 按入职年份统计员工人数（列别名「入职年份」「人数」）。
-  提示:
+- templateId: date-year-group
+  knowledgeArea: 日期函数
+  difficulty: 3
+  prompt: 按入职年份统计员工人数（列别名「入职年份」「人数」）。
+  hints:
     - "思路：YEAR 函数从日期中取出年份，按它分组计数。"
     - "关键子句：GROUP BY YEAR({{col.员工.入职日期}})"
-  参考答案: "SELECT YEAR({{col.员工.入职日期}}) AS 入职年份, COUNT(*) AS 人数 FROM {{table.员工}} GROUP BY YEAR({{col.员工.入职日期}})"
-  错误写法: "SELECT MONTH({{col.员工.入职日期}}) AS 入职年份, COUNT(*) AS 人数 FROM {{table.员工}} GROUP BY MONTH({{col.员工.入职日期}})"
+  referenceAnswer: "SELECT YEAR({{col.员工.入职日期}}) AS 入职年份, COUNT(*) AS 人数 FROM {{table.员工}} GROUP BY YEAR({{col.员工.入职日期}})"
+  commonMistake: "SELECT MONTH({{col.员工.入职日期}}) AS 入职年份, COUNT(*) AS 人数 FROM {{table.员工}} GROUP BY MONTH({{col.员工.入职日期}})"
   ordered: false
 
-- 模板ID: date-year-filter
-  知识点: 日期函数
-  难度: 2
-  题面: 查询 2025 年发放的薪资记录，返回员工号。
-  提示:
+- templateId: date-year-filter
+  knowledgeArea: 日期函数
+  difficulty: 2
+  prompt: 查询 2025 年发放的薪资记录，返回员工号。
+  hints:
     - "思路：对日期列套 YEAR 再与 2025 比较。"
     - "关键子句：WHERE YEAR({{col.薪资发放.发放日期}}) = 2025"
-  参考答案: "SELECT {{col.薪资发放.员工号}} FROM {{table.薪资发放}} WHERE YEAR({{col.薪资发放.发放日期}}) = 2025"
-  错误写法: "SELECT {{col.薪资发放.员工号}} FROM {{table.薪资发放}} WHERE YEAR({{col.薪资发放.发放日期}}) = 2026"
+  referenceAnswer: "SELECT {{col.薪资发放.员工号}} FROM {{table.薪资发放}} WHERE YEAR({{col.薪资发放.发放日期}}) = 2025"
+  commonMistake: "SELECT {{col.薪资发放.员工号}} FROM {{table.薪资发放}} WHERE YEAR({{col.薪资发放.发放日期}}) = 2026"
   ordered: false
 
-- 模板ID: date-format
-  知识点: 日期函数
-  难度: 3
-  题面: "查询每位员工的姓名与格式化后的入职日期（格式为{{param.格式.描述}}，列别名「入职日」），按员工号升序返回。"
-  提示:
+- templateId: date-format
+  knowledgeArea: 日期函数
+  difficulty: 3
+  prompt: "查询每位员工的姓名与格式化后的入职日期（格式为{{param.格式.描述}}，列别名「入职日」），按员工号升序返回。"
+  hints:
     - "思路：DATE_FORMAT(日期, 格式串) 按给定格式输出文本，格式串由题面描述决定。"
     - "关键子句：DATE_FORMAT({{col.员工.入职日期}}, '{{param.格式.模式}}')"
-  参考答案: "SELECT {{col.员工.姓名}}, DATE_FORMAT({{col.员工.入职日期}}, '{{param.格式.模式}}') AS 入职日 FROM {{table.员工}} ORDER BY {{col.员工.员工号}}"
-  错误写法: "SELECT {{col.员工.姓名}}, DATE_FORMAT({{col.员工.入职日期}}, '%Y') AS 入职日 FROM {{table.员工}} ORDER BY {{col.员工.员工号}}"
+  referenceAnswer: "SELECT {{col.员工.姓名}}, DATE_FORMAT({{col.员工.入职日期}}, '{{param.格式.模式}}') AS 入职日 FROM {{table.员工}} ORDER BY {{col.员工.员工号}}"
+  commonMistake: "SELECT {{col.员工.姓名}}, DATE_FORMAT({{col.员工.入职日期}}, '%Y') AS 入职日 FROM {{table.员工}} ORDER BY {{col.员工.员工号}}"
   ordered: true
-  参数:
+  paramPool:
     格式:
       - { 描述: "「年-月-日」（如 2020-02-29）", 模式: "%Y-%m-%d" }
       - { 描述: "「月/日」（如 02/29）", 模式: "%m/%d" }
 
-- 模板ID: date-datediff
-  知识点: 日期函数
-  难度: 4
-  题面: 查询薪资发放表中最早发放日期与最晚发放日期相差多少天（列别名「跨度天数」）。
-  提示:
+- templateId: date-datediff
+  knowledgeArea: 日期函数
+  difficulty: 4
+  prompt: 查询薪资发放表中最早发放日期与最晚发放日期相差多少天（列别名「跨度天数」）。
+  hints:
     - "思路：DATEDIFF(a, b) 求 a 减 b 的天数，先聚合出两个端点日期再作差。"
     - "关键子句：SELECT DATEDIFF(MAX({{col.薪资发放.发放日期}}), MIN({{col.薪资发放.发放日期}}))"
-  参考答案: "SELECT DATEDIFF(MAX({{col.薪资发放.发放日期}}), MIN({{col.薪资发放.发放日期}})) AS 跨度天数 FROM {{table.薪资发放}}"
-  错误写法: "SELECT DATEDIFF(MIN({{col.薪资发放.发放日期}}), MAX({{col.薪资发放.发放日期}})) AS 跨度天数 FROM {{table.薪资发放}}"
+  referenceAnswer: "SELECT DATEDIFF(MAX({{col.薪资发放.发放日期}}), MIN({{col.薪资发放.发放日期}})) AS 跨度天数 FROM {{table.薪资发放}}"
+  commonMistake: "SELECT DATEDIFF(MIN({{col.薪资发放.发放日期}}), MAX({{col.薪资发放.发放日期}})) AS 跨度天数 FROM {{table.薪资发放}}"
   ordered: false
 
 # ── 知识点七：综合应用（3 题）────────────────────────────────
 
-- 模板ID: comp-order-limit
-  知识点: 综合应用
-  难度: 4
-  题面: "查询发放金额最高的前 {{param.名额}} 条记录的员工姓名与发放金额（同额按员工号升序）。"
-  提示:
+- templateId: comp-order-limit
+  knowledgeArea: 综合应用
+  difficulty: 4
+  prompt: "查询发放金额最高的前 {{param.名额}} 条记录的员工姓名与发放金额（同额按员工号升序）。"
+  hints:
     - "思路：连接员工与薪资发放后，按金额降序、员工号升序排序，再 LIMIT。"
     - "关键子句：ORDER BY {{col.薪资发放.发放金额}} DESC, {{table.员工}}.{{col.员工.员工号}} LIMIT {{param.名额}}"
-  参考答案: "SELECT {{col.员工.姓名}}, {{col.薪资发放.发放金额}} FROM {{table.员工}} JOIN {{table.薪资发放}} ON {{table.员工}}.{{col.员工.员工号}} = {{table.薪资发放}}.{{col.薪资发放.员工号}} ORDER BY {{col.薪资发放.发放金额}} DESC, {{table.员工}}.{{col.员工.员工号}} LIMIT {{param.名额}}"
-  错误写法: "SELECT {{col.员工.姓名}}, {{col.薪资发放.发放金额}} FROM {{table.员工}} JOIN {{table.薪资发放}} ON {{table.员工}}.{{col.员工.员工号}} = {{table.薪资发放}}.{{col.薪资发放.员工号}} ORDER BY {{col.薪资发放.发放金额}} ASC, {{table.员工}}.{{col.员工.员工号}} LIMIT {{param.名额}}"
+  referenceAnswer: "SELECT {{col.员工.姓名}}, {{col.薪资发放.发放金额}} FROM {{table.员工}} JOIN {{table.薪资发放}} ON {{table.员工}}.{{col.员工.员工号}} = {{table.薪资发放}}.{{col.薪资发放.员工号}} ORDER BY {{col.薪资发放.发放金额}} DESC, {{table.员工}}.{{col.员工.员工号}} LIMIT {{param.名额}}"
+  commonMistake: "SELECT {{col.员工.姓名}}, {{col.薪资发放.发放金额}} FROM {{table.员工}} JOIN {{table.薪资发放}} ON {{table.员工}}.{{col.员工.员工号}} = {{table.薪资发放}}.{{col.薪资发放.员工号}} ORDER BY {{col.薪资发放.发放金额}} ASC, {{table.员工}}.{{col.员工.员工号}} LIMIT {{param.名额}}"
   ordered: true
-  参数:
+  paramPool:
     名额: [3, 5]
 
-- 模板ID: comp-case
-  知识点: 综合应用
-  难度: 4
-  题面: "查询每条发放记录的员工号与发放状态（列别名「状态」）：发放金额为空记「未发放」，不低于 {{param.线}} 元记「高额」，否则记「普通」。"
-  提示:
+- templateId: comp-case
+  knowledgeArea: 综合应用
+  difficulty: 4
+  prompt: "查询每条发放记录的员工号与发放状态（列别名「状态」）：发放金额为空记「未发放」，不低于 {{param.线}} 元记「高额」，否则记「普通」。"
+  hints:
     - "思路：CASE 多分支先判 IS NULL 再判阈值，空值与比较要分开处理。"
     - "关键子句：CASE WHEN 金额 IS NULL THEN '未发放' WHEN 金额 >= 阈值 THEN '高额' ELSE '普通' END"
-  参考答案: "SELECT {{col.薪资发放.员工号}}, CASE WHEN {{col.薪资发放.发放金额}} IS NULL THEN '未发放' WHEN {{col.薪资发放.发放金额}} >= {{param.线}} THEN '高额' ELSE '普通' END AS 状态 FROM {{table.薪资发放}}"
-  错误写法: "SELECT {{col.薪资发放.员工号}}, CASE WHEN {{col.薪资发放.发放金额}} IS NULL THEN '未发放' WHEN {{col.薪资发放.发放金额}} >= {{param.线}} THEN '大额' ELSE '普通' END AS 状态 FROM {{table.薪资发放}}"
+  referenceAnswer: "SELECT {{col.薪资发放.员工号}}, CASE WHEN {{col.薪资发放.发放金额}} IS NULL THEN '未发放' WHEN {{col.薪资发放.发放金额}} >= {{param.线}} THEN '高额' ELSE '普通' END AS 状态 FROM {{table.薪资发放}}"
+  commonMistake: "SELECT {{col.薪资发放.员工号}}, CASE WHEN {{col.薪资发放.发放金额}} IS NULL THEN '未发放' WHEN {{col.薪资发放.发放金额}} >= {{param.线}} THEN '大额' ELSE '普通' END AS 状态 FROM {{table.薪资发放}}"
   ordered: false
-  参数:
+  paramPool:
     线: [12000, 15000]
 
-- 模板ID: comp-city-having
-  知识点: 综合应用
-  难度: 3
-  题面: 按部门所在城市统计部门个数（城市为空的不计），只保留部门数达到 2 个的城市（列别名「部门数」）。
-  提示:
+- templateId: comp-city-having
+  knowledgeArea: 综合应用
+  difficulty: 3
+  prompt: 按部门所在城市统计部门个数（城市为空的不计），只保留部门数达到 2 个的城市（列别名「部门数」）。
+  hints:
     - "思路：WHERE 先排除空城市，再 GROUP BY + HAVING 过滤数量。"
     - "关键子句：WHERE 城市 IS NOT NULL GROUP BY 城市 HAVING COUNT(*) >= 2"
-  参考答案: "SELECT {{col.部门.城市}}, COUNT(*) AS 部门数 FROM {{table.部门}} WHERE {{col.部门.城市}} IS NOT NULL GROUP BY {{col.部门.城市}} HAVING COUNT(*) >= 2"
-  错误写法: "SELECT {{col.部门.城市}} FROM {{table.部门}} WHERE {{col.部门.城市}} IS NOT NULL GROUP BY {{col.部门.城市}} HAVING COUNT(*) >= 2"
+  referenceAnswer: "SELECT {{col.部门.城市}}, COUNT(*) AS 部门数 FROM {{table.部门}} WHERE {{col.部门.城市}} IS NOT NULL GROUP BY {{col.部门.城市}} HAVING COUNT(*) >= 2"
+  commonMistake: "SELECT {{col.部门.城市}} FROM {{table.部门}} WHERE {{col.部门.城市}} IS NOT NULL GROUP BY {{col.部门.城市}} HAVING COUNT(*) >= 2"
   ordered: false

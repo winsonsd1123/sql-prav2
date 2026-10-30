@@ -12,10 +12,10 @@ import { 创建本地存储 } from "@/components/本地存储";
 import { 空进度, 进度键, 解析进度, type 进度记录 } from "@/components/进度";
 import { 加载域包A } from "@/domain-packs/学生课程成绩/域包A";
 import { 加载域包B } from "@/domain-packs/员工部门薪资/域包B";
-import type { 域包 } from "@/kernel/types";
+import type { DomainPack } from "@/kernel/types";
 
 // 域包注册表：学生可在两个业务域之间切换练习（issue #8）
-export const 域包注册表: 域包[] = [加载域包A(), 加载域包B()];
+export const 域包注册表: DomainPack[] = [加载域包A(), 加载域包B()];
 
 const 种子键 = "sql-playground:seed";
 const 域包键 = "sql-playground:pack";
@@ -52,9 +52,9 @@ export const 种子存储 = 创建本地存储<number | null>({
 export const 域包存储 = 创建本地存储<string>({
   取键: () => 域包键,
   初始化: (原文) =>
-    域包注册表.some((d) => d.域包ID === 原文) ? 原文! : 域包注册表[0].域包ID,
+    域包注册表.some((d) => d.packId === 原文) ? 原文! : 域包注册表[0].packId,
   序列化: (v) => v,
-  未就绪快照: 域包注册表[0].域包ID,
+  未就绪快照: 域包注册表[0].packId,
   订阅集合: 订阅者,
 });
 

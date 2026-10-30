@@ -1,8 +1,8 @@
 import { describe, expect, it } from "vitest";
 import { 构造对照 } from "@/components/对照";
-import type { 结果集 } from "@/kernel/types";
+import type { ResultSet } from "@/kernel/types";
 
-const 集 = (列名: string[], 行: (string | null)[][]): 结果集 => ({ 列名, 行 });
+const 集 = (列名: string[], 行: (string | null)[][]): ResultSet => ({ columns: 列名, rows: 行 });
 
 describe("差异对照构造", () => {
   it("完全一致：无差异标记", () => {
