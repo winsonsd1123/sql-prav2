@@ -10,12 +10,12 @@
 
 import { createLocalStorage } from "@/components/local-storage";
 import { emptyProgress, progressKey, parseProgress, type ProgressRecord } from "@/components/progress";
-import { 加载域包A } from "@/domain-packs/学生课程成绩/域包A";
-import { 加载域包B } from "@/domain-packs/员工部门薪资/域包B";
+import { loadPackA } from "@/domain-packs/student-course-grades/pack-a";
+import { loadPackB } from "@/domain-packs/employee-department-salary/pack-b";
 import type { DomainPack } from "@/kernel/types";
 
 // 域包注册表：学生可在两个业务域之间切换练习（issue #8）
-export const domainPackRegistry: DomainPack[] = [加载域包A(), 加载域包B()];
+export const domainPackRegistry: DomainPack[] = [loadPackA(), loadPackB()];
 
 const SEED_KEY = "sql-playground:seed";
 const PACK_KEY = "sql-playground:pack";

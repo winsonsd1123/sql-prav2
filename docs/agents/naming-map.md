@@ -435,3 +435,17 @@ NT1–NT6 的**唯一译名来源**：GLOSSARY 词条英文名为基准，本表
 | 题 / 行 / 值 / 列（渲染层 map 参数） | tableInstance / row / value / column | 与其他行格式一致 |
 | 标题 / 侧 / 格 | title / side / cell | DiffComparison 内部 |
 
+
+### NT5 补录（实施中确立的译名与契约）
+
+| 现 | 译 | 说明 |
+|---|---|---|
+| 额外参数（openPlayground 第三参） | extraParams | worker-execution-guard |
+| 可复制 | copyable | no-paste 局部 |
+| 答案（局部 const） | answer | e2e 三 spec 局部 |
+| 首表 | firstTable | playground-smoke 局部 |
+| 表名（局部 const） | tableName | worker-execution-guard 局部；`data-表名` 属性值为 DOM 契约保留中文 |
+| 数据 / 文本 / 内容（evaluate 内参数与局部） | data / text / content | no-paste、playground-smoke |
+| 进度（seedProgress 参数） | progress | playground-smoke |
+| 内容（yaml.d.ts 声明） | content | 模块声明局部 |
+| 域包A / 域包B（pack-a/pack-b.ts 内标识符与 Error 文案引用） | packA / packB | 加载器 loadPackA/loadPackB 已入补遗表 |

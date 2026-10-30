@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { generateSession } from "@/kernel/generate";
 import { judge } from "@/kernel/judge";
-import { 加载域包A } from "@/domain-packs/学生课程成绩/域包A";
+import { loadPackA } from "@/domain-packs/student-course-grades/pack-a";
 
 /**
  * T5 · 四层随机化与结构性防抄袭。
@@ -10,7 +10,7 @@ import { 加载域包A } from "@/domain-packs/学生课程成绩/域包A";
  */
 
 /** 在一批种子中找到与基准会话"学生"表实际表名不同的种子（确定性：种子遍历顺序固定） */
-function 找异名种子(基准会话: ReturnType<typeof generateSession>, 域包: ReturnType<typeof 加载域包A>): number {
+function 找异名种子(基准会话: ReturnType<typeof generateSession>, 域包: ReturnType<typeof loadPackA>): number {
   const 基准表名 = 基准会话.database.tables[0].tableName;
   for (let 种子 = 1; 种子 <= 200; 种子++) {
     if (generateSession(种子, 域包).database.tables[0].tableName !== 基准表名) return 种子;
@@ -19,7 +19,7 @@ function 找异名种子(基准会话: ReturnType<typeof generateSession>, 域�
 }
 
 describe("四层随机化", () => {
-  const 域包 = 加载域包A();
+  const 域包 = loadPackA();
 
   it("同种子字节级一致（T1 既有红线，覆盖新随机层后仍成立）", () => {
     expect(JSON.stringify(generateSession(20260101, 域包))).toBe(JSON.stringify(generateSession(20260101, 域包)));
@@ -73,7 +73,7 @@ describe("四层随机化", () => {
 });
 
 /** T6：题库含仅引用课程表/成绩表的模板，防抄袭对撞会话需三张表实际名全部相异 */
-function 找全表异名种子(基准会话: ReturnType<typeof generateSession>, 域包: ReturnType<typeof 加载域包A>): number {
+function 找全表异名种子(基准会话: ReturnType<typeof generateSession>, 域包: ReturnType<typeof loadPackA>): number {
   const 基准表名们 = 基准会话.database.tables.map((t) => t.tableName);
   for (let 种子 = 1; 种子 <= 500; 种子++) {
     const 表名们 = generateSession(种子, 域包).database.tables.map((t) => t.tableName);
@@ -83,7 +83,7 @@ function 找全表异名种子(基准会话: ReturnType<typeof generateSession>,
 }
 
 describe("结构性防抄袭", () => {
-  const 域包 = 加载域包A();
+  const 域包 = loadPackA();
   const 会话A = generateSession(20260101, 域包);
   const 会话B = generateSession(找全表异名种子(会话A, 域包), 域包);
 

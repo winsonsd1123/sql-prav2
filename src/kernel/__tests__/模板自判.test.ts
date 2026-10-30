@@ -1,9 +1,9 @@
 import { describe, expect, it } from "vitest";
 import { generateSession } from "@/kernel/generate";
 import { judge } from "@/kernel/judge";
-import { 加载域包A } from "@/domain-packs/学生课程成绩/域包A";
+import { loadPackA } from "@/domain-packs/student-course-grades/pack-a";
 
-const 会话 = generateSession(20260101, 加载域包A());
+const 会话 = generateSession(20260101, loadPackA());
 
 /** 列序颠倒的正确变体：把参考答案 SELECT 后的列清单反转（括号内的逗号不属于列分隔） */
 function 列序颠倒(sql: string): string {

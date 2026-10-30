@@ -3,7 +3,7 @@ import { generatePracticeSession } from "@/kernel/question-picking";
 import { judge } from "@/kernel/judge";
 import { executeQuery } from "@/kernel/execute";
 import { RESULT_ROW_LIMIT, GuardLimitError, ROW_LIMIT_MESSAGE } from "@/kernel/guard";
-import { 加载域包A } from "@/domain-packs/学生课程成绩/域包A";
+import { loadPackA } from "@/domain-packs/student-course-grades/pack-a";
 import type { DomainPack } from "@/kernel/types";
 
 /**
@@ -13,7 +13,7 @@ import type { DomainPack } from "@/kernel/types";
  * 不进入 MySQL 错误三要素映射）。
  */
 
-const 域包A: DomainPack = 加载域包A();
+const 域包A: DomainPack = loadPackA();
 const 会话 = generatePracticeSession(42, 域包A);
 const 题目 = 会话.questions[0];
 

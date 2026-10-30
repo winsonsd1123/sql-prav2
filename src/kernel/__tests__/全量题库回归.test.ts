@@ -1,8 +1,8 @@
 import { describe, expect, it } from "vitest";
 import { generateSession } from "@/kernel/generate";
 import { judge } from "@/kernel/judge";
-import { 加载域包A } from "@/domain-packs/学生课程成绩/域包A";
-import { 加载域包B } from "@/domain-packs/员工部门薪资/域包B";
+import { loadPackA } from "@/domain-packs/student-course-grades/pack-a";
+import { loadPackB } from "@/domain-packs/employee-department-salary/pack-b";
 import type { DomainPack } from "@/kernel/types";
 
 /**
@@ -13,7 +13,7 @@ import type { DomainPack } from "@/kernel/types";
  * 3. 模板声明的典型错误写法判不通过（防止判题过松）。
  * 典型错误写法随模板以 YAML 静态资源声明，与参考答案同占位符实例化。
  */
-const 域包们: DomainPack[] = [加载域包A(), 加载域包B()];
+const 域包们: DomainPack[] = [loadPackA(), loadPackB()];
 const 种子列表 = [42, 43, 44];
 
 const 七个知识点 = [
