@@ -72,10 +72,17 @@ test.describe("已登录", () => {
     );
     await expect(nav.getByRole("link", { name: "邮箱白名单" })).toBeVisible();
 
-    // 可切换至邮箱白名单骨架页
+    // 可切换至邮箱白名单页（T5 起接入真实数据，空配置即可，交互细节见 admin-whitelist.spec.ts）
+    await page.route("**/api/admin/whitelist", async (route) => {
+      await route.fulfill({
+        status: 200,
+        contentType: "application/json",
+        body: JSON.stringify({ allowAnyDomain: false, domains: [] }),
+      });
+    });
     await nav.getByRole("link", { name: "邮箱白名单" }).click();
     await expect(page).toHaveURL(/\/admin\/whitelist$/);
-    await expect(page.getByTestId("邮箱白名单骨架")).toBeVisible();
+    await expect(page.getByTestId("白名单管理")).toBeVisible();
   });
 
   test("无权限点：不见入口，直访 /admin 被重定向回演练场", async ({ page }) => {

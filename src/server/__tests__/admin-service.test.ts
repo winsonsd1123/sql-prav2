@@ -20,6 +20,9 @@ function makeDeps(overrides: Partial<AdminDeps> = {}): AdminDeps {
     fetchValidRoleNames: async () => ["学生", "助教", "教师", "管理员"],
     fetchUserRolesByUser: async () => [],
     writeUserRoleChanges: async () => ({ add: [], remove: [] }),
+    fetchAllowlistView: async () => ({ allowAnyDomain: false, domains: [] }),
+    replaceAllowlistDomains: async () => undefined,
+    updateAllowAnyDomain: async () => undefined,
     ...overrides,
   };
 }
