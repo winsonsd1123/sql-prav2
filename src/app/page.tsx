@@ -1,4 +1,4 @@
-import Playground from "@/components/演练场";
+import Playground from "@/components/Playground";
 import LoginGuard from "@/components/login-guard";
 
 export default function Home() {

@@ -21,12 +21,6 @@ const SQL_OBJECT_RE =
 
 // 文件名基线：历史中文路径（#32），改名后删行
 const fileNameBaseline = new Set([
-  "src/components/SQL编辑器.tsx",
-  "src/components/会话总结.tsx",
-  "src/components/库浏览器.tsx",
-  "src/components/提示与答案.tsx",
-  "src/components/演练场.tsx",
-  "src/components/差异对照.tsx",
   "src/kernel/__tests__/夹具回归.test.ts",
   "src/kernel/__tests__/1055静态检查.test.ts",
   "src/kernel/__tests__/会话出题.test.ts",
@@ -56,11 +50,6 @@ const ratchetBaseline = {
   "scripts/采样MySQL行为.mjs": 14,
   "scripts/采样MySQL错误.mjs": 14,
   "scripts/静态服务.mjs": 4,
-  "src/components/SQL编辑器.tsx": 12,
-  "src/components/会话总结.tsx": 3,
-  "src/components/差异对照.tsx": 3,
-  "src/components/提示与答案.tsx": 7,
-  "src/components/演练场.tsx": 56,
   "src/domain-packs/员工部门薪资/域包B.ts": 2,
   "src/domain-packs/学生课程成绩/域包A.ts": 2,
   "src/kernel/__tests__/1055静态检查.test.ts": 2,

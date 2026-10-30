@@ -7,27 +7,27 @@ import { buildComparison, type ComparisonSideView } from "@/components/compariso
 import { formatValue } from "@/kernel/execute";
 import type { ResultSet } from "@/kernel/types";
 
-function 侧表格({ 标题, 侧 }: { 标题: string; 侧: ComparisonSideView }) {
+function SideTable({ title, side }: { title: string; side: ComparisonSideView }) {
   return (
     <div className="min-w-0">
-      <p className="mb-1 text-sm font-bold text-ink">{标题}</p>
+      <p className="mb-1 text-sm font-bold text-ink">{title}</p>
       <div className="卡片 overflow-auto">
         <table className="w-full font-mono text-sm">
           <thead className="bg-ink/[0.04]">
             <tr>
-              {侧.columns.length > 0 ? (
-                侧.columns.map((列, i) => (
+              {side.columns.length > 0 ? (
+                side.columns.map((column, i) => (
                   <th
                     key={i}
                     className={`px-2 py-1.5 text-left font-medium whitespace-nowrap ${
-                      侧.columnDiff[i]
+                      side.columnDiff[i]
                         ? "border-b border-fail bg-fail/10 text-fail"
                         : "border-b border-border-strong text-ink"
                     }`}
-                    title={侧.columnDiff[i] ? "预期结果中没有对应列" : undefined}
+                    title={side.columnDiff[i] ? "预期结果中没有对应列" : undefined}
                   >
-                    {列}
-                    {侧.columnDiff[i] ? " ⚠" : ""}
+                    {column}
+                    {side.columnDiff[i] ? " ⚠" : ""}
                   </th>
                 ))
               ) : (
@@ -36,26 +36,26 @@ function 侧表格({ 标题, 侧 }: { 标题: string; 侧: ComparisonSideView })
             </tr>
           </thead>
           <tbody>
-            {侧.rows.map((行, i) => (
+            {side.rows.map((row, i) => (
               <tr
                 key={i}
                 className={`border-b border-ink/10 odd:bg-ink/[0.02] ${
-                  侧.rowDiff[i] ? "bg-fail/10" : ""
+                  side.rowDiff[i] ? "bg-fail/10" : ""
                 }`}
               >
-                {行.map((格, j) => (
+                {row.map((cell, j) => (
                   <td
                     key={j}
                     className={`px-2 py-1 whitespace-nowrap ${
-                      格.diff ? "bg-fail/15 font-medium text-fail" : ""
+                      cell.diff ? "bg-fail/15 font-medium text-fail" : ""
                     }`}
                   >
-                    {格.value === null ? <em className="text-muted">NULL</em> : formatValue(格.value)}
+                    {cell.value === null ? <em className="text-muted">NULL</em> : formatValue(cell.value)}
                   </td>
                 ))}
               </tr>
             ))}
-            {侧.rows.length === 0 && (
+            {side.rows.length === 0 && (
               <tr>
                 <td className="px-2 py-1 text-muted">（空结果）</td>
               </tr>
@@ -67,22 +67,22 @@ function 侧表格({ 标题, 侧 }: { 标题: string; 侧: ComparisonSideView })
   );
 }
 
-export default function 差异对照({
-  学生结果,
-  预期结果,
+export default function DiffComparison({
+  studentResult,
+  expectedResult,
   ordered,
 }: {
-  学生结果: ResultSet;
-  预期结果: ResultSet;
+  studentResult: ResultSet;
+  expectedResult: ResultSet;
   ordered: boolean;
 }) {
-  const 视图 = buildComparison(学生结果, 预期结果, ordered);
+  const view = buildComparison(studentResult, expectedResult, ordered);
   return (
     <div className="space-y-2" data-testid="差异对照">
-      {视图.truncationNote && <p className="text-xs text-warn">{视图.truncationNote}</p>}
+      {view.truncationNote && <p className="text-xs text-warn">{view.truncationNote}</p>}
       <div className="grid gap-4 md:grid-cols-2">
-        <侧表格 标题="你的结果" 侧={视图.left} />
-        <侧表格 标题="预期结果" 侧={视图.right} />
+        <SideTable title="你的结果" side={view.left} />
+        <SideTable title="预期结果" side={view.right} />
       </div>
       <p className="text-xs text-muted">
         红色行为差异行，深红单元格为具体不等的位置

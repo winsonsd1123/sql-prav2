@@ -411,3 +411,27 @@ NT1–NT6 的**唯一译名来源**：GLOSSARY 词条英文名为基准，本表
 | 已占用 / 名 / 位置 / 总 / 匹配 | used / name / position / count / matched | comparison 内部（matched 原名即英文） |
 | 记前 / 记后 | recordedBefore / recordedAfter | progress 测试解构变量 |
 | 通过 / 已通过（测试局部） | passed / passedProgress | progress 测试 |
+### NT4 补录（实施中确立的译名与 props 契约）
+
+| 现 | 译 | 说明 |
+|---|---|---|
+| 值 / 表 / 禁用（SQL编辑器 props） | value / tables / disabled | SqlEditor |
+| cm占位（导入别名） | cmPlaceholder | SqlEditor 内部 |
+| 更新（updateListener 参数） | update | SqlEditor 内部 |
+| 实例名 / 打开（库浏览器 props） | instanceLabel / open | LibraryBrowser |
+| 表实例（map 参数） | tableInstance | LibraryBrowser 内部 |
+| 提示 / 参考答案 / 已看层数 / 已借助答案（props） | hints / referenceAnswer / layersSeen / usedAnswer | HintsAndAnswer |
+| 解锁状态 / 答案还差尝试（props） | unlockState / attemptsToUnlock | HintsAndAnswer |
+| on揭示提示（prop） | onRevealHint | HintsAndAnswer |
+| 已通过 / 提示已解锁 / 答案已解锁 / 尝试次数（UnlockState 字段） | passed / hintUnlocked / answerUnlocked / attemptCount | UnlockState |
+| 分档 / 已完成 / 总数 / on再来一套 / on关闭（props） | tiers / completed / total / onPlayAgain / onClose | SessionSummary |
+| 色类 / 名称 / 数量 / 键（tierItem 参数） | colorClass / name / count / key | SessionSummary 内部 |
+| 目标题号 / 倒计时中（通过反馈状态字段） | targetIndex / countingDown | Playground 内部 |
+| 种子 / 域包ID / 域包 / 会话 / 进度 / 题目 | seed / packId / pack / session / progress / question | Playground 内部状态（速查映射） |
+| 设SQL输入 / 设结果 / 设判定中 等 setter | setSqlInput / setResult / setJudging 等 | setState 惯例 set+名词 |
+| 目标域包ID（切换域包参数） | targetPackId | Playground 内部 |
+| 知识点 / 序号（题目分组字段）、组 / 状态 | knowledgeArea / indices、group / state | Playground 左栏目录 |
+| 落盘（beforeunload 内局部函数） | flush | Playground 内部 |
+| 题 / 行 / 值 / 列（库浏览器/差异对照 map 参数） | table→tableInstance、row、value、column | 渲染层局部 |
+| 标题 / 侧 / 格 | title / side / cell | DiffComparison 内部 |
+
