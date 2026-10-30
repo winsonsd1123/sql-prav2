@@ -1,15 +1,5 @@
 This is a [Next.js](https://nextjs.com) project bootstrapped with [`create-next-app`](https://nextjs.com/docs/api-reference/cli/create-next-app).
 
-## MySQL 错误采样（错误保真度夹具）
-
-判题内核的错误反馈以真实 MySQL 采样夹具为验收基准（`src/kernel/__tests__/fixtures/MySQL错误夹具.json`）。重采样需本地 MySQL 与 `mysql` 客户端：
-
-```bash
-MYSQL_USER=root MYSQL_PWD=<密码> MYSQL_HOST=localhost node scripts/采样MySQL错误.mjs
-```
-
-凭据只通过环境变量传给采样进程，绝不写入仓库。采样会在本地 MySQL 建 `playground` 库（与域包A表结构一致），对故意写错的 SQL 集采样错误码/SQLSTATE/文案/near token 并重写夹具文件。
-
 ## Getting Started
 
 First, run the development server:
