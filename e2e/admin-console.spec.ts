@@ -45,8 +45,16 @@ test.describe("已登录", () => {
     });
   }
 
-  test("持「访问后台」：入口可见，进入 /admin 重定向至用户管理骨架页", async ({ page }) => {
+  test("持「访问后台」：入口可见，进入 /admin 重定向至用户管理页", async ({ page }) => {
     await mockAdminPermissions(page);
+    // 用户列表 API 离线桩（T2 起页面接入真实数据）：空态即可，列表交互细节见 admin-users.spec.ts
+    await page.route("**/api/admin/users*", async (route) => {
+      await route.fulfill({
+        status: 200,
+        contentType: "application/json",
+        body: JSON.stringify({ users: [], total: 0, page: 1, pageSize: 20 }),
+      });
+    });
     await page.goto("/?seed=42");
     await expect(page.getByRole("heading", { name: "SQL 演练场" })).toBeVisible();
 
@@ -54,7 +62,7 @@ test.describe("已登录", () => {
     // /admin 重定向至用户管理页
     await expect(page).toHaveURL(/\/admin\/users$/);
     await expect(page.getByRole("heading", { name: "后台管理", exact: true })).toBeVisible();
-    await expect(page.getByTestId("用户管理骨架")).toBeVisible();
+    await expect(page.getByTestId("用户列表")).toBeVisible();
 
     // 侧边导航两项俱在，当前项（用户管理）高亮
     const nav = page.getByTestId("后台侧边导航");
