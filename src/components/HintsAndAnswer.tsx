@@ -10,89 +10,89 @@ import { useState } from "react";
  * 解锁状态包（issue #16，ADR-0003）：尝试次数门槛 + 已通过的题全解锁。
  * 四个字段同源同变，捆绑传入避免 props 松散漂移；由调用方从 进度 一次构造。
  */
-export interface 解锁状态类型 {
-  已通过: boolean;
-  提示已解锁: boolean;
-  答案已解锁: boolean;
-  尝试次数: number;
+export interface UnlockState {
+  passed: boolean;
+  hintUnlocked: boolean;
+  answerUnlocked: boolean;
+  attemptCount: number;
 }
 
-export interface 提示与答案属性 {
-  提示: [string, string];
-  参考答案: string;
-  已看层数: number; // 0/1/2
-  已借助答案: boolean;
-  解锁状态: 解锁状态类型;
+export interface HintsAndAnswerProps {
+  hints: [string, string];
+  referenceAnswer: string;
+  layersSeen: number; // 0/1/2
+  usedAnswer: boolean;
+  unlockState: UnlockState;
   /** 距答案解锁还差的尝试次数（门槛口径归 进度 模块，0 表示已解锁） */
-  答案还差尝试: number;
+  attemptsToUnlock: number;
   /**
    * 参考答案豁免（T5，ADR-0003 修订 v3）：持「随时查看参考答案」权限点者
    * 免摩擦力门槛直接查看；查看属教学检视，不弹确认框、不记「借助答案」。
    */
-  答案豁免?: boolean;
-  on揭示提示: () => void;
-  on查看答案: () => void;
+  answerExemption?: boolean;
+  onRevealHint: () => void;
+  onViewAnswer: () => void;
 }
 
-export default function HintsPanel({
-  提示,
-  参考答案,
-  已看层数,
-  已借助答案,
-  解锁状态,
-  答案还差尝试,
-  答案豁免 = false,
-  on揭示提示,
-  on查看答案,
-}: 提示与答案属性) {
-  const [答案已展开, 设答案已展开] = useState(false);
-  const [等待确认, 设等待确认] = useState(false);
-  const { 已通过, 提示已解锁 } = 解锁状态;
+export default function HintsAndAnswer({
+  hints,
+  referenceAnswer,
+  layersSeen,
+  usedAnswer,
+  unlockState,
+  attemptsToUnlock,
+  answerExemption = false,
+  onRevealHint,
+  onViewAnswer,
+}: HintsAndAnswerProps) {
+  const [answerExpanded, setAnswerExpanded] = useState(false);
+  const [awaitingConfirm, setAwaitingConfirm] = useState(false);
+  const { passed, hintUnlocked } = unlockState;
   // 豁免者免门槛：答案恒解锁，锁定说明不出现
-  const 答案已解锁 = 答案豁免 || 解锁状态.答案已解锁;
+  const answerUnlocked = answerExemption || unlockState.answerUnlocked;
 
   // 锁定态按钮直接标明解锁条件（spec 用户故事 16）；次数口径来自 进度.答案解锁还差尝试
-  const 提示锁定说明 = 已通过 ? "" : "先验证一次解锁提示";
-  const 答案锁定说明 = 已通过
+  const hintLockHint = passed ? "" : "先验证一次解锁提示";
+  const answerLockHint = passed
     ? ""
-    : 已看层数 >= 1
-      ? `再试 ${答案还差尝试} 次解锁答案`
-      : `再试 ${答案还差尝试} 次或看提示后解锁答案`;
+    : layersSeen >= 1
+      ? `再试 ${attemptsToUnlock} 次解锁答案`
+      : `再试 ${attemptsToUnlock} 次或看提示后解锁答案`;
   return (
     <div className="grid items-start gap-4 sm:grid-cols-2" data-testid="提示与答案">
       <div className="space-y-2">
         <div className="flex flex-col items-start gap-2">
           <button
-            onClick={on揭示提示}
-            disabled={已看层数 >= 2 || !提示已解锁}
+            onClick={onRevealHint}
+            disabled={layersSeen >= 2 || !hintUnlocked}
             data-testid="提示按钮"
             className="次按钮 px-3 py-2 text-left text-sm disabled:opacity-40"
           >
-            {已看层数 === 0
+            {layersSeen === 0
               ? "显示提示（第 1 层：思路）"
-              : 已看层数 === 1
+              : layersSeen === 1
                 ? "再显示一层（第 2 层：关键子句）"
                 : "两层提示已全部显示"}
           </button>
-          {!提示已解锁 && (
+          {!hintUnlocked && (
             <span data-testid="提示锁定说明" className="text-xs text-muted">
-              {提示锁定说明}
+              {hintLockHint}
             </span>
           )}
-          {已看层数 > 0 && (
-            <span className="font-mono text-xs text-muted">已看 {已看层数}/2 层</span>
+          {layersSeen > 0 && (
+            <span className="font-mono text-xs text-muted">已看 {layersSeen}/2 层</span>
           )}
         </div>
-        {已看层数 >= 1 && (
+        {layersSeen >= 1 && (
           <p className="rounded-lg bg-warn/10 px-3 py-2 text-sm leading-relaxed">
             <strong className="text-warn">提示 1 · 思路：</strong>
-            {提示[0]}
+            {hints[0]}
           </p>
         )}
-        {已看层数 >= 2 && (
+        {layersSeen >= 2 && (
           <p className="rounded-lg bg-warn/10 px-3 py-2 text-sm leading-relaxed">
             <strong className="text-warn">提示 2 · 关键子句：</strong>
-            <code className="font-mono">{提示[1]}</code>
+            <code className="font-mono">{hints[1]}</code>
           </p>
         )}
       </div>
@@ -103,27 +103,27 @@ export default function HintsPanel({
             onClick={() => {
               // 通过后查看仅展示不记录（语义收紧，进度原样返回，无需调用回调）；
               // 豁免查看同属展示不记录（教学检视）；通过前（无豁免）先弹确认框
-              if (已通过 || 答案豁免) {
-                设答案已展开(true);
-              } else 设等待确认(true);
+              if (passed || answerExemption) {
+                setAnswerExpanded(true);
+              } else setAwaitingConfirm(true);
             }}
-            disabled={!答案已解锁}
+            disabled={!answerUnlocked}
             data-testid="答案按钮"
             className="次按钮 px-3 py-2 text-left text-sm disabled:opacity-40"
           >
-            {答案已展开 ? "参考答案已显示" : "查看参考答案"}
+            {answerExpanded ? "参考答案已显示" : "查看参考答案"}
           </button>
-          {!答案已解锁 && (
+          {!answerUnlocked && (
             <span data-testid="答案锁定说明" className="text-xs text-muted">
-              {答案锁定说明}
+              {answerLockHint}
             </span>
           )}
-          {答案豁免 && (
+          {answerExemption && (
             <span data-testid="答案豁免说明" className="text-xs text-muted">
               教学检视：免门槛查看，不计「借助答案」
             </span>
           )}
-          {等待确认 && (
+          {awaitingConfirm && (
             <div
               data-testid="答案确认框"
               className="w-full space-y-3 rounded-xl border border-border-strong bg-bg p-3"
@@ -135,9 +135,9 @@ export default function HintsPanel({
               <div className="flex gap-2">
                 <button
                   onClick={() => {
-                    设等待确认(false);
-                    设答案已展开(true);
-                    on查看答案();
+                    setAwaitingConfirm(false);
+                    setAnswerExpanded(true);
+                    onViewAnswer();
                   }}
                   data-testid="确认查看答案"
                   className="主按钮 px-3 py-1.5 text-sm"
@@ -145,7 +145,7 @@ export default function HintsPanel({
                   确认查看（将记入进度）
                 </button>
                 <button
-                  onClick={() => 设等待确认(false)}
+                  onClick={() => setAwaitingConfirm(false)}
                   className="次按钮 px-3 py-1.5 text-sm"
                 >
                   再想想
@@ -153,15 +153,15 @@ export default function HintsPanel({
               </div>
             </div>
           )}
-          {已借助答案 && (
+          {usedAnswer && (
             <span className="rounded-full bg-assist/10 px-2 py-0.5 text-xs font-medium text-assist">
               已借助答案
             </span>
           )}
         </div>
-        {答案已展开 && (
+        {answerExpanded && (
           <pre className="overflow-auto rounded-lg border border-border-strong bg-deep p-3 font-mono text-sm">
-            {参考答案}
+            {referenceAnswer}
           </pre>
         )}
       </div>

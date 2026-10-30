@@ -9,7 +9,7 @@ import {
   keymap,
   lineNumbers,
   highlightActiveLine,
-  placeholder as cm占位,
+  placeholder as cmPlaceholder,
 } from "@codemirror/view";
 import { EditorState, Prec, type Extension } from "@codemirror/state";
 import { sql, SQLite } from "@codemirror/lang-sql";
@@ -18,47 +18,47 @@ import { defaultKeymap, history, historyKeymap, indentWithTab } from "@codemirro
 import { syntaxHighlighting, defaultHighlightStyle, bracketMatching } from "@codemirror/language";
 import type { TableInstance } from "@/kernel/types";
 
-export interface SQL编辑器属性 {
-  值: string;
-  onChange: (值: string) => void;
+export interface SqlEditorProps {
+  value: string;
+  onChange: (value: string) => void;
   /** Ctrl/Cmd + Enter 提交（验证） */
   onSubmit: () => void;
   /** 库实例：注入 SQL 补全 schema（表名/列名） */
-  表: TableInstance[];
-  禁用?: boolean;
+  tables: TableInstance[];
+  disabled?: boolean;
   /** 粘贴/拖入被拦截时回调（issue #17 T6：用于编辑器上方横幅提示） */
-  on拦截粘贴?: () => void;
+  onInterceptPaste?: () => void;
 }
 
 /** CodeMirror 需要的 schema 形态：表名 → 列名数组 */
-export function 构造schema(表: TableInstance[]): Record<string, string[]> {
-  return Object.fromEntries(表.map((t) => [t.tableName, t.columnNames]));
+export function buildSchema(tables: TableInstance[]): Record<string, string[]> {
+  return Object.fromEntries(tables.map((t) => [t.tableName, t.columnNames]));
 }
 
-export default function SQL编辑器({ 值, onChange, onSubmit, 表, 禁用, on拦截粘贴 }: SQL编辑器属性) {
-  const 容器 = useRef<HTMLDivElement>(null);
-  const 视图 = useRef<EditorView | null>(null);
-  const 提交回调 = useRef(onSubmit);
-  const 值引用 = useRef(值);
-  const 拦截回调 = useRef(on拦截粘贴);
+export default function SqlEditor({ value, onChange, onSubmit, tables, disabled, onInterceptPaste }: SqlEditorProps) {
+  const containerRef = useRef<HTMLDivElement>(null);
+  const viewRef = useRef<EditorView | null>(null);
+  const submitCallbackRef = useRef(onSubmit);
+  const valueRef = useRef(value);
+  const interceptCallbackRef = useRef(onInterceptPaste);
   useEffect(() => {
-    提交回调.current = onSubmit;
-    值引用.current = 值;
-    拦截回调.current = on拦截粘贴;
+    submitCallbackRef.current = onSubmit;
+    valueRef.current = value;
+    interceptCallbackRef.current = onInterceptPaste;
   });
 
   useEffect(() => {
-    if (!容器.current) return;
-    const 扩展: Extension[] = [
+    if (!containerRef.current) return;
+    const extensions: Extension[] = [
       lineNumbers(),
       highlightActiveLine(),
       history(),
       bracketMatching(),
-      sql({ dialect: SQLite, schema: 构造schema(表) }),
+      sql({ dialect: SQLite, schema: buildSchema(tables) }),
       // 表名/列名补全兜底（issue #17 T6）：禁粘贴强制手打，schema 补全必须实际可用
       autocompletion(),
       syntaxHighlighting(defaultHighlightStyle, { fallback: true }),
-      cm占位("在此输入单条 SELECT 语句……"),
+      cmPlaceholder("在此输入单条 SELECT 语句……"),
       EditorView.lineWrapping,
       // 颜色走语义 token，随亮暗主题切换。扩展结构与受控同步不动。
       EditorView.theme({
@@ -94,7 +94,7 @@ export default function SQL编辑器({ 值, onChange, onSubmit, 表, 禁用, on�
             key: "Mod-Enter",
             preventDefault: true,
             run: () => {
-              提交回调.current();
+              submitCallbackRef.current();
               return true;
             },
           },
@@ -105,30 +105,30 @@ export default function SQL编辑器({ 值, onChange, onSubmit, 表, 禁用, on�
       // 覆盖键盘 Cmd/Ctrl+V、右键粘贴与拖放文本；无任何例外通道。
       EditorView.domEventHandlers({
         paste: () => {
-          拦截回调.current?.();
+          interceptCallbackRef.current?.();
           return true;
         },
         drop: () => {
-          拦截回调.current?.();
+          interceptCallbackRef.current?.();
           return true;
         },
       }),
       keymap.of([...defaultKeymap, ...historyKeymap, indentWithTab]),
-      EditorView.updateListener.of((更新) => {
-        if (更新.docChanged) {
-          const 文本 = 更新.state.doc.toString();
-          if (文本 !== 值引用.current) onChange(文本);
+      EditorView.updateListener.of((update) => {
+        if (update.docChanged) {
+          const text = update.state.doc.toString();
+          if (text !== valueRef.current) onChange(text);
         }
       }),
     ];
-    const 视图实例 = new EditorView({
-      state: EditorState.create({ doc: 值, extensions: 扩展 }),
-      parent: 容器.current,
+    const viewInstance = new EditorView({
+      state: EditorState.create({ doc: value, extensions: extensions }),
+      parent: containerRef.current,
     });
-    视图.current = 视图实例;
+    viewRef.current = viewInstance;
     return () => {
-      视图实例.destroy();
-      视图.current = null;
+      viewInstance.destroy();
+      viewRef.current = null;
     };
     // 编辑器实例只创建一次；值与表的变化由下方同步 effect 处理
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -136,18 +136,18 @@ export default function SQL编辑器({ 值, onChange, onSubmit, 表, 禁用, on�
 
   // 受控同步：外部值变化（如切题清空）时写回文档
   useEffect(() => {
-    const 实例 = 视图.current;
-    if (实例 && 值 !== 实例.state.doc.toString()) {
-      实例.dispatch({ changes: { from: 0, to: 实例.state.doc.length, insert: 值 } });
+    const instance = viewRef.current;
+    if (instance && value !== instance.state.doc.toString()) {
+      instance.dispatch({ changes: { from: 0, to: instance.state.doc.length, insert: value } });
     }
-  }, [值]);
+  }, [value]);
 
   return (
     <div
-      ref={容器}
+      ref={containerRef}
       aria-label="SQL 编辑器"
       className={`overflow-hidden bg-panel ${
-        禁用 ? "pointer-events-none opacity-50" : ""
+        disabled ? "pointer-events-none opacity-50" : ""
       }`}
     />
   );
