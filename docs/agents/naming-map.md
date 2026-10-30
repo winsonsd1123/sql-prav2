@@ -339,3 +339,29 @@ NT1–NT6 的**唯一译名来源**：GLOSSARY 词条英文名为基准，本表
 | 样本 | sample | 别名 | aliases | 列序颠倒 | reverseColumnOrder |
 | 词列表 | tokens | 项列表（ORDER 子句） | orderItems | 全允许 | allowedAll |
 | [表词 | [tableToken | [进度 | [progress | 记入 | recorded |
+
+## 五、文件与目录名映射（源码 kebab-case，组件 PascalCase）
+
+| 现路径 | 目标路径 |
+|---|---|
+| src/kernel/出题.ts | src/kernel/question-picking.ts |
+| src/kernel/转译.ts | src/kernel/sql-translate.ts |
+| src/kernel/错误映射.ts | src/kernel/error-mapping.ts |
+| src/kernel/防护.ts | src/kernel/guard.ts |
+| src/kernel/worker客户端.ts | src/kernel/worker-client.ts |
+| src/kernel/执行worker.ts | src/kernel/worker-exec.ts |
+| src/components/对照.ts | src/components/comparison.ts |
+| src/components/本地存储.ts | src/components/local-storage.ts |
+| src/components/会话存储.ts | src/components/session-store.ts |
+| src/components/进度.ts | src/components/progress.ts |
+| src/components/演练场.tsx | src/components/Playground.tsx |
+| src/components/SQL编辑器.tsx | src/components/SqlEditor.tsx |
+| src/components/库浏览器.tsx | src/components/LibraryBrowser.tsx |
+| src/components/差异对照.tsx | src/components/DiffComparison.tsx |
+| src/components/提示与答案.tsx | src/components/HintsAndAnswer.tsx |
+| src/components/会话总结.tsx | src/components/SessionSummary.tsx |
+| src/components/__tests__/（四文件） | local-storage / comparison / progress / draft-saver 各 .test.ts |
+| src/kernel/__tests__/（十文件） | 1055-static-check / practice-session / full-bank-regression / judging-time-consistency / large-query-guard / behavior-comparison / template-self-judging / fixture-regression / generation-determinism / randomization 各 .test.ts |
+| src/kernel/__tests__/fixtures/（两 JSON） | mysql-behavior-fixtures.json / mysql-error-fixtures.json |
+| src/domain-packs/学生课程成绩/ | src/domain-packs/student-course-grades/（内 域包A.ts→pack-a.ts） |
+| src/domain-packs/员工部门薪资/ | src/domain-packs/employee-department-salary/（内 域包B.ts→pack-b.ts） |
