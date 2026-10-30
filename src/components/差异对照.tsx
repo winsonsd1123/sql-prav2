@@ -5,7 +5,7 @@
 
 import { 构造对照, type 对照侧视图 } from "@/components/对照";
 import { 显示 } from "@/kernel/execute";
-import type { 结果集 } from "@/kernel/types";
+import type { ResultSet } from "@/kernel/types";
 
 function 侧表格({ 标题, 侧 }: { 标题: string; 侧: 对照侧视图 }) {
   return (
@@ -72,8 +72,8 @@ export default function 差异对照({
   预期结果,
   ordered,
 }: {
-  学生结果: 结果集;
-  预期结果: 结果集;
+  学生结果: ResultSet;
+  预期结果: ResultSet;
   ordered: boolean;
 }) {
   const 视图 = 构造对照(学生结果, 预期结果, ordered);

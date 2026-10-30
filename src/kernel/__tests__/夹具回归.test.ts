@@ -1,6 +1,6 @@
 import { describe, it, expect } from "vitest";
 import 夹具JSON from "./fixtures/MySQL错误夹具.json";
-import { 生成 } from "../generate";
+import { generateSession } from "../generate";
 import { 加载域包A } from "@/domain-packs/学生课程成绩/域包A";
 import { 判定 } from "../judge";
 
@@ -23,20 +23,20 @@ const 边界 = "(?![A-Za-z0-9_$\\u4e00-\\u9fff])";
 
 describe("错误保真度夹具回归", () => {
   const 域包 = 加载域包A();
-  const 会话 = 生成(42, 域包);
-  const 题目 = 会话.题目[0];
+  const 会话 = generateSession(42, 域包);
+  const 题目 = 会话.questions[0];
 
   // 角色名 → 实例名映射：按库骨架与实例表的对位关系反查
   const 实际名 = new Map<string, string>();
-  域包.库骨架.forEach((骨架表, i) => {
-    const 实例表 = 会话.库.表[i];
-    实际名.set(骨架表.表名, 实例表.表名);
+  域包.schemaSkeleton.forEach((骨架表, i) => {
+    const 实例表 = 会话.database.tables[i];
+    实际名.set(骨架表.tableRole, 实例表.tableName);
     // 序列主键列在实例列首位，其余列按定义顺序对位
-    const 角色列 = [骨架表.序列主键?.列名, ...骨架表.列.map((c) => c.列名)].filter(
+    const 角色列 = [骨架表.serialKey?.columnRole, ...骨架表.columns.map((c) => c.columnRole)].filter(
       (x): x is string => x !== undefined,
     );
     角色列.forEach((角色, j) => {
-      if (!实际名.has(角色)) 实际名.set(角色, 实例表.列名[j]);
+      if (!实际名.has(角色)) 实际名.set(角色, 实例表.columnNames[j]);
     });
   });
 
@@ -54,11 +54,11 @@ describe("错误保真度夹具回归", () => {
   for (const 样本 of 夹具.样本) {
     it(`${样本.id} → ERROR ${样本.错误码} (${样本.sqlstate})`, async () => {
       const 结果 = await 判定(代入(样本.sql), 会话, 题目);
-      expect(结果.判定).toBe("错误");
-      if (结果.判定 !== "错误") return;
-      expect(结果.错误码).toBe(样本.错误码);
+      expect(结果.judge).toBe("错误");
+      if (结果.judge !== "错误") return;
+      expect(结果.errorCode).toBe(样本.错误码);
       expect(结果.SQLSTATE).toBe(样本.sqlstate);
-      expect(结果.错误信息).toBe(
+      expect(结果.errorMessage).toBe(
         `ERROR ${样本.错误码} (${样本.sqlstate}): ${代入(样本.文案)}`,
       );
     });

@@ -8,432 +8,432 @@
 
 # ── 知识点一：单表查询与投影（4 题）──────────────────────────
 
-- 模板ID: single-select-all
-  知识点: 单表查询与投影
-  难度: 1
-  题面: 查询所有学生的姓名。
-  提示:
+- templateId: single-select-all
+  knowledgeArea: 单表查询与投影
+  difficulty: 1
+  prompt: 查询所有学生的姓名。
+  hints:
     - "思路：只需要一个列，从学生表里全部取出。"
     - "关键子句：SELECT {{col.学生.姓名}} FROM {{table.学生}}"
-  参考答案: "SELECT {{col.学生.姓名}} FROM {{table.学生}}"
-  错误写法: "SELECT {{col.学生.姓名}}, {{col.学生.城市}} FROM {{table.学生}}"
+  referenceAnswer: "SELECT {{col.学生.姓名}} FROM {{table.学生}}"
+  commonMistake: "SELECT {{col.学生.姓名}}, {{col.学生.城市}} FROM {{table.学生}}"
   ordered: false
 
-- 模板ID: single-select-distinct-city
-  知识点: 单表查询与投影
-  难度: 1
-  题面: 查询学生来自哪些不同的城市（去除重复）。
-  提示:
+- templateId: single-select-distinct-city
+  knowledgeArea: 单表查询与投影
+  difficulty: 1
+  prompt: 查询学生来自哪些不同的城市（去除重复）。
+  hints:
     - "思路：城市有重复值，需要去重后再列出。"
     - "关键子句：SELECT DISTINCT {{col.学生.城市}} FROM {{table.学生}}"
-  参考答案: "SELECT DISTINCT {{col.学生.城市}} FROM {{table.学生}}"
-  错误写法: "SELECT {{col.学生.城市}} FROM {{table.学生}}"
+  referenceAnswer: "SELECT DISTINCT {{col.学生.城市}} FROM {{table.学生}}"
+  commonMistake: "SELECT {{col.学生.城市}} FROM {{table.学生}}"
   ordered: false
 
-- 模板ID: single-alias-expr
-  知识点: 单表查询与投影
-  难度: 2
-  题面: 查询每位学生的姓名与按 12 个月折算的年度奖学金（列别名「年度总额」）。
-  提示:
+- templateId: single-alias-expr
+  knowledgeArea: 单表查询与投影
+  difficulty: 2
+  prompt: 查询每位学生的姓名与按 12 个月折算的年度奖学金（列别名「年度总额」）。
+  hints:
     - "思路：投影列可以是表达式，乘法直接写在 SELECT 里并用 AS 起别名。"
     - "关键子句：SELECT {{col.学生.姓名}}, {{col.学生.奖学金}} * 12 AS 年度总额"
-  参考答案: "SELECT {{col.学生.姓名}}, {{col.学生.奖学金}} * 12 AS 年度总额 FROM {{table.学生}}"
-  错误写法: "SELECT {{col.学生.姓名}}, {{col.学生.奖学金}} * 10 AS 年度总额 FROM {{table.学生}}"
+  referenceAnswer: "SELECT {{col.学生.姓名}}, {{col.学生.奖学金}} * 12 AS 年度总额 FROM {{table.学生}}"
+  commonMistake: "SELECT {{col.学生.姓名}}, {{col.学生.奖学金}} * 10 AS 年度总额 FROM {{table.学生}}"
   ordered: false
 
-- 模板ID: single-concat
-  知识点: 单表查询与投影
-  难度: 2
-  题面: 查询每位学生的「姓名·城市」拼接结果（中间用·连接，列别名「来源」）。
-  提示:
+- templateId: single-concat
+  knowledgeArea: 单表查询与投影
+  difficulty: 2
+  prompt: 查询每位学生的「姓名·城市」拼接结果（中间用·连接，列别名「来源」）。
+  hints:
     - "思路：字符串拼接用 CONCAT 函数，参数依次为姓名、连接符、城市。"
     - "关键子句：SELECT CONCAT({{col.学生.姓名}}, '·', {{col.学生.城市}}) AS 来源"
-  参考答案: "SELECT CONCAT({{col.学生.姓名}}, '·', {{col.学生.城市}}) AS 来源 FROM {{table.学生}}"
-  错误写法: "SELECT CONCAT({{col.学生.姓名}}, {{col.学生.城市}}) AS 来源 FROM {{table.学生}}"
+  referenceAnswer: "SELECT CONCAT({{col.学生.姓名}}, '·', {{col.学生.城市}}) AS 来源 FROM {{table.学生}}"
+  commonMistake: "SELECT CONCAT({{col.学生.姓名}}, {{col.学生.城市}}) AS 来源 FROM {{table.学生}}"
   ordered: false
 
 # ── 知识点二：条件筛选与排序（6 题）──────────────────────────
 
-- 模板ID: single-where-score
-  知识点: 条件筛选与排序
-  难度: 2
-  题面: "查询成绩不低于 {{param.及格线}} 分的成绩记录，返回学号、课程号与分数。"
-  提示:
+- templateId: single-where-score
+  knowledgeArea: 条件筛选与排序
+  difficulty: 2
+  prompt: "查询成绩不低于 {{param.及格线}} 分的成绩记录，返回学号、课程号与分数。"
+  hints:
     - "思路：用 WHERE 条件筛选分数，注意包含等于阈值的情况。"
     - "关键子句：WHERE {{col.成绩.分数}} >= {{param.及格线}}"
-  参考答案: "SELECT {{col.成绩.学号}}, {{col.成绩.课程号}}, {{col.成绩.分数}} FROM {{table.成绩}} WHERE {{col.成绩.分数}} >= {{param.及格线}}"
-  错误写法: "SELECT {{col.成绩.学号}}, {{col.成绩.课程号}}, {{col.成绩.分数}} FROM {{table.成绩}}"
+  referenceAnswer: "SELECT {{col.成绩.学号}}, {{col.成绩.课程号}}, {{col.成绩.分数}} FROM {{table.成绩}} WHERE {{col.成绩.分数}} >= {{param.及格线}}"
+  commonMistake: "SELECT {{col.成绩.学号}}, {{col.成绩.课程号}}, {{col.成绩.分数}} FROM {{table.成绩}}"
   ordered: false
-  参数:
+  paramPool:
     及格线: [60, 70, 80]
 
-- 模板ID: single-where-city
-  知识点: 条件筛选与排序
-  难度: 2
-  题面: "查询城市为「{{param.城市}}」的学生姓名。"
-  提示:
+- templateId: single-where-city
+  knowledgeArea: 条件筛选与排序
+  difficulty: 2
+  prompt: "查询城市为「{{param.城市}}」的学生姓名。"
+  hints:
     - "思路：字符串等值筛选用 WHERE 列名 = '关键词'，注意引号。"
     - "关键子句：WHERE {{col.学生.城市}} = '{{param.城市}}'"
-  参考答案: "SELECT {{col.学生.姓名}} FROM {{table.学生}} WHERE {{col.学生.城市}} = '{{param.城市}}'"
-  错误写法: "SELECT {{col.学生.姓名}} FROM {{table.学生}} WHERE {{col.学生.城市}} = '南京'"
+  referenceAnswer: "SELECT {{col.学生.姓名}} FROM {{table.学生}} WHERE {{col.学生.城市}} = '{{param.城市}}'"
+  commonMistake: "SELECT {{col.学生.姓名}} FROM {{table.学生}} WHERE {{col.学生.城市}} = '南京'"
   ordered: false
-  参数:
+  paramPool:
     城市: [北京, 上海, 广州, 深圳]
 
-- 模板ID: single-where-null
-  知识点: 条件筛选与排序
-  难度: 2
-  题面: 查询缺考（分数为空）的成绩记录，返回学号与课程号。
-  提示:
+- templateId: single-where-null
+  knowledgeArea: 条件筛选与排序
+  difficulty: 2
+  prompt: 查询缺考（分数为空）的成绩记录，返回学号与课程号。
+  hints:
     - "思路：判断空值不能用 = NULL，要用 IS NULL。"
     - "关键子句：WHERE {{col.成绩.分数}} IS NULL"
-  参考答案: "SELECT {{col.成绩.学号}}, {{col.成绩.课程号}} FROM {{table.成绩}} WHERE {{col.成绩.分数}} IS NULL"
-  错误写法: "SELECT {{col.成绩.学号}}, {{col.成绩.课程号}} FROM {{table.成绩}} WHERE {{col.成绩.分数}} = NULL"
+  referenceAnswer: "SELECT {{col.成绩.学号}}, {{col.成绩.课程号}} FROM {{table.成绩}} WHERE {{col.成绩.分数}} IS NULL"
+  commonMistake: "SELECT {{col.成绩.学号}}, {{col.成绩.课程号}} FROM {{table.成绩}} WHERE {{col.成绩.分数}} = NULL"
   ordered: false
 
-- 模板ID: single-between
-  知识点: 条件筛选与排序
-  难度: 2
-  题面: "查询分数在 {{param.区间.下}} 到 {{param.区间.上}} 之间（含两端）的成绩记录，返回学号与分数。"
-  提示:
+- templateId: single-between
+  knowledgeArea: 条件筛选与排序
+  difficulty: 2
+  prompt: "查询分数在 {{param.区间.下}} 到 {{param.区间.上}} 之间（含两端）的成绩记录，返回学号与分数。"
+  hints:
     - "思路：闭区间筛选用 BETWEEN ... AND ...，注意下界在前、上界在后。"
     - "关键子句：WHERE {{col.成绩.分数}} BETWEEN {{param.区间.下}} AND {{param.区间.上}}"
-  参考答案: "SELECT {{col.成绩.学号}}, {{col.成绩.分数}} FROM {{table.成绩}} WHERE {{col.成绩.分数}} BETWEEN {{param.区间.下}} AND {{param.区间.上}}"
-  错误写法: "SELECT {{col.成绩.学号}}, {{col.成绩.分数}} FROM {{table.成绩}} WHERE {{col.成绩.分数}} BETWEEN {{param.区间.上}} AND {{param.区间.下}}"
+  referenceAnswer: "SELECT {{col.成绩.学号}}, {{col.成绩.分数}} FROM {{table.成绩}} WHERE {{col.成绩.分数}} BETWEEN {{param.区间.下}} AND {{param.区间.上}}"
+  commonMistake: "SELECT {{col.成绩.学号}}, {{col.成绩.分数}} FROM {{table.成绩}} WHERE {{col.成绩.分数}} BETWEEN {{param.区间.上}} AND {{param.区间.下}}"
   ordered: false
   # 关联参数：上下界成对取用，保证区间合法
-  参数:
+  paramPool:
     区间:
       - { 下: 60, 上: 80 }
       - { 下: 70, 上: 90 }
 
-- 模板ID: single-order-by-scholarship
-  知识点: 条件筛选与排序
-  难度: 2
-  题面: "查询每位学生的姓名与奖学金，按奖学金{{param.排序方向.描述}}排序（奖学金相同时按学号升序）。"
-  提示:
+- templateId: single-order-by-scholarship
+  knowledgeArea: 条件筛选与排序
+  difficulty: 2
+  prompt: "查询每位学生的姓名与奖学金，按奖学金{{param.排序方向.描述}}排序（奖学金相同时按学号升序）。"
+  hints:
     - "思路：排序用 ORDER BY，方向由题面决定；并列时用学号作决胜列保证顺序确定。"
     - "关键子句：ORDER BY {{col.学生.奖学金}} {{param.排序方向.SQL}}, {{col.学生.学号}}"
-  参考答案: "SELECT {{col.学生.姓名}}, {{col.学生.奖学金}} FROM {{table.学生}} ORDER BY {{col.学生.奖学金}} {{param.排序方向.SQL}}, {{col.学生.学号}}"
-  错误写法: "SELECT {{col.学生.姓名}} FROM {{table.学生}} ORDER BY {{col.学生.奖学金}} {{param.排序方向.SQL}}, {{col.学生.学号}}"
+  referenceAnswer: "SELECT {{col.学生.姓名}}, {{col.学生.奖学金}} FROM {{table.学生}} ORDER BY {{col.学生.奖学金}} {{param.排序方向.SQL}}, {{col.学生.学号}}"
+  commonMistake: "SELECT {{col.学生.姓名}} FROM {{table.学生}} ORDER BY {{col.学生.奖学金}} {{param.排序方向.SQL}}, {{col.学生.学号}}"
   ordered: true
   # 关联参数：中文描述与 SQL 关键字成对取用，保证题面与参考答案方向一致
-  参数:
+  paramPool:
     排序方向:
       - { 描述: 从高到低, SQL: DESC }
       - { 描述: 从低到高, SQL: ASC }
 
-- 模板ID: single-limit-top
-  知识点: 条件筛选与排序
-  难度: 3
-  题面: "查询前 {{param.名额}} 名学生（按学号升序）的姓名。"
-  提示:
+- templateId: single-limit-top
+  knowledgeArea: 条件筛选与排序
+  difficulty: 3
+  prompt: "查询前 {{param.名额}} 名学生（按学号升序）的姓名。"
+  hints:
     - "思路：先按学号排序，再限制返回行数。"
     - "关键子句：ORDER BY {{col.学生.学号}} LIMIT {{param.名额}}"
-  参考答案: "SELECT {{col.学生.姓名}} FROM {{table.学生}} ORDER BY {{col.学生.学号}} LIMIT {{param.名额}}"
-  错误写法: "SELECT {{col.学生.姓名}} FROM {{table.学生}} ORDER BY {{col.学生.学号}} DESC LIMIT {{param.名额}}"
+  referenceAnswer: "SELECT {{col.学生.姓名}} FROM {{table.学生}} ORDER BY {{col.学生.学号}} LIMIT {{param.名额}}"
+  commonMistake: "SELECT {{col.学生.姓名}} FROM {{table.学生}} ORDER BY {{col.学生.学号}} DESC LIMIT {{param.名额}}"
   ordered: true
-  参数:
+  paramPool:
     名额: [3, 5, 7]
 
 # ── 知识点三：聚合与分组（5 题）──────────────────────────────
 
-- 模板ID: agg-count-all
-  知识点: 聚合与分组
-  难度: 1
-  题面: 查询成绩表的总记录数（列别名「总记录数」）。
-  提示:
+- templateId: agg-count-all
+  knowledgeArea: 聚合与分组
+  difficulty: 1
+  prompt: 查询成绩表的总记录数（列别名「总记录数」）。
+  hints:
     - "思路：统计行数用 COUNT(*)。"
     - "关键子句：SELECT COUNT(*) AS 总记录数 FROM {{table.成绩}}"
-  参考答案: "SELECT COUNT(*) AS 总记录数 FROM {{table.成绩}}"
-  错误写法: "SELECT COUNT(*) AS 总记录数 FROM {{table.学生}}"
-  语义陷阱:
+  referenceAnswer: "SELECT COUNT(*) AS 总记录数 FROM {{table.成绩}}"
+  commonMistake: "SELECT COUNT(*) AS 总记录数 FROM {{table.学生}}"
+  semanticTrap:
     - "SELECT COUNT(DISTINCT {{col.成绩.课程号}}) AS 总记录数 FROM {{table.成绩}}"
   ordered: false
 
-- 模板ID: agg-count-distinct
-  知识点: 聚合与分组
-  难度: 2
-  题面: 查询成绩表中出现过多少位不同的学生（列别名「学生数」）。
-  提示:
+- templateId: agg-count-distinct
+  knowledgeArea: 聚合与分组
+  difficulty: 2
+  prompt: 查询成绩表中出现过多少位不同的学生（列别名「学生数」）。
+  hints:
     - "思路：去重计数要在聚合参数里加 DISTINCT。"
     - "关键子句：SELECT COUNT(DISTINCT {{col.成绩.学号}}) AS 学生数"
-  参考答案: "SELECT COUNT(DISTINCT {{col.成绩.学号}}) AS 学生数 FROM {{table.成绩}}"
-  错误写法: "SELECT COUNT({{col.成绩.学号}}) AS 学生数 FROM {{table.成绩}}"
-  语义陷阱:
+  referenceAnswer: "SELECT COUNT(DISTINCT {{col.成绩.学号}}) AS 学生数 FROM {{table.成绩}}"
+  commonMistake: "SELECT COUNT({{col.成绩.学号}}) AS 学生数 FROM {{table.成绩}}"
+  semanticTrap:
     - "SELECT COUNT(*) AS 学生数 FROM {{table.成绩}}"
   ordered: false
 
-- 模板ID: agg-max-min
-  知识点: 聚合与分组
-  难度: 2
-  题面: 查询成绩表中的最高分与最低分（不含空值，列别名「最高分」「最低分」）。
-  提示:
+- templateId: agg-max-min
+  knowledgeArea: 聚合与分组
+  difficulty: 2
+  prompt: 查询成绩表中的最高分与最低分（不含空值，列别名「最高分」「最低分」）。
+  hints:
     - "思路：单行聚合直接用 MAX 与 MIN，空值会被聚合函数自动忽略。"
     - "关键子句：SELECT MAX({{col.成绩.分数}}) AS 最高分, MIN({{col.成绩.分数}}) AS 最低分"
-  参考答案: "SELECT MAX({{col.成绩.分数}}) AS 最高分, MIN({{col.成绩.分数}}) AS 最低分 FROM {{table.成绩}}"
-  错误写法: "SELECT MAX({{col.成绩.分数}}) AS 最高分 FROM {{table.成绩}}"
+  referenceAnswer: "SELECT MAX({{col.成绩.分数}}) AS 最高分, MIN({{col.成绩.分数}}) AS 最低分 FROM {{table.成绩}}"
+  commonMistake: "SELECT MAX({{col.成绩.分数}}) AS 最高分 FROM {{table.成绩}}"
   ordered: false
 
-- 模板ID: agg-avg-group
-  知识点: 聚合与分组
-  难度: 3
-  题面: 查询每门课程的课程号与平均分（列别名「平均分」）。
-  提示:
+- templateId: agg-avg-group
+  knowledgeArea: 聚合与分组
+  difficulty: 3
+  prompt: 查询每门课程的课程号与平均分（列别名「平均分」）。
+  hints:
     - "思路：按课程号分组后对分数求 AVG，空值不计入平均。"
     - "关键子句：GROUP BY {{col.成绩.课程号}} 配合 AVG({{col.成绩.分数}})"
-  参考答案: "SELECT {{col.成绩.课程号}}, AVG({{col.成绩.分数}}) AS 平均分 FROM {{table.成绩}} GROUP BY {{col.成绩.课程号}}"
-  错误写法: "SELECT {{col.成绩.课程号}}, SUM({{col.成绩.分数}}) AS 平均分 FROM {{table.成绩}} GROUP BY {{col.成绩.课程号}}"
-  语义陷阱:
+  referenceAnswer: "SELECT {{col.成绩.课程号}}, AVG({{col.成绩.分数}}) AS 平均分 FROM {{table.成绩}} GROUP BY {{col.成绩.课程号}}"
+  commonMistake: "SELECT {{col.成绩.课程号}}, SUM({{col.成绩.分数}}) AS 平均分 FROM {{table.成绩}} GROUP BY {{col.成绩.课程号}}"
+  semanticTrap:
     - "SELECT {{col.成绩.课程号}}, MAX({{col.成绩.分数}}) AS 平均分 FROM {{table.成绩}} GROUP BY {{col.成绩.课程号}}"
   ordered: false
 
-- 模板ID: agg-having
-  知识点: 聚合与分组
-  难度: 3
-  题面: 查询参加考试达到 2 次及以上的学生学号与考试次数（列别名「考试次数」）。
-  提示:
+- templateId: agg-having
+  knowledgeArea: 聚合与分组
+  difficulty: 3
+  prompt: 查询参加考试达到 2 次及以上的学生学号与考试次数（列别名「考试次数」）。
+  hints:
     - "思路：先按学号分组计数，再用 HAVING 对分组结果过滤（WHERE 过滤不了聚合值）。"
     - "关键子句：GROUP BY {{col.成绩.学号}} HAVING COUNT(*) >= 2"
-  参考答案: "SELECT {{col.成绩.学号}}, COUNT(*) AS 考试次数 FROM {{table.成绩}} GROUP BY {{col.成绩.学号}} HAVING COUNT(*) >= 2"
-  错误写法: "SELECT {{col.成绩.学号}}, COUNT(*) AS 考试次数 FROM {{table.成绩}} GROUP BY {{col.成绩.学号}} HAVING COUNT(*) = 2"
-  语义陷阱:
+  referenceAnswer: "SELECT {{col.成绩.学号}}, COUNT(*) AS 考试次数 FROM {{table.成绩}} GROUP BY {{col.成绩.学号}} HAVING COUNT(*) >= 2"
+  commonMistake: "SELECT {{col.成绩.学号}}, COUNT(*) AS 考试次数 FROM {{table.成绩}} GROUP BY {{col.成绩.学号}} HAVING COUNT(*) = 2"
+  semanticTrap:
     - "SELECT {{col.成绩.课程号}}, COUNT(*) AS 考试次数 FROM {{table.成绩}} GROUP BY {{col.成绩.课程号}} HAVING COUNT(*) >= 2"
   ordered: false
 
 # ── 知识点四：多表 JOIN（5 题）──────────────────────────────
 # 连接列一律「表名.列名」限定，规避两表实例列名相同时的歧义列错误。
 
-- 模板ID: join-inner
-  知识点: 多表 JOIN
-  难度: 2
-  题面: 查询每条成绩对应的学生姓名与分数（内连接学生表与成绩表）。
-  提示:
+- templateId: join-inner
+  knowledgeArea: 多表 JOIN
+  difficulty: 2
+  prompt: 查询每条成绩对应的学生姓名与分数（内连接学生表与成绩表）。
+  hints:
     - "思路：按学号相等把两张表连接起来，连接列要写全限定名。"
     - "关键子句：FROM {{table.学生}} JOIN {{table.成绩}} ON {{table.学生}}.{{col.学生.学号}} = {{table.成绩}}.{{col.成绩.学号}}"
-  参考答案: "SELECT {{col.学生.姓名}}, {{col.成绩.分数}} FROM {{table.学生}} JOIN {{table.成绩}} ON {{table.学生}}.{{col.学生.学号}} = {{table.成绩}}.{{col.成绩.学号}}"
-  错误写法: "SELECT {{col.学生.姓名}}, {{col.成绩.分数}} FROM {{table.学生}} JOIN {{table.成绩}} ON {{table.成绩}}.{{col.成绩.课程号}} = {{table.学生}}.{{col.学生.学号}}"
+  referenceAnswer: "SELECT {{col.学生.姓名}}, {{col.成绩.分数}} FROM {{table.学生}} JOIN {{table.成绩}} ON {{table.学生}}.{{col.学生.学号}} = {{table.成绩}}.{{col.成绩.学号}}"
+  commonMistake: "SELECT {{col.学生.姓名}}, {{col.成绩.分数}} FROM {{table.学生}} JOIN {{table.成绩}} ON {{table.成绩}}.{{col.成绩.课程号}} = {{table.学生}}.{{col.学生.学号}}"
   ordered: false
 
-- 模板ID: join-three
-  知识点: 多表 JOIN
-  难度: 3
-  题面: 查询每条成绩对应的学生姓名、课程名与分数（三表连接）。
-  提示:
+- templateId: join-three
+  knowledgeArea: 多表 JOIN
+  difficulty: 3
+  prompt: 查询每条成绩对应的学生姓名、课程名与分数（三表连接）。
+  hints:
     - "思路：成绩表是桥接表，分别按学号连学生、按课程号连课程。"
     - "关键子句：JOIN {{table.课程}} ON {{table.成绩}}.{{col.成绩.课程号}} = {{table.课程}}.{{col.课程.课程号}}"
-  参考答案: "SELECT {{col.学生.姓名}}, {{col.课程.课程名}}, {{col.成绩.分数}} FROM {{table.学生}} JOIN {{table.成绩}} ON {{table.学生}}.{{col.学生.学号}} = {{table.成绩}}.{{col.成绩.学号}} JOIN {{table.课程}} ON {{table.成绩}}.{{col.成绩.课程号}} = {{table.课程}}.{{col.课程.课程号}}"
-  错误写法: "SELECT {{col.学生.姓名}}, {{col.课程.课程名}}, {{col.成绩.分数}} FROM {{table.学生}} JOIN {{table.成绩}} ON {{table.学生}}.{{col.学生.学号}} = {{table.成绩}}.{{col.成绩.学号}} JOIN {{table.课程}} ON {{table.成绩}}.{{col.成绩.学号}} = {{table.课程}}.{{col.课程.课程号}}"
-  语义陷阱:
+  referenceAnswer: "SELECT {{col.学生.姓名}}, {{col.课程.课程名}}, {{col.成绩.分数}} FROM {{table.学生}} JOIN {{table.成绩}} ON {{table.学生}}.{{col.学生.学号}} = {{table.成绩}}.{{col.成绩.学号}} JOIN {{table.课程}} ON {{table.成绩}}.{{col.成绩.课程号}} = {{table.课程}}.{{col.课程.课程号}}"
+  commonMistake: "SELECT {{col.学生.姓名}}, {{col.课程.课程名}}, {{col.成绩.分数}} FROM {{table.学生}} JOIN {{table.成绩}} ON {{table.学生}}.{{col.学生.学号}} = {{table.成绩}}.{{col.成绩.学号}} JOIN {{table.课程}} ON {{table.成绩}}.{{col.成绩.学号}} = {{table.课程}}.{{col.课程.课程号}}"
+  semanticTrap:
     - "SELECT {{col.学生.姓名}}, {{col.课程.课程名}}, {{col.成绩.分数}} FROM {{table.学生}} JOIN {{table.成绩}} ON {{table.学生}}.{{col.学生.学号}} = {{table.成绩}}.{{col.成绩.学号}} JOIN {{table.课程}} ON {{table.成绩}}.{{col.成绩.课程号}} = {{table.课程}}.{{col.课程.学分}}"
   ordered: false
 
-- 模板ID: join-left-null
-  知识点: 多表 JOIN
-  难度: 4
-  题面: 查询没有任何成绩记录的学生姓名（左连接后筛右侧为空）。
-  提示:
+- templateId: join-left-null
+  knowledgeArea: 多表 JOIN
+  difficulty: 4
+  prompt: 查询没有任何成绩记录的学生姓名（左连接后筛右侧为空）。
+  hints:
     - "思路：LEFT JOIN 保留全部学生，右表无匹配时其列为 NULL，用 IS NULL 找出。"
     - "关键子句：LEFT JOIN {{table.成绩}} ON ... WHERE {{table.成绩}}.{{col.成绩.学号}} IS NULL"
-  参考答案: "SELECT {{col.学生.姓名}} FROM {{table.学生}} LEFT JOIN {{table.成绩}} ON {{table.学生}}.{{col.学生.学号}} = {{table.成绩}}.{{col.成绩.学号}} WHERE {{table.成绩}}.{{col.成绩.学号}} IS NULL"
-  错误写法: "SELECT {{col.学生.姓名}} FROM {{table.学生}} JOIN {{table.成绩}} ON {{table.学生}}.{{col.学生.学号}} = {{table.成绩}}.{{col.成绩.学号}} WHERE {{table.成绩}}.{{col.成绩.学号}} IS NOT NULL"
+  referenceAnswer: "SELECT {{col.学生.姓名}} FROM {{table.学生}} LEFT JOIN {{table.成绩}} ON {{table.学生}}.{{col.学生.学号}} = {{table.成绩}}.{{col.成绩.学号}} WHERE {{table.成绩}}.{{col.成绩.学号}} IS NULL"
+  commonMistake: "SELECT {{col.学生.姓名}} FROM {{table.学生}} JOIN {{table.成绩}} ON {{table.学生}}.{{col.学生.学号}} = {{table.成绩}}.{{col.成绩.学号}} WHERE {{table.成绩}}.{{col.成绩.学号}} IS NOT NULL"
   ordered: false
 
-- 模板ID: join-group-count
-  知识点: 多表 JOIN
-  难度: 4
-  题面: 查询每位学生的姓名及其成绩记录条数（列别名「记录数」）。
-  提示:
+- templateId: join-group-count
+  knowledgeArea: 多表 JOIN
+  difficulty: 4
+  prompt: 查询每位学生的姓名及其成绩记录条数（列别名「记录数」）。
+  hints:
     - "思路：先连接再按学号分组计数；分组依据要含学号与姓名两列。"
     - "关键子句：GROUP BY {{table.学生}}.{{col.学生.学号}}, {{col.学生.姓名}}"
-  参考答案: "SELECT {{col.学生.姓名}}, COUNT(*) AS 记录数 FROM {{table.学生}} JOIN {{table.成绩}} ON {{table.学生}}.{{col.学生.学号}} = {{table.成绩}}.{{col.成绩.学号}} GROUP BY {{table.学生}}.{{col.学生.学号}}, {{col.学生.姓名}}"
-  错误写法: "SELECT {{col.学生.姓名}}, COUNT(*) AS 记录数 FROM {{table.学生}} JOIN {{table.成绩}} ON {{table.学生}}.{{col.学生.学号}} = {{table.成绩}}.{{col.成绩.学号}} GROUP BY {{col.学生.姓名}}"
+  referenceAnswer: "SELECT {{col.学生.姓名}}, COUNT(*) AS 记录数 FROM {{table.学生}} JOIN {{table.成绩}} ON {{table.学生}}.{{col.学生.学号}} = {{table.成绩}}.{{col.成绩.学号}} GROUP BY {{table.学生}}.{{col.学生.学号}}, {{col.学生.姓名}}"
+  commonMistake: "SELECT {{col.学生.姓名}}, COUNT(*) AS 记录数 FROM {{table.学生}} JOIN {{table.成绩}} ON {{table.学生}}.{{col.学生.学号}} = {{table.成绩}}.{{col.成绩.学号}} GROUP BY {{col.学生.姓名}}"
   ordered: false
 
-- 模板ID: join-filter
-  知识点: 多表 JOIN
-  难度: 3
-  题面: "查询分数不低于 {{param.线}} 分的记录对应的课程名与分数。"
-  提示:
+- templateId: join-filter
+  knowledgeArea: 多表 JOIN
+  difficulty: 3
+  prompt: "查询分数不低于 {{param.线}} 分的记录对应的课程名与分数。"
+  hints:
     - "思路：连接课程与成绩后，在 WHERE 里对分数做阈值筛选。"
     - "关键子句：JOIN ... ON 课程号相等 WHERE {{col.成绩.分数}} >= {{param.线}}"
-  参考答案: "SELECT {{col.课程.课程名}}, {{col.成绩.分数}} FROM {{table.课程}} JOIN {{table.成绩}} ON {{table.课程}}.{{col.课程.课程号}} = {{table.成绩}}.{{col.成绩.课程号}} WHERE {{col.成绩.分数}} >= {{param.线}}"
-  错误写法: "SELECT {{col.课程.课程名}}, {{col.成绩.分数}} FROM {{table.课程}} JOIN {{table.成绩}} ON {{table.成绩}}.{{col.成绩.学号}} = {{table.课程}}.{{col.课程.课程号}} WHERE {{col.成绩.分数}} >= {{param.线}}"
+  referenceAnswer: "SELECT {{col.课程.课程名}}, {{col.成绩.分数}} FROM {{table.课程}} JOIN {{table.成绩}} ON {{table.课程}}.{{col.课程.课程号}} = {{table.成绩}}.{{col.成绩.课程号}} WHERE {{col.成绩.分数}} >= {{param.线}}"
+  commonMistake: "SELECT {{col.课程.课程名}}, {{col.成绩.分数}} FROM {{table.课程}} JOIN {{table.成绩}} ON {{table.成绩}}.{{col.成绩.学号}} = {{table.课程}}.{{col.课程.课程号}} WHERE {{col.成绩.分数}} >= {{param.线}}"
   ordered: false
-  参数:
+  paramPool:
     线: [85, 90]
 
 # ── 知识点五：子查询（4 题）─────────────────────────────────
 
-- 模板ID: sub-in
-  知识点: 子查询
-  难度: 3
-  题面: "查询至少有一门成绩不低于 {{param.线}} 分的学生姓名（用 IN 子查询）。"
-  提示:
+- templateId: sub-in
+  knowledgeArea: 子查询
+  difficulty: 3
+  prompt: "查询至少有一门成绩不低于 {{param.线}} 分的学生姓名（用 IN 子查询）。"
+  hints:
     - "思路：先在内层子查询找出达标的学习学号，外层用 IN 匹配。"
     - "关键子句：WHERE {{col.学生.学号}} IN (SELECT {{col.成绩.学号}} FROM {{table.成绩}} WHERE {{col.成绩.分数}} >= {{param.线}})"
-  参考答案: "SELECT {{col.学生.姓名}} FROM {{table.学生}} WHERE {{col.学生.学号}} IN (SELECT {{col.成绩.学号}} FROM {{table.成绩}} WHERE {{col.成绩.分数}} >= {{param.线}})"
-  错误写法: "SELECT {{col.学生.姓名}} FROM {{table.学生}} WHERE {{col.学生.学号}} NOT IN (SELECT {{col.成绩.学号}} FROM {{table.成绩}} WHERE {{col.成绩.分数}} >= {{param.线}})"
+  referenceAnswer: "SELECT {{col.学生.姓名}} FROM {{table.学生}} WHERE {{col.学生.学号}} IN (SELECT {{col.成绩.学号}} FROM {{table.成绩}} WHERE {{col.成绩.分数}} >= {{param.线}})"
+  commonMistake: "SELECT {{col.学生.姓名}} FROM {{table.学生}} WHERE {{col.学生.学号}} NOT IN (SELECT {{col.成绩.学号}} FROM {{table.成绩}} WHERE {{col.成绩.分数}} >= {{param.线}})"
   ordered: false
-  参数:
+  paramPool:
     线: [60, 70, 80]
 
-- 模板ID: sub-exists
-  知识点: 子查询
-  难度: 4
-  题面: 查询没有任何成绩记录的学生姓名（用 NOT EXISTS 相关子查询）。
-  提示:
+- templateId: sub-exists
+  knowledgeArea: 子查询
+  difficulty: 4
+  prompt: 查询没有任何成绩记录的学生姓名（用 NOT EXISTS 相关子查询）。
+  hints:
     - "思路：相关子查询按同一学号关联内外两层，NOT EXISTS 表示一条匹配都没有。"
     - "关键子句：WHERE NOT EXISTS (SELECT 1 FROM {{table.成绩}} WHERE {{table.成绩}}.{{col.成绩.学号}} = {{table.学生}}.{{col.学生.学号}})"
-  参考答案: "SELECT {{col.学生.姓名}} FROM {{table.学生}} WHERE NOT EXISTS (SELECT 1 FROM {{table.成绩}} WHERE {{table.成绩}}.{{col.成绩.学号}} = {{table.学生}}.{{col.学生.学号}})"
-  错误写法: "SELECT {{col.学生.姓名}} FROM {{table.学生}} WHERE EXISTS (SELECT 1 FROM {{table.成绩}} WHERE {{table.成绩}}.{{col.成绩.学号}} = {{table.学生}}.{{col.学生.学号}})"
+  referenceAnswer: "SELECT {{col.学生.姓名}} FROM {{table.学生}} WHERE NOT EXISTS (SELECT 1 FROM {{table.成绩}} WHERE {{table.成绩}}.{{col.成绩.学号}} = {{table.学生}}.{{col.学生.学号}})"
+  commonMistake: "SELECT {{col.学生.姓名}} FROM {{table.学生}} WHERE EXISTS (SELECT 1 FROM {{table.成绩}} WHERE {{table.成绩}}.{{col.成绩.学号}} = {{table.学生}}.{{col.学生.学号}})"
   ordered: false
 
-- 模板ID: sub-scalar-max
-  知识点: 子查询
-  难度: 3
-  题面: 查询奖学金最高的学生姓名（用标量子查询取最大值）。
-  提示:
+- templateId: sub-scalar-max
+  knowledgeArea: 子查询
+  difficulty: 3
+  prompt: 查询奖学金最高的学生姓名（用标量子查询取最大值）。
+  hints:
     - "思路：内层 SELECT MAX(...) 只返回一个值，外层用它做等值比较。"
     - "关键子句：WHERE {{col.学生.奖学金}} = (SELECT MAX({{col.学生.奖学金}}) FROM {{table.学生}})"
-  参考答案: "SELECT {{col.学生.姓名}} FROM {{table.学生}} WHERE {{col.学生.奖学金}} = (SELECT MAX({{col.学生.奖学金}}) FROM {{table.学生}})"
-  错误写法: "SELECT {{col.学生.姓名}} FROM {{table.学生}} WHERE {{col.学生.奖学金}} = (SELECT MIN({{col.学生.奖学金}}) FROM {{table.学生}})"
+  referenceAnswer: "SELECT {{col.学生.姓名}} FROM {{table.学生}} WHERE {{col.学生.奖学金}} = (SELECT MAX({{col.学生.奖学金}}) FROM {{table.学生}})"
+  commonMistake: "SELECT {{col.学生.姓名}} FROM {{table.学生}} WHERE {{col.学生.奖学金}} = (SELECT MIN({{col.学生.奖学金}}) FROM {{table.学生}})"
   ordered: false
 
-- 模板ID: sub-derived
-  知识点: 子查询
-  难度: 5
-  题面: 查询参加考试达到 2 次及以上的学生各考了几次（从按学号分组的派生表中筛选，列别名「次数」）。
-  提示:
+- templateId: sub-derived
+  knowledgeArea: 子查询
+  difficulty: 5
+  prompt: 查询参加考试达到 2 次及以上的学生各考了几次（从按学号分组的派生表中筛选，列别名「次数」）。
+  hints:
     - "思路：把分组统计写成 FROM 里的派生表并起别名，外层对统计结果再筛选。"
     - "关键子句：FROM (SELECT ... GROUP BY 学号) AS t WHERE 次数 >= 2"
-  参考答案: "SELECT 次数 FROM (SELECT {{col.成绩.学号}} AS 学号, COUNT(*) AS 次数 FROM {{table.成绩}} GROUP BY {{col.成绩.学号}}) AS t WHERE 次数 >= 2"
-  错误写法: "SELECT 次数 FROM (SELECT {{col.成绩.学号}} AS 学号, COUNT(*) AS 次数 FROM {{table.成绩}} GROUP BY {{col.成绩.学号}}) AS t"
+  referenceAnswer: "SELECT 次数 FROM (SELECT {{col.成绩.学号}} AS 学号, COUNT(*) AS 次数 FROM {{table.成绩}} GROUP BY {{col.成绩.学号}}) AS t WHERE 次数 >= 2"
+  commonMistake: "SELECT 次数 FROM (SELECT {{col.成绩.学号}} AS 学号, COUNT(*) AS 次数 FROM {{table.成绩}} GROUP BY {{col.成绩.学号}}) AS t"
   ordered: false
 
 # ── 知识点六：日期函数（5 题，依赖 T4 转译层）────────────────
 
-- 模板ID: date-year-group
-  知识点: 日期函数
-  难度: 3
-  题面: 按出生年份统计学生人数（列别名「出生年份」「人数」）。
-  提示:
+- templateId: date-year-group
+  knowledgeArea: 日期函数
+  difficulty: 3
+  prompt: 按出生年份统计学生人数（列别名「出生年份」「人数」）。
+  hints:
     - "思路：YEAR 函数从日期中取出年份，按它分组计数。"
     - "关键子句：GROUP BY YEAR({{col.学生.出生日期}})"
-  参考答案: "SELECT YEAR({{col.学生.出生日期}}) AS 出生年份, COUNT(*) AS 人数 FROM {{table.学生}} GROUP BY YEAR({{col.学生.出生日期}})"
-  错误写法: "SELECT MONTH({{col.学生.出生日期}}) AS 出生年份, COUNT(*) AS 人数 FROM {{table.学生}} GROUP BY MONTH({{col.学生.出生日期}})"
+  referenceAnswer: "SELECT YEAR({{col.学生.出生日期}}) AS 出生年份, COUNT(*) AS 人数 FROM {{table.学生}} GROUP BY YEAR({{col.学生.出生日期}})"
+  commonMistake: "SELECT MONTH({{col.学生.出生日期}}) AS 出生年份, COUNT(*) AS 人数 FROM {{table.学生}} GROUP BY MONTH({{col.学生.出生日期}})"
   ordered: false
 
-- 模板ID: date-year-filter
-  知识点: 日期函数
-  难度: 2
-  题面: 查询 2025 年举行的考试成绩记录，返回学号。
-  提示:
+- templateId: date-year-filter
+  knowledgeArea: 日期函数
+  difficulty: 2
+  prompt: 查询 2025 年举行的考试成绩记录，返回学号。
+  hints:
     - "思路：对日期列套 YEAR 再与 2025 比较。"
     - "关键子句：WHERE YEAR({{col.成绩.考试日期}}) = 2025"
-  参考答案: "SELECT {{col.成绩.学号}} FROM {{table.成绩}} WHERE YEAR({{col.成绩.考试日期}}) = 2025"
-  错误写法: "SELECT {{col.成绩.学号}} FROM {{table.成绩}} WHERE YEAR({{col.成绩.考试日期}}) = 2026"
+  referenceAnswer: "SELECT {{col.成绩.学号}} FROM {{table.成绩}} WHERE YEAR({{col.成绩.考试日期}}) = 2025"
+  commonMistake: "SELECT {{col.成绩.学号}} FROM {{table.成绩}} WHERE YEAR({{col.成绩.考试日期}}) = 2026"
   ordered: false
 
-- 模板ID: date-format
-  知识点: 日期函数
-  难度: 3
-  题面: "查询每位学生的姓名与格式化后的出生日期（格式为{{param.格式.描述}}，列别名「生日」），按学号升序返回。"
-  提示:
+- templateId: date-format
+  knowledgeArea: 日期函数
+  difficulty: 3
+  prompt: "查询每位学生的姓名与格式化后的出生日期（格式为{{param.格式.描述}}，列别名「生日」），按学号升序返回。"
+  hints:
     - "思路：DATE_FORMAT(日期, 格式串) 按给定格式输出文本，格式串由题面描述决定。"
     - "关键子句：DATE_FORMAT({{col.学生.出生日期}}, '{{param.格式.模式}}')"
-  参考答案: "SELECT {{col.学生.姓名}}, DATE_FORMAT({{col.学生.出生日期}}, '{{param.格式.模式}}') AS 生日 FROM {{table.学生}} ORDER BY {{col.学生.学号}}"
-  错误写法: "SELECT {{col.学生.姓名}}, DATE_FORMAT({{col.学生.出生日期}}, '%Y') AS 生日 FROM {{table.学生}} ORDER BY {{col.学生.学号}}"
+  referenceAnswer: "SELECT {{col.学生.姓名}}, DATE_FORMAT({{col.学生.出生日期}}, '{{param.格式.模式}}') AS 生日 FROM {{table.学生}} ORDER BY {{col.学生.学号}}"
+  commonMistake: "SELECT {{col.学生.姓名}}, DATE_FORMAT({{col.学生.出生日期}}, '%Y') AS 生日 FROM {{table.学生}} ORDER BY {{col.学生.学号}}"
   ordered: true
   # 关联参数：题面中文描述与格式串成对取用
-  参数:
+  paramPool:
     格式:
       - { 描述: "「年-月-日」（如 2004-02-29）", 模式: "%Y-%m-%d" }
       - { 描述: "「月/日」（如 02/29）", 模式: "%m/%d" }
 
-- 模板ID: date-datediff
-  知识点: 日期函数
-  难度: 4
-  题面: 查询成绩表中最早考试日期与最晚考试日期相差多少天（列别名「跨度天数」）。
-  提示:
+- templateId: date-datediff
+  knowledgeArea: 日期函数
+  difficulty: 4
+  prompt: 查询成绩表中最早考试日期与最晚考试日期相差多少天（列别名「跨度天数」）。
+  hints:
     - "思路：DATEDIFF(a, b) 求 a 减 b 的天数，先聚合出两个端点日期再作差。"
     - "关键子句：SELECT DATEDIFF(MAX({{col.成绩.考试日期}}), MIN({{col.成绩.考试日期}}))"
-  参考答案: "SELECT DATEDIFF(MAX({{col.成绩.考试日期}}), MIN({{col.成绩.考试日期}})) AS 跨度天数 FROM {{table.成绩}}"
-  错误写法: "SELECT DATEDIFF(MIN({{col.成绩.考试日期}}), MAX({{col.成绩.考试日期}})) AS 跨度天数 FROM {{table.成绩}}"
+  referenceAnswer: "SELECT DATEDIFF(MAX({{col.成绩.考试日期}}), MIN({{col.成绩.考试日期}})) AS 跨度天数 FROM {{table.成绩}}"
+  commonMistake: "SELECT DATEDIFF(MIN({{col.成绩.考试日期}}), MAX({{col.成绩.考试日期}})) AS 跨度天数 FROM {{table.成绩}}"
   ordered: false
 
-- 模板ID: date-compare
-  知识点: 日期函数
-  难度: 2
-  题面: "查询考试日期在 {{param.起始}} 当天及之后的成绩记录，返回学号与分数（日期按文本比较即可）。"
-  提示:
+- templateId: date-compare
+  knowledgeArea: 日期函数
+  difficulty: 2
+  prompt: "查询考试日期在 {{param.起始}} 当天及之后的成绩记录，返回学号与分数（日期按文本比较即可）。"
+  hints:
     - "思路：'YYYY-MM-DD' 格式的日期字符串可直接用 >= 比较。"
     - "关键子句：WHERE {{col.成绩.考试日期}} >= '{{param.起始}}'"
-  参考答案: "SELECT {{col.成绩.学号}}, {{col.成绩.分数}} FROM {{table.成绩}} WHERE {{col.成绩.考试日期}} >= '{{param.起始}}'"
-  错误写法: "SELECT {{col.成绩.学号}}, {{col.成绩.分数}} FROM {{table.成绩}} WHERE {{col.成绩.考试日期}} < '{{param.起始}}'"
+  referenceAnswer: "SELECT {{col.成绩.学号}}, {{col.成绩.分数}} FROM {{table.成绩}} WHERE {{col.成绩.考试日期}} >= '{{param.起始}}'"
+  commonMistake: "SELECT {{col.成绩.学号}}, {{col.成绩.分数}} FROM {{table.成绩}} WHERE {{col.成绩.考试日期}} < '{{param.起始}}'"
   ordered: false
-  参数:
+  paramPool:
     起始: ["2025-06-01", "2025-09-01"]
 
 # ── 知识点七：综合应用（5 题）────────────────────────────────
 
-- 模板ID: comp-join-agg-having
-  知识点: 综合应用
-  难度: 5
-  题面: 查询选课人次达到 2 次及以上的课程名与选课人次（列别名「选课人次」，连接课程表与成绩表）。
-  提示:
+- templateId: comp-join-agg-having
+  knowledgeArea: 综合应用
+  difficulty: 5
+  prompt: 查询选课人次达到 2 次及以上的课程名与选课人次（列别名「选课人次」，连接课程表与成绩表）。
+  hints:
     - "思路：三步走——按课程号连接、按课程分组计数、用 HAVING 过滤人次。"
     - "关键子句：JOIN ... GROUP BY 课程号, 课程名 HAVING COUNT(*) >= 2"
-  参考答案: "SELECT {{col.课程.课程名}}, COUNT(*) AS 选课人次 FROM {{table.课程}} JOIN {{table.成绩}} ON {{table.课程}}.{{col.课程.课程号}} = {{table.成绩}}.{{col.成绩.课程号}} GROUP BY {{table.课程}}.{{col.课程.课程号}}, {{col.课程.课程名}} HAVING COUNT(*) >= 2"
-  错误写法: "SELECT {{col.课程.课程名}}, MAX({{col.成绩.分数}}) AS 选课人次 FROM {{table.课程}} JOIN {{table.成绩}} ON {{table.课程}}.{{col.课程.课程号}} = {{table.成绩}}.{{col.成绩.课程号}} GROUP BY {{table.课程}}.{{col.课程.课程号}}, {{col.课程.课程名}} HAVING COUNT(*) >= 2"
+  referenceAnswer: "SELECT {{col.课程.课程名}}, COUNT(*) AS 选课人次 FROM {{table.课程}} JOIN {{table.成绩}} ON {{table.课程}}.{{col.课程.课程号}} = {{table.成绩}}.{{col.成绩.课程号}} GROUP BY {{table.课程}}.{{col.课程.课程号}}, {{col.课程.课程名}} HAVING COUNT(*) >= 2"
+  commonMistake: "SELECT {{col.课程.课程名}}, MAX({{col.成绩.分数}}) AS 选课人次 FROM {{table.课程}} JOIN {{table.成绩}} ON {{table.课程}}.{{col.课程.课程号}} = {{table.成绩}}.{{col.成绩.课程号}} GROUP BY {{table.课程}}.{{col.课程.课程号}}, {{col.课程.课程名}} HAVING COUNT(*) >= 2"
   ordered: false
 
-- 模板ID: comp-order-limit
-  知识点: 综合应用
-  难度: 4
-  题面: "查询分数最高的前 {{param.名额}} 条成绩记录的学生姓名与分数（同分按学号升序）。"
-  提示:
+- templateId: comp-order-limit
+  knowledgeArea: 综合应用
+  difficulty: 4
+  prompt: "查询分数最高的前 {{param.名额}} 条成绩记录的学生姓名与分数（同分按学号升序）。"
+  hints:
     - "思路：连接学生与成绩后，按分数降序、学号升序排序，再 LIMIT。"
     - "关键子句：ORDER BY {{col.成绩.分数}} DESC, {{table.学生}}.{{col.学生.学号}} LIMIT {{param.名额}}"
-  参考答案: "SELECT {{col.学生.姓名}}, {{col.成绩.分数}} FROM {{table.学生}} JOIN {{table.成绩}} ON {{table.学生}}.{{col.学生.学号}} = {{table.成绩}}.{{col.成绩.学号}} ORDER BY {{col.成绩.分数}} DESC, {{table.学生}}.{{col.学生.学号}} LIMIT {{param.名额}}"
-  错误写法: "SELECT {{col.学生.姓名}}, {{col.成绩.分数}} FROM {{table.学生}} JOIN {{table.成绩}} ON {{table.学生}}.{{col.学生.学号}} = {{table.成绩}}.{{col.成绩.学号}} ORDER BY {{col.成绩.分数}} ASC, {{table.学生}}.{{col.学生.学号}} LIMIT {{param.名额}}"
+  referenceAnswer: "SELECT {{col.学生.姓名}}, {{col.成绩.分数}} FROM {{table.学生}} JOIN {{table.成绩}} ON {{table.学生}}.{{col.学生.学号}} = {{table.成绩}}.{{col.成绩.学号}} ORDER BY {{col.成绩.分数}} DESC, {{table.学生}}.{{col.学生.学号}} LIMIT {{param.名额}}"
+  commonMistake: "SELECT {{col.学生.姓名}}, {{col.成绩.分数}} FROM {{table.学生}} JOIN {{table.成绩}} ON {{table.学生}}.{{col.学生.学号}} = {{table.成绩}}.{{col.成绩.学号}} ORDER BY {{col.成绩.分数}} ASC, {{table.学生}}.{{col.学生.学号}} LIMIT {{param.名额}}"
   ordered: true
-  参数:
+  paramPool:
     名额: [3, 5]
 
-- 模板ID: comp-case
-  知识点: 综合应用
-  难度: 4
-  题面: "查询每条成绩的学号与达标状态（列别名「状态」）：分数为空记「缺考」，不低于 {{param.线}} 分记「达标」，否则记「未达标」。"
-  提示:
+- templateId: comp-case
+  knowledgeArea: 综合应用
+  difficulty: 4
+  prompt: "查询每条成绩的学号与达标状态（列别名「状态」）：分数为空记「缺考」，不低于 {{param.线}} 分记「达标」，否则记「未达标」。"
+  hints:
     - "思路：CASE 多分支先判 IS NULL 再判阈值，空值与比较要分开处理。"
     - "关键子句：CASE WHEN 分数 IS NULL THEN '缺考' WHEN 分数 >= 阈值 THEN '达标' ELSE '未达标' END"
-  参考答案: "SELECT {{col.成绩.学号}}, CASE WHEN {{col.成绩.分数}} IS NULL THEN '缺考' WHEN {{col.成绩.分数}} >= {{param.线}} THEN '达标' ELSE '未达标' END AS 状态 FROM {{table.成绩}}"
-  错误写法: "SELECT {{col.成绩.学号}}, CASE WHEN {{col.成绩.分数}} IS NULL THEN '缺考' WHEN {{col.成绩.分数}} >= {{param.线}} THEN '合格' ELSE '未达标' END AS 状态 FROM {{table.成绩}}"
+  referenceAnswer: "SELECT {{col.成绩.学号}}, CASE WHEN {{col.成绩.分数}} IS NULL THEN '缺考' WHEN {{col.成绩.分数}} >= {{param.线}} THEN '达标' ELSE '未达标' END AS 状态 FROM {{table.成绩}}"
+  commonMistake: "SELECT {{col.成绩.学号}}, CASE WHEN {{col.成绩.分数}} IS NULL THEN '缺考' WHEN {{col.成绩.分数}} >= {{param.线}} THEN '合格' ELSE '未达标' END AS 状态 FROM {{table.成绩}}"
   ordered: false
-  参数:
+  paramPool:
     线: [60, 70]
 
-- 模板ID: comp-distinct-join
-  知识点: 综合应用
-  难度: 4
-  题面: "查询至少有一门成绩不低于 {{param.线}} 分的不重复学生姓名（连接后去重）。"
-  提示:
+- templateId: comp-distinct-join
+  knowledgeArea: 综合应用
+  difficulty: 4
+  prompt: "查询至少有一门成绩不低于 {{param.线}} 分的不重复学生姓名（连接后去重）。"
+  hints:
     - "思路：一个学生多门达标会产生多行，SELECT DISTINCT 去重。"
     - "关键子句：SELECT DISTINCT {{col.学生.姓名}} ... WHERE {{col.成绩.分数}} >= {{param.线}}"
-  参考答案: "SELECT DISTINCT {{col.学生.姓名}} FROM {{table.学生}} JOIN {{table.成绩}} ON {{table.学生}}.{{col.学生.学号}} = {{table.成绩}}.{{col.成绩.学号}} WHERE {{col.成绩.分数}} >= {{param.线}}"
-  错误写法: "SELECT {{col.学生.姓名}} FROM {{table.学生}} JOIN {{table.成绩}} ON {{table.学生}}.{{col.学生.学号}} = {{table.成绩}}.{{col.成绩.学号}} WHERE {{col.成绩.分数}} >= {{param.线}}"
+  referenceAnswer: "SELECT DISTINCT {{col.学生.姓名}} FROM {{table.学生}} JOIN {{table.成绩}} ON {{table.学生}}.{{col.学生.学号}} = {{table.成绩}}.{{col.成绩.学号}} WHERE {{col.成绩.分数}} >= {{param.线}}"
+  commonMistake: "SELECT {{col.学生.姓名}} FROM {{table.学生}} JOIN {{table.成绩}} ON {{table.学生}}.{{col.学生.学号}} = {{table.成绩}}.{{col.成绩.学号}} WHERE {{col.成绩.分数}} >= {{param.线}}"
   ordered: false
-  参数:
+  paramPool:
     线: [80, 85]
 
-- 模板ID: comp-city-having
-  知识点: 综合应用
-  难度: 3
-  题面: 按城市统计学生人数（城市为空的不计），只保留人数达到 2 人的城市（列别名「学生数」）。
-  提示:
+- templateId: comp-city-having
+  knowledgeArea: 综合应用
+  difficulty: 3
+  prompt: 按城市统计学生人数（城市为空的不计），只保留人数达到 2 人的城市（列别名「学生数」）。
+  hints:
     - "思路：WHERE 先排除空城市，再 GROUP BY + HAVING 过滤人数。"
     - "关键子句：WHERE 城市 IS NOT NULL GROUP BY 城市 HAVING COUNT(*) >= 2"
-  参考答案: "SELECT {{col.学生.城市}}, COUNT(*) AS 学生数 FROM {{table.学生}} WHERE {{col.学生.城市}} IS NOT NULL GROUP BY {{col.学生.城市}} HAVING COUNT(*) >= 2"
-  错误写法: "SELECT {{col.学生.城市}} FROM {{table.学生}} WHERE {{col.学生.城市}} IS NOT NULL GROUP BY {{col.学生.城市}} HAVING COUNT(*) >= 2"
+  referenceAnswer: "SELECT {{col.学生.城市}}, COUNT(*) AS 学生数 FROM {{table.学生}} WHERE {{col.学生.城市}} IS NOT NULL GROUP BY {{col.学生.城市}} HAVING COUNT(*) >= 2"
+  commonMistake: "SELECT {{col.学生.城市}} FROM {{table.学生}} WHERE {{col.学生.城市}} IS NOT NULL GROUP BY {{col.学生.城市}} HAVING COUNT(*) >= 2"
   ordered: false

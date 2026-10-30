@@ -2,10 +2,10 @@
 // 判题等价规则：列名/列序不敏感、行序仅在 ordered 时敏感；对照视图按同一规则对齐，
 // 使差异行/列可定位：ordered 按位置比对到单元格；非 ordered 按多重集合找出多出/缺失的行。
 
-import type { 结果集, 显示值 } from "@/kernel/types";
+import type { ResultSet, DisplayValue } from "@/kernel/types";
 
 export interface 对照单元格 {
-  值: 显示值;
+  值: DisplayValue;
   /** 该单元格与对侧同位值不等 */
   差异: boolean;
 }
@@ -26,18 +26,18 @@ export interface 对照视图 {
   截断说明: string | null;
 }
 
-const 行键 = (行: 显示值[]): string => JSON.stringify(行);
+const 行键 = (行: DisplayValue[]): string => JSON.stringify(行);
 
 /**
  * 构造并排对照视图。前N行 = 展示的行数上限；差异判定在完整结果集上计算后再截断，
  * 保证截断不影响差异定位的正确性。
  */
-export function 构造对照(学生: 结果集, 预期: 结果集, ordered: boolean, 前N行 = 10): 对照视图 {
+export function 构造对照(学生: ResultSet, 预期: ResultSet, ordered: boolean, 前N行 = 10): 对照视图 {
   // 1) 列对齐：按列名把学生列映射到预期列（列名不敏感）；未匹配的列留在末尾并标差异。
-  const 预期列位置 = new Map(预期.列名.map((名, j) => [名, j]));
-  const 学生到预期 = new Array(学生.列名.length).fill(-1);
-  const 已占用 = new Array(预期.列名.length).fill(false);
-  学生.列名.forEach((名, i) => {
+  const 预期列位置 = new Map(预期.columns.map((名, j) => [名, j]));
+  const 学生到预期 = new Array(学生.columns.length).fill(-1);
+  const 已占用 = new Array(预期.columns.length).fill(false);
+  学生.columns.forEach((名, i) => {
     const j = 预期列位置.get(名);
     if (j !== undefined && !已占用[j]) {
       学生到预期[i] = j;
@@ -49,10 +49,10 @@ export function 构造对照(学生: 结果集, 预期: 结果集, ordered: bool
   const 殿后 = 学生到预期.map((j, i) => ({ j, i })).filter((x) => x.j < 0);
   const 学生列序 = [...重排, ...殿后].map((x) => x.i);
 
-  const 左列名 = 学生列序.map((i) => 学生.列名[i]);
-  const 左行 = 学生.行.map((行) => 学生列序.map((i) => 行[i]));
-  const 右列名 = 预期.列名;
-  const 右行 = 预期.行;
+  const 左列名 = 学生列序.map((i) => 学生.columns[i]);
+  const 左行 = 学生.rows.map((行) => 学生列序.map((i) => 行[i]));
+  const 右列名 = 预期.columns;
+  const 右行 = 预期.rows;
 
   const 右列差异 = 已占用.map((占用) => !占用);
   const 左列差异 = 学生列序.map((_, 位置) => 位置 >= 重排.length);
@@ -113,7 +113,7 @@ export function 构造对照(学生: 结果集, 预期: 结果集, ordered: bool
   右标记.length = 右行.length;
 
   const 截断 = 左行.length > 前N行 || 右行.length > 前N行;
-  const 截取 = (行: 显示值[][], 标记: (boolean[] | null)[]) =>
+  const 截取 = (行: DisplayValue[][], 标记: (boolean[] | null)[]) =>
     行.slice(0, 前N行).map((r, i) => {
       const 单元 = 标记[i];
       return r.map((值, j) => ({ 值, 差异: 单元 !== null && 单元[j] === true }));
@@ -139,6 +139,6 @@ export function 构造对照(学生: 结果集, 预期: 结果集, ordered: bool
 }
 
 /** 与判题一致的显示值相等：NULL/空串/类型严格区分 */
-function 值相等(a: 显示值, b: 显示值): boolean {
+function 值相等(a: DisplayValue, b: DisplayValue): boolean {
   return a === b;
 }

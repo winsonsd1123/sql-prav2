@@ -4,7 +4,7 @@
 // 显隐由演练场持有（顶栏「表结构」/ Cmd/Ctrl+B / Esc）。点击编辑器不收起。
 // 每张表仍为 <details>，默认展开，展示表名、列（名+类型）与数据预览。
 
-import type { 表实例 } from "@/kernel/types";
+import type { TableInstance } from "@/kernel/types";
 
 export default function LibraryBrowser({
   表,
@@ -12,7 +12,7 @@ export default function LibraryBrowser({
   打开,
   on关闭,
 }: {
-  表: 表实例[];
+  表: TableInstance[];
   实例名: string;
   打开: boolean;
   on关闭: () => void;
@@ -38,22 +38,22 @@ export default function LibraryBrowser({
       <div className="space-y-2 p-2 lg:min-h-0 lg:flex-1 lg:overflow-y-auto lg:overscroll-contain">
         {表.map((表实例) => (
           <details
-            key={表实例.表名}
+            key={表实例.tableName}
             className="rounded-lg bg-bg"
             data-testid="库表"
-            data-表名={表实例.表名}
+            data-表名={表实例.tableName}
             open
           >
             <summary className="cursor-pointer px-3 py-2 font-mono text-sm font-medium">
-              {表实例.表名}
-              <span className="ml-2 text-[11px] font-normal text-muted">{表实例.行.length} 行</span>
+              {表实例.tableName}
+              <span className="ml-2 text-[11px] font-normal text-muted">{表实例.rows.length} 行</span>
             </summary>
             <div className="space-y-2 px-3 pb-3 text-xs text-ink">
               <ul className="space-y-0.5">
-                {表实例.列名.map((列, i) => (
+                {表实例.columnNames.map((列, i) => (
                   <li key={列} className="flex items-baseline justify-between gap-3 font-mono">
                     <span className="text-ink">{列}</span>
-                    <span className="text-muted">{表实例.类型[i]}</span>
+                    <span className="text-muted">{表实例.types[i]}</span>
                   </li>
                 ))}
               </ul>
@@ -61,7 +61,7 @@ export default function LibraryBrowser({
                 <table className="w-full font-mono">
                   <thead className="sticky top-0 bg-panel">
                     <tr>
-                      {表实例.列名.map((列) => (
+                      {表实例.columnNames.map((列) => (
                         <th key={列} className="px-2 py-1 text-left font-medium whitespace-nowrap text-muted">
                           {列}
                         </th>
@@ -69,7 +69,7 @@ export default function LibraryBrowser({
                     </tr>
                   </thead>
                   <tbody>
-                    {表实例.行.map((行, i) => (
+                    {表实例.rows.map((行, i) => (
                       <tr key={i} className="border-t border-border-strong">
                         {行.map((值, j) => (
                           <td key={j} className="px-2 py-1 whitespace-nowrap">

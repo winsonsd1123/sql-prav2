@@ -6,18 +6,18 @@
 import { 预热引擎 } from "./execute";
 import { 判定 } from "./judge";
 import { 结果行数上限 } from "./防护";
-import type { 会话, 题目实例, 判定结果 } from "./types";
+import type { Session, QuestionInstance, JudgeResult } from "./types";
 
 export interface Worker请求 {
   id: number;
   学生SQL: string;
-  会话: 会话;
-  题目: 题目实例;
+  会话: Session;
+  题目: QuestionInstance;
 }
 
 export type Worker应答 =
   | { type: "就绪" }
-  | { type: "结果"; id: number; 结果: 判定结果 };
+  | { type: "结果"; id: number; 结果: JudgeResult };
 
 const 上下文 = self as unknown as DedicatedWorkerGlobalScope;
 
@@ -30,7 +30,7 @@ const 上下文 = self as unknown as DedicatedWorkerGlobalScope;
     上下文.postMessage({
       type: "结果",
       id: -1,
-      结果: { 判定: "拦截", 错误信息: `数据库引擎（WASM）加载失败：${String(e)}` },
+      结果: { judge: "拦截", errorMessage: `数据库引擎（WASM）加载失败：${String(e)}` },
     } satisfies Worker应答);
   },
 );
@@ -45,7 +45,7 @@ const 上下文 = self as unknown as DedicatedWorkerGlobalScope;
     上下文.postMessage({
       type: "结果",
       id,
-      结果: { 判定: "拦截", 错误信息: `判定过程出现意外错误：${e instanceof Error ? e.message : String(e)}` },
+      结果: { judge: "拦截", errorMessage: `判定过程出现意外错误：${e instanceof Error ? e.message : String(e)}` },
     } satisfies Worker应答);
   }
 };

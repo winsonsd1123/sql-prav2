@@ -1,4 +1,4 @@
-import type { 会话, 结果集, 显示值 } from "./types";
+import type { Session, ResultSet, DisplayValue } from "./types";
 import { 注册垫片函数, 转译, type 垫片宿主 } from "./转译";
 import { 行数上限提示, 防护超限错误 } from "./防护";
 
@@ -28,15 +28,15 @@ export async function 预热引擎(): Promise<void> {
 }
 
 /** 从会话库建立内存数据库（纯函数式：每次全新，执行不可变更会话） */
-export async function 打开内存库(会话: 会话): Promise<数据库> {
+export async function 打开内存库(会话: Session): Promise<数据库> {
   const SQL = await 加载引擎();
   const db = new SQL.Database();
-  for (const 表 of 会话.库.表) {
+  for (const 表 of 会话.database.tables) {
     db.run(表.DDL);
-    if (表.行.length === 0) continue;
-    const 占位 = 表.行[0].map(() => "?").join(", ");
-    const stmt = db.prepare(`INSERT INTO ${表.表名} VALUES (${占位})`);
-    for (const 行 of 表.行) {
+    if (表.rows.length === 0) continue;
+    const 占位 = 表.rows[0].map(() => "?").join(", ");
+    const stmt = db.prepare(`INSERT INTO ${表.tableName} VALUES (${占位})`);
+    for (const 行 of 表.rows) {
       stmt.run(行 as (string | number | null)[]);
     }
     stmt.free();
@@ -55,7 +55,7 @@ export function 清洗语句(SQL文本: string): { ok: true; 语句: string } | 
 }
 
 /** 规范化为 MySQL 显示值：NULL 与空串严格区分、数值与字符串严格区分 */
-function 规范化(v: unknown): 显示值 {
+function 规范化(v: unknown): DisplayValue {
   if (v === null || v === undefined) return null;
   if (typeof v === "number") return `N:${v}`;
   if (typeof v === "bigint") return `N:${v}`;
@@ -68,10 +68,10 @@ function 规范化(v: unknown): 显示值 {
  * 真正的内存/时间兜底由 Worker 超时终止负责，行数上限拦截"能跑完但结果巨大"的查询。 */
 export async function 执行查询(
   语句: string,
-  会话: 会话,
+  会话: Session,
   行数上限?: number,
   时刻?: Date,
-): Promise<结果集> {
+): Promise<ResultSet> {
   const db = await 打开内存库(会话);
   try {
     // 转译层（issue #5）：学生 SQL 为 MySQL 方言，垫片函数 + 语法改写对学生透明
@@ -79,13 +79,13 @@ export async function 执行查询(
     // 时刻为判定级常量：缺省取当前时间，由判定入口生成一次并透传两次执行
     注册垫片函数(db as unknown as 垫片宿主, 时刻);
     const 结果 = db.exec(转译(语句));
-    if (结果.length === 0) return { 列名: [], 行: [] };
+    if (结果.length === 0) return { columns: [], rows: [] };
     if (行数上限 !== undefined && 结果[0].values.length > 行数上限) {
       throw new 防护超限错误("行数上限", 行数上限提示);
     }
     return {
-      列名: 结果[0].columns,
-      行: 结果[0].values.map((行) => 行.map(规范化)),
+      columns: 结果[0].columns,
+      rows: 结果[0].values.map((行) => 行.map(规范化)),
     };
   } finally {
     db.close();
@@ -93,6 +93,6 @@ export async function 执行查询(
 }
 
 /** UI 展示用的显示文本（去掉类型标记） */
-export function 显示(v: 显示值): string {
+export function 显示(v: DisplayValue): string {
   return v === null ? "NULL" : v.slice(2);
 }

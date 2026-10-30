@@ -3,12 +3,12 @@
 // 超时兜底——sql.js 在 Worker 中同步执行无法中途取消，超时的唯一可靠手段是
 // terminate() 整个 Worker（主线程与 UI 不受影响），下次请求前重建 Worker 并等待其重新就绪。
 
-import type { 会话, 题目实例, 判定结果 } from "./types";
+import type { Session, QuestionInstance, JudgeResult } from "./types";
 import { 执行超时毫秒, 防护超限错误, 环境异常提示 } from "./防护";
 import type { Worker请求, Worker应答 } from "./执行worker";
 
 interface 等待项 {
-  resolve: (r: 判定结果) => void;
+  resolve: (r: JudgeResult) => void;
   reject: (e: 防护超限错误) => void;
   超时器: ReturnType<typeof setTimeout>;
 }
@@ -87,15 +87,15 @@ async function 确保worker就绪(): Promise<Worker> {
 /** 提交判题请求：Worker 忙碌（同步执行中）时消息排队，天然串行 */
 export async function 请求判定(
   学生SQL: string,
-  会话: 会话,
-  题目: 题目实例,
-): Promise<判定结果> {
+  会话: Session,
+  题目: QuestionInstance,
+): Promise<JudgeResult> {
   if (typeof window === "undefined") {
     throw new Error("判题 Worker 仅在浏览器环境可用");
   }
   const w = await 确保worker就绪();
   const id = 下一个id++;
-  return new Promise<判定结果>((resolve, reject) => {
+  return new Promise<JudgeResult>((resolve, reject) => {
     const 超时器 = setTimeout(() => {
       // 超时兜底：sql.js 同步执行无法取消，只能整体终止 Worker（主线程 UI 不受影响）
       等待中.delete(id);

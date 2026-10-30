@@ -1,7 +1,7 @@
 "use client";
 
 import { useSyncExternalStore, useMemo, useState, useEffect, useRef, useCallback } from "react";
-import { 生成练习会话 } from "@/kernel/出题";
+import { generatePracticeSession } from "@/kernel/question-picking";
 import { 请求判定, 订阅引擎就绪, 引擎是否就绪 } from "@/kernel/worker客户端";
 import SQL编辑器 from "@/components/SQL编辑器";
 import 库浏览器 from "@/components/库浏览器";
@@ -38,7 +38,7 @@ import {
 import 会话总结 from "@/components/会话总结";
 import { usePermissions } from "@/components/current-permissions";
 import { hasPermission, PERMISSIONS } from "@/lib/permissions";
-import type { 判定结果, 题目实例 } from "@/kernel/types";
+import type { JudgeResult, QuestionInstance } from "@/kernel/types";
 
 // UI 编排组件：会话级本地状态（种子/域包/进度）在 会话存储，判题在 Worker，
 // 本组件只负责把它们接到界面与交互上。视觉层为「静室」：点阵画布、三栏工作台。
@@ -58,14 +58,14 @@ export default function Playground() {
   const 域包ID = useSyncExternalStore(
     域包存储.订阅,
     域包存储.取快照,
-    () => 域包注册表[0].域包ID, // SSR 快照：客户端真实值在 hydrate 后生效
+    () => 域包注册表[0].packId, // SSR 快照：客户端真实值在 hydrate 后生效
   );
   const 域包 = useMemo(
-    () => 域包注册表.find((d) => d.域包ID === 域包ID) ?? 域包注册表[0],
+    () => 域包注册表.find((d) => d.packId === 域包ID) ?? 域包注册表[0],
     [域包ID],
   );
   const 会话 = useMemo(
-    () => (种子 === null ? null : 生成练习会话(种子, 域包)),
+    () => (种子 === null ? null : generatePracticeSession(种子, 域包)),
     [种子, 域包],
   );
   const [当前题号, 设当前题号] = useState(0);
@@ -74,7 +74,7 @@ export default function Playground() {
   const permissionSet = usePermissions();
   const 答案豁免 = hasPermission(permissionSet, PERMISSIONS.viewAnswersAnytime);
   const [SQL输入, 设SQL输入] = useState("");
-  const [结果, 设结果] = useState<判定结果 | null>(null);
+  const [结果, 设结果] = useState<JudgeResult | null>(null);
   const [判定中, 设判定中] = useState(false);
   // 表结构右栏（默认展开，写 SQL 时列名保持可见）。顶栏按钮 / Cmd/Ctrl+B 切换，Esc 收起。
   // 点编辑器不收起。
@@ -175,7 +175,7 @@ export default function Playground() {
   const 上一全通过 = useRef<boolean | null>(null);
   useEffect(() => {
     if (!会话) return;
-    const 全通过 = 进度.已通过题号.length === 会话.题目.length;
+    const 全通过 = 进度.已通过题号.length === 会话.questions.length;
     if (上一全通过.current === null) {
       上一全通过.current = 全通过; // 首帧：记录基线，不触发（刷新已全通过不重弹）
       return;
@@ -228,8 +228,8 @@ export default function Playground() {
     );
   }
 
-  const 题目: 题目实例 = 会话.题目[当前题号];
-  const { 已完成, 总数 } = 完成度(进度, 会话.题目.length);
+  const 题目: QuestionInstance = 会话.questions[当前题号];
+  const { 已完成, 总数 } = 完成度(进度, 会话.questions.length);
 
   async function 验证() {
     if (!会话) return;
@@ -237,16 +237,16 @@ export default function Playground() {
     设判定中(true);
     try {
       // 判题在 Web Worker 中进行（issue #10）：主线程不阻塞，编辑/切题/浏览库保持可交互
-      const 结果 = await 请求判定(SQL输入, 会话, 会话.题目[发起题号]);
+      const 结果 = await 请求判定(SQL输入, 会话, 会话.questions[发起题号]);
       if (当前题号引用.current !== 发起题号) return; // 期间已切题，丢弃旧结果
       设结果(结果);
-      if (结果.判定 === "通过") {
+      if (结果.judge === "通过") {
         // 通过的提交不计尝试（issue #16 口径）
         const 此前未通过 = !是否已通过(进度存储.取快照(), 发起题号);
         迁移进度((p) => 记通过(p, 发起题号));
         // 仅首次通过触发自动流转（issue #18）：已通过题再次验证不弹反馈条
         if (此前未通过) {
-          const 目标 = 下一未通过题(进度存储.取快照(), 发起题号, 会话.题目.length);
+          const 目标 = 下一未通过题(进度存储.取快照(), 发起题号, 会话.questions.length);
           设通过反馈({ 目标题号: 目标, 倒计时中: 目标 !== null });
         }
       } else {
@@ -256,7 +256,7 @@ export default function Playground() {
     } catch (e) {
       // 超时/行数上限等防护触发：产品级提示（非伪造 MySQL 错误）
       if (当前题号引用.current !== 发起题号) return;
-      设结果({ 判定: "拦截", 错误信息: e instanceof Error ? e.message : String(e) });
+      设结果({ judge: "拦截", errorMessage: e instanceof Error ? e.message : String(e) });
       // 防护拦截同样计一次尝试（口径：每次验证提交计 1，仅通过不计）
       迁移进度((p) => 记尝试(p, 发起题号));
     } finally {
@@ -280,7 +280,7 @@ export default function Playground() {
   }
 
   function 切换域包(目标域包ID: string) {
-    if (目标域包ID === 域包.域包ID) return;
+    if (目标域包ID === 域包.packId) return;
     草稿保存器.立即刷新(); // 同上：落盘后再换键，避免草稿写进新会话
     设域包(目标域包ID);
     重置作答();
@@ -312,8 +312,8 @@ export default function Playground() {
     未做: "bg-transparent ring-1 ring-ink/30",
   };
   const 题目分组: { 知识点: string; 序号: number[] }[] = [];
-  for (let i = 0; i < 会话.题目.length; i++) {
-    const 知识点 = 会话.题目[i].知识点;
+  for (let i = 0; i < 会话.questions.length; i++) {
+    const 知识点 = 会话.questions[i].knowledgeArea;
     const 末组 = 题目分组[题目分组.length - 1];
     if (!末组 || 末组.知识点 !== 知识点) 题目分组.push({ 知识点, 序号: [i] });
     else 末组.序号.push(i);
@@ -323,9 +323,9 @@ export default function Playground() {
     <div className="mx-auto flex min-h-screen w-full max-w-[1440px] flex-col px-4 py-4 lg:px-6">
       {总结开 && 会话 && (
         <会话总结
-          分档={完成分档统计(进度, 会话.题目.length)}
+          分档={完成分档统计(进度, 会话.questions.length)}
           已完成={进度.已通过题号.length}
-          总数={会话.题目.length}
+          总数={会话.questions.length}
           on再来一套={换一套}
           on关闭={() => 设总结开(false)}
         />
@@ -337,15 +337,15 @@ export default function Playground() {
           <span className="inline-flex rounded-full bg-ink/[0.06] p-0.5">
             {域包注册表.map((d) => (
               <button
-                key={d.域包ID}
-                onClick={() => 切换域包(d.域包ID)}
+                key={d.packId}
+                onClick={() => 切换域包(d.packId)}
                 className={`rounded-full px-3 py-1 text-xs ${
-                  d.域包ID === 域包.域包ID
+                  d.packId === 域包.packId
                     ? "bg-panel font-medium text-ink shadow-sm"
                     : "text-muted hover:text-ink"
                 }`}
               >
-                {d.名称}
+                {d.name}
               </button>
             ))}
           </span>
@@ -377,7 +377,7 @@ export default function Playground() {
       <div className="flex flex-1 flex-col items-start gap-4 lg:flex-row">
         <aside className="入场 w-full shrink-0 lg:sticky lg:top-4 lg:max-h-[calc(100vh-2rem)] lg:w-56 lg:overflow-y-auto">
           <nav className="卡片 横滑 flex gap-1 overflow-x-auto p-2 lg:block lg:overflow-visible">
-            <p className="hidden px-2 py-1.5 text-xs text-muted lg:block">题目 · {会话.题目.length}</p>
+            <p className="hidden px-2 py-1.5 text-xs text-muted lg:block">题目 · {会话.questions.length}</p>
             {题目分组.map((组) => (
               <div key={组.知识点} className="flex shrink-0 items-center gap-1 lg:mb-1 lg:block">
                 <p className="hidden px-2 pt-2 pb-1 text-[11px] font-medium text-muted lg:block">
@@ -388,7 +388,7 @@ export default function Playground() {
                   return (
                     <button
                       key={i}
-                      title={`${会话.题目[i].知识点}（难度 ${会话.题目[i].难度}）`}
+                      title={`${会话.questions[i].knowledgeArea}（难度 ${会话.questions[i].difficulty}）`}
                       onClick={() => 切换题目(i)}
                       className={`flex shrink-0 items-center gap-2 rounded-lg px-2 py-1.5 text-left text-xs lg:w-full ${
                         状态 === "当前"
@@ -410,7 +410,7 @@ export default function Playground() {
           <section className="卡片 p-5">
             <p className="mb-3 flex flex-wrap items-center gap-2 text-xs">
               <span className="rounded-full bg-ink/[0.06] px-2.5 py-0.5 font-medium text-ink">
-                {题目.知识点}
+                {题目.knowledgeArea}
               </span>
               {是否借助答案(进度, 当前题号) && (
                 <span className="rounded-full bg-assist/10 px-2.5 py-0.5 font-medium text-assist">
@@ -418,10 +418,10 @@ export default function Playground() {
                 </span>
               )}
               <span className="ml-auto font-mono text-muted">
-                第 {当前题号 + 1}/{会话.题目.length} 题 · 难度{"★".repeat(题目.难度)}
+                第 {当前题号 + 1}/{会话.questions.length} 题 · 难度{"★".repeat(题目.difficulty)}
               </span>
             </p>
-            <p className="text-[17px] leading-[1.75]">{题目.题面}</p>
+            <p className="text-[17px] leading-[1.75]">{题目.prompt}</p>
           </section>
 
           <section className="space-y-3">
@@ -449,7 +449,7 @@ export default function Playground() {
                 值={SQL输入}
                 onChange={编辑回调}
                 onSubmit={验证}
-                表={会话.库.表}
+                表={会话.database.tables}
                 on拦截粘贴={提示禁粘贴}
               />
             </div>
@@ -462,8 +462,8 @@ export default function Playground() {
               <p className="mb-3 text-xs font-medium text-muted">提示与答案</p>
               <提示与答案
                 key={当前题号}
-                提示={题目.提示}
-                参考答案={题目.参考答案}
+                提示={题目.hints}
+                参考答案={题目.referenceAnswer}
                 已看层数={进度.已看提示[String(当前题号)] ?? 0}
                 已借助答案={是否借助答案(进度, 当前题号)}
                 解锁状态={{
@@ -494,12 +494,12 @@ export default function Playground() {
 
           {结果 && (
             <section className="入场 space-y-3">
-              {结果.判定 === "通过" && (
+              {结果.judge === "通过" && (
                 <p className="落章 卡片 border-l-4 border-l-pass px-4 py-2.5 font-medium text-pass">
                   通过！结果集与预期等价。
                 </p>
               )}
-              {结果.判定 === "通过" && 通过反馈 && (
+              {结果.judge === "通过" && 通过反馈 && (
                 <div
                   data-testid="通过反馈条"
                   className="卡片 入场 flex flex-wrap items-center gap-3 border-l-4 border-l-pass px-4 py-2.5 text-sm"
@@ -528,27 +528,27 @@ export default function Playground() {
                   )}
                 </div>
               )}
-              {结果.判定 === "拦截" && (
+              {结果.judge === "拦截" && (
                 <p className="卡片 border-l-4 border-l-warn px-4 py-2.5 text-warn">
-                  {结果.错误信息}
+                  {结果.errorMessage}
                 </p>
               )}
-              {结果.判定 === "错误" && (
+              {结果.judge === "错误" && (
                 <pre className="卡片 overflow-auto bg-deep p-3 font-mono text-sm leading-relaxed">
                   <span className="text-muted">mysql&gt; </span>
                   <span className="text-ink">{SQL输入}</span>
                   {"\n"}
-                  <span className="text-fail">{结果.错误信息}</span>
+                  <span className="text-fail">{结果.errorMessage}</span>
                 </pre>
               )}
-              {结果.判定 === "不通过" && (
+              {结果.judge === "不通过" && (
                 <div className="space-y-3">
                   <p className="卡片 border-l-4 border-l-fail px-4 py-2.5 font-medium text-fail">
                     不通过：结果集与预期不等价，请对照两侧差异。
                   </p>
                   <差异对照
-                    学生结果={结果.学生结果}
-                    预期结果={结果.预期结果}
+                    学生结果={结果.studentResult}
+                    预期结果={结果.expectedResult}
                     ordered={题目.ordered}
                   />
                 </div>
@@ -564,13 +564,13 @@ export default function Playground() {
           }`}
         >
           <库浏览器
-            表={会话.库.表}
-            实例名={实例名(会话.种子)}
+            表={会话.database.tables}
+            实例名={实例名(会话.seed)}
             打开={库浏览器开}
             on关闭={关闭库浏览器}
           />
           {库浏览器开 && (
-            <p className="shrink-0 px-1 font-mono text-[11px] text-muted">会话种子 {会话.种子}</p>
+            <p className="shrink-0 px-1 font-mono text-[11px] text-muted">会话种子 {会话.seed}</p>
           )}
         </aside>
       </div>
