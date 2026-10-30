@@ -365,3 +365,12 @@ NT1–NT6 的**唯一译名来源**：GLOSSARY 词条英文名为基准，本表
 | src/kernel/__tests__/fixtures/（两 JSON） | mysql-behavior-fixtures.json / mysql-error-fixtures.json |
 | src/domain-packs/学生课程成绩/ | src/domain-packs/student-course-grades/（内 域包A.ts→pack-a.ts） |
 | src/domain-packs/员工部门薪资/ | src/domain-packs/employee-department-salary/（内 域包B.ts→pack-b.ts） |
+
+### NT1 补录（code-review 回填：实施中确立的译名与运行时契约）
+
+| 现 | 译 | 说明 |
+|---|---|---|
+| 整数 / 抽取 / 概率 | int / pick / chance | RandomSource 方法 |
+| 判定（JudgeResult 判别字段） | judge | 判别字段单列 |
+| 判定结果 tag 值「通过/不通过/错误/拦截」 | 保留中文 | 跨文件运行时契约（UI 徽章与判定文案同源） |
+| 行数 / 起始值 / 实际表名 / 类型（表列复数） | rowCount / startValue / actualTableName / types | types 字段修饰类推 |
