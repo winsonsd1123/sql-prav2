@@ -115,7 +115,7 @@ export default function Playground() {
     当前题号引用.current = 当前题号;
   }, [当前题号]);
 
-  // 通过后自动流转（issue #18 T7）：反馈条 + 1.5 秒倒计时跳到环形查找的nextUnpassedQuestion；
+  // 通过后自动流转（issue #18 T7）：反馈条 + 1.5 秒倒计时跳到环形查找出的下一道未通过题（nextUnpassedQuestion）；
   // 倒计时内编辑或点击界面即取消跳转、反馈条转常驻；目标为 null（全部通过）不跳。
   const [通过反馈, 设通过反馈] = useState<{
     目标题号: number | null;
@@ -136,7 +136,7 @@ export default function Playground() {
       window.removeEventListener("pointerdown", 取消自动跳转, { capture: true });
   }, [通过反馈]);
 
-  // 1.5 秒静默后自动跳转：目标 = 环形查找的nextUnpassedQuestion；跳转复用 切换题目（草稿落盘+恢复）
+  // 1.5 秒静默后自动跳转：目标 = 环形查找出的下一道未通过题；跳转复用 切换题目（草稿落盘+恢复）
   useEffect(() => {
     if (!通过反馈?.倒计时中 || 通过反馈.目标题号 === null || !会话) return;
     const 目标 = 通过反馈.目标题号;
