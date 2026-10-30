@@ -61,7 +61,7 @@ test("教师（mock「随时查看参考答案」）0 尝试即直接可见答�
     localStorage.getItem("sql-playground:progress:student-course-grade:42"),
   );
   // 纯查看不触发进度写入；即便已有进度记录，也已借助答案题号为空（查看后一行还会自行通过验证）
-  const aidedAnswers = rawProgress ? JSON.parse(rawProgress).已借助答案题号 : [];
+  const aidedAnswers = rawProgress ? JSON.parse(rawProgress).assistedAnswerIndices : [];
   expect(aidedAnswers).toEqual([]);
 
   // 教师看答案后自行通过 → 语义仍是独立完成（豁免不吞分档）

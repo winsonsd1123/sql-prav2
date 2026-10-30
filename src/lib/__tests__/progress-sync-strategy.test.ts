@@ -1,6 +1,6 @@
 // T6 · 进度上云同步策略纯函数（issue #28）：本地与云进度合并规则、
 // 判定后节流合并写、断网积压与恢复冲写的状态机。只测模块边界行为，不测实现细节。
-// 进度记录字段（已通过题号 等）为既有中文数据结构，不在本票范围。
+// ProgressRecord字段（passedIndices 等）为既有中文数据结构，不在本票范围。
 import { describe, expect, it, vi, afterEach } from "vitest";
 import {
   mergeProgress,
@@ -8,56 +8,56 @@ import {
   initialSyncState,
   syncStateMachine,
 } from "@/lib/progress-sync-strategy";
-import { 空进度, 记通过, 记尝试, 记草稿, type 进度记录 } from "@/components/进度";
+import { emptyProgress, recordPass, recordAttempt, saveDraft, type ProgressRecord } from "@/components/progress";
 
 const localOne = {
-  ...空进度,
-  已通过题号: [1],
-  尝试次数: { "1": 2 },
-  草稿: { "1": "SELECT 本地" },
+  ...emptyProgress,
+  passedIndices: [1],
+  attemptCounts: { "1": 2 },
+  drafts: { "1": "SELECT 本地" },
 };
 
 const cloudOne = {
-  ...空进度,
-  已通过题号: [3],
-  已看提示: { "3": 1 },
-  尝试次数: { "3": 4 },
-  草稿: { "3": "SELECT 云端" },
+  ...emptyProgress,
+  passedIndices: [3],
+  hintsSeen: { "3": 1 },
+  attemptCounts: { "3": 4 },
+  drafts: { "3": "SELECT 云端" },
 };
 
 describe("合并进度（云端为准、同键覆盖）", () => {
   it("两侧并集保留，互不丢题", () => {
     const merged = mergeProgress(localOne, cloudOne);
-    expect(merged.已通过题号).toEqual([1, 3]);
-    expect(merged.草稿["1"]).toBe("SELECT 本地");
-    expect(merged.草稿["3"]).toBe("SELECT 云端");
+    expect(merged.passedIndices).toEqual([1, 3]);
+    expect(merged.drafts["1"]).toBe("SELECT 本地");
+    expect(merged.drafts["3"]).toBe("SELECT 云端");
   });
 
   it("同键冲突时云端覆盖本地", () => {
-    const local = { ...localOne, 尝试次数: { "1": 5, "2": 1 }, 已看提示: { "2": 2 } };
-    const cloud = { ...cloudOne, 尝试次数: { "1": 2, "2": 7 }, 已看提示: { "2": 1 } };
+    const local = { ...localOne, attemptCounts: { "1": 5, "2": 1 }, hintsSeen: { "2": 2 } };
+    const cloud = { ...cloudOne, attemptCounts: { "1": 2, "2": 7 }, hintsSeen: { "2": 1 } };
     const merged = mergeProgress(local, cloud);
-    expect(merged.尝试次数["1"]).toBe(2);
-    expect(merged.尝试次数["2"]).toBe(7);
-    expect(merged.已看提示["2"]).toBe(1);
+    expect(merged.attemptCounts["1"]).toBe(2);
+    expect(merged.attemptCounts["2"]).toBe(7);
+    expect(merged.hintsSeen["2"]).toBe(1);
   });
 
   it("云端为空记录时保留本地（云端无该会话数据不作清空）", () => {
-    const merged = mergeProgress(localOne, 空进度);
+    const merged = mergeProgress(localOne, emptyProgress);
     expect(merged).toEqual(localOne);
   });
 
   it("已借助答案取并集（语义标记不可因合并丢失）", () => {
     const merged = mergeProgress(
-      { ...空进度, 已借助答案题号: [0] },
-      { ...空进度, 已借助答案题号: [2] },
+      { ...emptyProgress, assistedAnswerIndices: [0] },
+      { ...emptyProgress, assistedAnswerIndices: [2] },
     );
-    expect(merged.已借助答案题号).toEqual([0, 2]);
+    expect(merged.assistedAnswerIndices).toEqual([0, 2]);
   });
 
   it("不可变：不修改入参", () => {
-    const localCopy = JSON.parse(JSON.stringify(localOne)) as 进度记录;
-    const cloudCopy = JSON.parse(JSON.stringify(cloudOne)) as 进度记录;
+    const localCopy = JSON.parse(JSON.stringify(localOne)) as ProgressRecord;
+    const cloudCopy = JSON.parse(JSON.stringify(cloudOne)) as ProgressRecord;
     mergeProgress(localOne, cloudOne);
     expect(localOne).toEqual(localCopy);
     expect(cloudOne).toEqual(cloudCopy);
@@ -71,11 +71,11 @@ describe("创建进度节流器（判定后约 3 秒静默合并写）", () => {
     vi.useFakeTimers();
     const write = vi.fn();
     const throttler = createProgressThrottler(write, 3000);
-    let p = 记尝试(空进度, 0);
+    let p = recordAttempt(emptyProgress, 0);
     throttler.schedule(p);
-    p = 记尝试(p, 0);
+    p = recordAttempt(p, 0);
     throttler.schedule(p);
-    p = 记通过(p, 0);
+    p = recordPass(p, 0);
     throttler.schedule(p);
     expect(write).not.toHaveBeenCalled();
     vi.advanceTimersByTime(2999);
@@ -89,9 +89,9 @@ describe("创建进度节流器（判定后约 3 秒静默合并写）", () => {
     vi.useFakeTimers();
     const write = vi.fn();
     const throttler = createProgressThrottler(write, 3000);
-    throttler.schedule(记尝试(空进度, 0));
+    throttler.schedule(recordAttempt(emptyProgress, 0));
     vi.advanceTimersByTime(2000);
-    throttler.schedule(记草稿(空进度, 1, "SELECT 二秒")); // 窗口后半段的新判定
+    throttler.schedule(saveDraft(emptyProgress, 1, "SELECT 二秒")); // 窗口后半段的新判定
     vi.advanceTimersByTime(1000); // 距首个判定 3 秒，应已写
     expect(write).toHaveBeenCalledTimes(1);
   });
@@ -100,9 +100,9 @@ describe("创建进度节流器（判定后约 3 秒静默合并写）", () => {
     vi.useFakeTimers();
     const write = vi.fn();
     const throttler = createProgressThrottler(write, 3000);
-    throttler.schedule(记尝试(空进度, 0));
+    throttler.schedule(recordAttempt(emptyProgress, 0));
     vi.advanceTimersByTime(3000);
-    throttler.schedule(记尝试(空进度, 1));
+    throttler.schedule(recordAttempt(emptyProgress, 1));
     expect(write).toHaveBeenCalledTimes(1);
     vi.advanceTimersByTime(3000);
     expect(write).toHaveBeenCalledTimes(2);
@@ -112,7 +112,7 @@ describe("创建进度节流器（判定后约 3 秒静默合并写）", () => {
     vi.useFakeTimers();
     const write = vi.fn();
     const throttler = createProgressThrottler(write, 3000);
-    const p = 记通过(空进度, 2);
+    const p = recordPass(emptyProgress, 2);
     throttler.schedule(p);
     throttler.flush();
     expect(write).toHaveBeenCalledWith(p);

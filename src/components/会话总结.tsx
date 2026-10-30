@@ -2,7 +2,7 @@
 // 展示三档完成分档与总通过数，可再来一套或关闭后回顾题目。
 
 export interface 会话总结Props {
-  分档: { 独立完成: number; 借助提示: number; 借助答案: number };
+  分档: { independent: number; withHints: number; withAnswer: number };
   已完成: number;
   总数: number;
   on再来一套: () => void;
@@ -43,9 +43,9 @@ export default function 会话总结({
         总通过 <span className="font-bold text-pass">{已完成}</span>/{总数}
       </p>
       <div className="mb-4 flex flex-wrap gap-x-4 gap-y-1.5">
-        {分档项("bg-pass", "独立", 分档.独立完成, "独立")}
-        {分档项("bg-warn", "提示", 分档.借助提示, "提示")}
-        {分档项("bg-assist", "答案", 分档.借助答案, "答案")}
+        {分档项("bg-pass", "独立", 分档.independent, "独立")}
+        {分档项("bg-warn", "提示", 分档.withHints, "提示")}
+        {分档项("bg-assist", "答案", 分档.withAnswer, "答案")}
       </div>
       <div className="flex flex-wrap gap-2">
         <button

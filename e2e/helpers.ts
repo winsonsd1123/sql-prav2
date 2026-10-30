@@ -28,11 +28,11 @@ export interface CloudProgressRow {
   seed: number;
   pack_id: string;
   progress: {
-    已通过题号?: number[];
-    已看提示?: Record<string, number>;
-    已借助答案题号?: number[];
-    尝试次数?: Record<string, number>;
-    草稿?: Record<string, string>;
+    passedIndices?: number[];
+    hintsSeen?: Record<string, number>;
+    assistedAnswerIndices?: number[];
+    attemptCounts?: Record<string, number>;
+    drafts?: Record<string, string>;
   };
 }
 
