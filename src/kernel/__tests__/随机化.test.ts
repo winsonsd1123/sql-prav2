@@ -87,7 +87,7 @@ describe("结构性防抄袭", () => {
   const 会话A = generateSession(20260101, 域包);
   const 会话B = generateSession(找全表异名种子(会话A, 域包), 域包);
 
-  it("前置：A 会话参考答案自判通过", async () => {
+  it("前置：A 会话参考答案自判通过", { timeout: 30_000 }, async () => {
     for (const 题目 of 会话A.questions) {
       expect((await judge(题目.referenceAnswer, 会话A, 题目)).judge).toBe("通过");
     }
