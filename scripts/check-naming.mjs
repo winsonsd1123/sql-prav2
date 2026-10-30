@@ -1,10 +1,9 @@
 #!/usr/bin/env node
-// 命名语言机械检查（ADR-0006 的可自动化面），棘轮（ratchet）模式：
-//   规则一（文件名）：受检目录下，路径任何一段含非 ASCII → 违规，除非路径在 fileNameBaseline。
-//   规则二（标识符，棘轮）：.ts/.tsx/.mjs 内声明语句（const/let/var/function/interface/type/class/enum）
-//         的标识符含非 ASCII 计数 > ratchetBaseline 记录值 → 违规。只许减、不许增；
-//         修到 0 就从基线删该行，文件从此零容忍（#32 技术债逐文件清偿）。
-//   规则三（DB 对象）：supabase/migrations 的 SQL 中 CREATE 对象名含非 ASCII → 违规（新迁移零容忍）。
+// 命名语言机械检查（ADR-0006 的可自动化面），零容忍模式（#32 已清偿完毕，NT6 起生效）：
+//   规则一（文件名）：受检目录下，路径任何一段含非 ASCII → 违规。
+//   规则二（标识符）：.ts/.tsx/.mjs 内声明语句（const/let/var/function/interface/type/class/enum）
+//         的标识符含非 ASCII → 违规。
+//   规则三（DB 对象）：supabase/migrations 的 SQL 中 CREATE 对象名含非 ASCII → 违规。
 // 注释、字符串、测试描述、界面文案的中文合法——本脚本只查标识符与对象名。
 // 退出码：0 通过 / 1 有违规（CI 红灯）。
 
@@ -18,41 +17,6 @@ const DECL_RE =
   /^\s*(?:export\s+)?(?:default\s+)?(?:async\s+)?(?:const|let|var|function|interface|type|class|enum)\s+([^\s(:=<>,;{]+)/gm;
 const SQL_OBJECT_RE =
   /create\s+(?:or\s+replace\s+)?(?:unique\s+)?(?:table|function|policy|trigger|index|constraint)\s+(?:if\s+not\s+exists\s+)?([^\s(]+)["]?/gi;
-
-// 文件名基线：历史中文路径（#32），改名后删行
-const fileNameBaseline = new Set([
-  "src/kernel/__tests__/夹具回归.test.ts",
-  "src/kernel/__tests__/1055静态检查.test.ts",
-  "src/kernel/__tests__/会话出题.test.ts",
-  "src/kernel/__tests__/全量题库回归.test.ts",
-  "src/kernel/__tests__/大查询防护.test.ts",
-  "src/kernel/__tests__/行为对照.test.ts",
-  "src/kernel/__tests__/模板自判.test.ts",
-  "src/kernel/__tests__/判题时间一致.test.ts",
-  "src/kernel/__tests__/错误映射.test.ts",
-  "src/kernel/__tests__/生成确定性.test.ts",
-  "src/kernel/__tests__/随机化.test.ts",
-  "scripts/采样MySQL行为.mjs",
-  "scripts/采样MySQL错误.mjs",
-  "scripts/静态服务.mjs",
-]);
-
-// 标识符棘轮基线：文件 → 当前中文声明数（2026-10-29 快照，#32 清偿进度表；减到 0 删行）
-const ratchetBaseline = {
-  "scripts/采样MySQL行为.mjs": 14,
-  "scripts/采样MySQL错误.mjs": 14,
-  "scripts/静态服务.mjs": 4,
-  "src/kernel/__tests__/1055静态检查.test.ts": 2,
-  "src/kernel/__tests__/会话出题.test.ts": 12,
-  "src/kernel/__tests__/全量题库回归.test.ts": 16,
-  "src/kernel/__tests__/判题时间一致.test.ts": 11,
-  "src/kernel/__tests__/大查询防护.test.ts": 11,
-  "src/kernel/__tests__/夹具回归.test.ts": 12,
-  "src/kernel/__tests__/模板自判.test.ts": 19,
-  "src/kernel/__tests__/生成确定性.test.ts": 2,
-  "src/kernel/__tests__/行为对照.test.ts": 19,
-  "src/kernel/__tests__/随机化.test.ts": 19,
-};
 
 function collectFiles(dir) {
   const out = [];
@@ -77,7 +41,7 @@ const violations = [];
 for (const dir of WATCHED_DIRS) {
   for (const rel of collectFiles(dir)) {
     // 规则一：路径段非 ASCII
-    if (!fileNameBaseline.has(rel) && rel.split("/").some((seg) => NON_ASCII.test(seg))) {
+    if (rel.split("/").some((seg) => NON_ASCII.test(seg))) {
       violations.push(`[文件名] ${rel} —— 命名属英文域（ADR-0006）`);
       continue;
     }
@@ -85,11 +49,8 @@ for (const dir of WATCHED_DIRS) {
     if (/\.(ts|tsx|mjs)$/.test(rel)) {
       // 规则二：标识符棘轮
       const actual = countNonAsciiDecls(readFileSync(join(ROOT, rel), "utf8"));
-      const allowed = ratchetBaseline[rel] ?? 0;
-      if (actual > allowed) {
-        violations.push(
-          `[标识符] ${rel}: 中文声明 ${actual} 处 > 基线 ${allowed}（只许减不许增；清零后从基线删行，见 #32）`,
-        );
+      if (actual > 0) {
+        violations.push(`[标识符] ${rel}: 中文声明 ${actual} 处（零容忍，见 ADR-0006 / #32）`);
       }
     }
 
@@ -110,5 +71,4 @@ if (violations.length) {
   for (const line of violations) console.error("  " + line);
   process.exit(1);
 }
-const debt = Object.values(ratchetBaseline).reduce((a, b) => a + b, 0);
-console.log(`命名语言检查通过（#32 棘轮余量 ${debt} 处中文声明、文件名基线 ${fileNameBaseline.size} 项）。`);
+console.log("命名语言检查通过（#32 已清偿，全库零基线）。");

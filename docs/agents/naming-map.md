@@ -1,5 +1,7 @@
 # 命名对照表（#32 全库英文化总表）
 
+> **归档标注（NT6 收官）**：#32 已完成，本表仅供考古——新代码的译名疑问仍可查，但新译名直接自定并遵守 ADR-0006 风格即可。
+
 NT1–NT6 的**唯一译名来源**：GLOSSARY 词条英文名为基准，本表为全量映射。**禁止现场发明译名**——表里没有的先入表后使用。camelCase（函数/变量/props）、PascalCase（类型/组件）、SCREAMING_SNAKE（模块级常量）。
 
 **节域规则**：各表格的译名仅在该节所述文件/语境生效；通用速查是缺省映射。同词在不同节出现不同译名（如「项」通用 item、worker 语境 entry）不是矛盾——按所在文件查所属节，无专属节时用速查。
@@ -317,7 +319,7 @@ NT1–NT6 的**唯一译名来源**：GLOSSARY 词条英文名为基准，本表
 | 基准 | baseline | 有差异 | hasDiff | 全量 | full |
 | 知识点顺序 | knowledgeAreaOrder | 域包 | pack | 不去重 | withoutDistinct |
 
-### scripts（NT6 将删除，仅供届时若有保留引用）
+### scripts（已随 NT6 删除，条目仅存档；与他表重复的 数据/可复制/表名/首表 等已并入对应节）
 
 | 现 | 译 | 现 | 译 | 现 | 译 |
 |---|---|---|---|---|---|
@@ -327,8 +329,7 @@ NT1–NT6 的**唯一译名来源**：GLOSSARY 词条英文名为基准，本表
 | 列名 | columns | 数据行 | dataRows | 输出 | outputPath |
 | 参数 | args | 临时目录 | tmpDir | 文件 | file |
 | 目录 | dir | 路径 | pathname | 端口 | port |
-| 数据 | dataTransfer | 可复制 | isCopyable | 表名 | tableName |
-| 全部表名 | allTableNames | 首表 | firstTable | 答案 | answerText |
+| 数据 | dataTransfer | 全部表名 | allTableNames | 答案 | answerText |
 
 ### 通用词补录（速查区行文的表格化，供核对脚本精确匹配）
 
@@ -448,4 +449,17 @@ NT1–NT6 的**唯一译名来源**：GLOSSARY 词条英文名为基准，本表
 | 数据 / 文本 / 内容（evaluate 内参数与局部） | data / text / content | no-paste、playground-smoke |
 | 进度（seedProgress 参数） | progress | playground-smoke |
 | 内容（yaml.d.ts 声明） | content | 模块声明局部 |
-| 域包A / 域包B（pack-a/pack-b.ts 内标识符与 Error 文案引用） | packA / packB | 加载器 loadPackA/loadPackB 已入补遗表 |
+| 域包A / 域包B（pack-a/pack-b.ts 内标识符） | packA / packB | Error 文案保留中文（内容域）；加载器 loadPackA/loadPackB 已入补遗表 |
+
+### NT6 补录（kernel 测试文件收尾时确立的译名）
+
+| 现 | 译 | 说明 |
+|---|---|---|
+| 夹具JSON / 行为夹具JSON | fixtureJson / behaviorFixtureJson | 夹具 JSON 导入别名 |
+| 样本 / 实际 / 原 | sample / actualRows / original | 测试循环变量与局部 |
+| 计数 / 陷阱 / 骨架 / 骨架表 | count / trap / skeleton / skeletonTable | 测试局部 |
+| 键 / 边界 / 基准会话 | key / wordBoundary / baseSession | 测试局部 |
+| 知识点（循环变量）/ 名称 / 名 / 值 | area / name / name / value | 测试循环参数 |
+| 表 / 列名（循环变量） | table / column | randomization 循环局部 |
+| 库 / 错误映射.test.ts | tables / error-mapping.test.ts | 1055 局部 / 文件名补遗 |
+| 夹具 JSON 的键（样本/错误码/文案/行/列名） | 保留中文 | 数据文件键，属内容域 |
