@@ -37,6 +37,9 @@ export default function AdminUsersList() {
   const [editingRoles, setEditingRoles] = useState<string[]>([]);
   const [saving, setSaving] = useState(false);
   const [roleError, setRoleError] = useState<string | null>(null);
+  // 行内禁用/启用（T4）：banSavingUserId 标记进行中的行，防重复提交
+  const [banSavingUserId, setBanSavingUserId] = useState<string | null>(null);
+  const [banError, setBanError] = useState<string | null>(null);
 
   // 数据加载（照 current-permissions 的 effect 内 async IIFE 模式）：
   // 搜索词或页码变化即重拉；状态更新全部在 await 之后，effect 内无同步 setState。
@@ -80,6 +83,39 @@ export default function AdminUsersList() {
     event.preventDefault();
     setSearch(input.trim());
     setPage(1);
+  }
+
+  /** 行内禁用/启用（T4，spec #41）：PATCH /api/admin/users/:id（Bearer token）；成功后状态列即时更新。
+   *  自己那一行的禁用按钮在渲染层 disabled（体验层）；服务端自我保护才是强制（ADR-0007）。 */
+  async function toggleBan(user: AdminUserRow) {
+    try {
+      setBanSavingUserId(user.userId);
+      setBanError(null);
+      const { data: sessionData } = await browserClient().auth.getSession();
+      const token = sessionData.session?.access_token;
+      if (!token) {
+        setBanError("登录态已失效，请重新登录");
+        return;
+      }
+      const response = await fetch(`/api/admin/users/${encodeURIComponent(user.userId)}`, {
+        method: "PATCH",
+        headers: { authorization: `Bearer ${token}`, "content-type": "application/json" },
+        body: JSON.stringify({ banned: !user.banned }),
+      });
+      if (!response.ok) {
+        const body = (await response.json().catch(() => null)) as { error?: string } | null;
+        setBanError(body?.error ?? "账号状态更新失败，请稍后重试");
+        return;
+      }
+      const body = (await response.json()) as { banned: boolean };
+      setData((current) =>
+        current ? { ...current, users: current.users.map((row) => (row.userId === user.userId ? { ...row, banned: body.banned } : row)) } : current,
+      );
+    } catch {
+      setBanError("账号状态更新失败，请稍后重试");
+    } finally {
+      setBanSavingUserId(null);
+    }
   }
 
   // ── 行内角色编辑（T3，spec #41）：进入编辑 / 勾选切换 / 全量保存 ──
@@ -259,11 +295,29 @@ export default function AdminUsersList() {
                         )}
                       </td>
                       <td className="px-2 py-2 text-xs">
-                        {user.banned ? (
-                          <span className="rounded-full px-2 py-0.5 text-[11px] text-[var(--色-错误)]">已禁用</span>
-                        ) : (
-                          <span className="text-muted">正常</span>
-                        )}
+                        <span className="flex flex-wrap items-center gap-1.5" data-testid="账号状态">
+                          {user.banned ? (
+                            <span className="whitespace-nowrap rounded-full px-2 py-0.5 text-[11px] text-[var(--色-错误)]">已禁用</span>
+                          ) : (
+                            <span className="whitespace-nowrap text-muted">正常</span>
+                          )}
+                          {(() => {
+                            // 自我保护（体验层）：自己那一行的禁用按钮不可用；启用自己不在限制内
+                            const isSelfBanLock = user.userId === currentUserId && !user.banned;
+                            return (
+                              <button
+                                type="button"
+                                className={`次按钮 px-2 py-0.5 text-[11px] ${isSelfBanLock ? "cursor-not-allowed opacity-60" : ""}`}
+                                title={isSelfBanLock ? "不能禁用自己的账号" : undefined}
+                                data-testid="禁用启用按钮"
+                                disabled={isSelfBanLock || banSavingUserId === user.userId}
+                                onClick={() => void toggleBan(user)}
+                              >
+                                {banSavingUserId === user.userId ? "处理中…" : user.banned ? "启用" : "禁用"}
+                              </button>
+                            );
+                          })()}
+                        </span>
                       </td>
                       <td className="px-2 py-2 font-mono text-xs text-muted">{formatCreatedAt(user.createdAt)}</td>
                     </tr>
@@ -282,6 +336,12 @@ export default function AdminUsersList() {
           {roleError && (
             <p className="mt-2 text-center text-xs text-[var(--色-错误)]" data-testid="角色保存错误" role="alert">
               {roleError}
+            </p>
+          )}
+
+          {banError && (
+            <p className="mt-2 text-center text-xs text-[var(--色-错误)]" data-testid="禁用启用错误" role="alert">
+              {banError}
             </p>
           )}
 

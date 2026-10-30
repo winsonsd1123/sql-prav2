@@ -173,3 +173,93 @@ test.describe("角色行内编辑", () => {
     await expect(selfRow.getByTestId("角色复选-学生")).toBeEnabled();
   });
 });
+
+// ══════════════ T4 · 账号禁用与启用（issue #45）══════════════
+// 行内禁用/启用：PATCH 载荷与状态列即时更新、自我保护按钮禁用态（体验层；服务端强制在单测断言）。
+
+test.describe("账号禁用与启用", () => {
+  /** PATCH /api/admin/users/:id 桩：捕获请求（方法/头/载荷），回放请求的 banned 值 */
+  async function mockBanPatchApi(page: Page) {
+    const received: { url: string; method: string; authorization: string | null; body: unknown }[] = [];
+    await page.route("**/api/admin/users/*", async (route: Route) => {
+      if (route.request().method() !== "PATCH") {
+        await route.fallback();
+        return;
+      }
+      const request = route.request();
+      const body = request.postDataJSON() as { banned: boolean };
+      received.push({ url: request.url(), method: request.method(), authorization: request.headers()["authorization"] ?? null, body });
+      await route.fulfill({ status: 200, contentType: "application/json", body: JSON.stringify({ banned: body.banned }) });
+    });
+    return received;
+  }
+
+  test("禁用→启用：PATCH 载荷正确，状态列即时更新", async ({ page }) => {
+    const received = await mockBanPatchApi(page);
+    await page.goto("/admin/users");
+    const firstRow = page.getByTestId("用户行").first(); // u1 张三，初始「正常」
+    await expect(firstRow.getByTestId("账号状态")).toContainText("正常");
+
+    // 禁用：载荷 { banned: true }，状态列翻为「已禁用」，按钮切换为「启用」
+    await firstRow.getByTestId("禁用启用按钮").click();
+    await expect(firstRow.getByTestId("账号状态")).toContainText("已禁用");
+    await expect(firstRow.getByTestId("禁用启用按钮")).toHaveText("启用");
+    expect(received).toHaveLength(1);
+    expect(received[0].method).toBe("PATCH");
+    expect(received[0].url).toContain("/api/admin/users/u1");
+    expect(received[0].url).not.toContain("/roles");
+    expect(received[0].authorization).toBe("Bearer e2e-access-token");
+    expect(received[0].body).toEqual({ banned: true });
+
+    // 启用：载荷 { banned: false }，状态列翻回「正常」
+    await firstRow.getByTestId("禁用启用按钮").click();
+    await expect(firstRow.getByTestId("账号状态")).toContainText("正常");
+    await expect(firstRow.getByTestId("禁用启用按钮")).toHaveText("禁用");
+    expect(received[1].body).toEqual({ banned: false });
+  });
+
+  test("自我保护：自己那一行禁用按钮禁用并附提示，启用他人不受影响（体验层）", async ({ page }) => {
+    // 覆盖列表桩：把当前会话用户（e2e-user）放进列表
+    await page.route("**/api/admin/users?**", async (route) => {
+      await route.fulfill({
+        status: 200,
+        contentType: "application/json",
+        body: JSON.stringify({
+          users: [
+            { userId: "e2e-user", studentId: "2022110000", realName: "本人", nickname: null, email: "me@cuc.edu.cn", roles: ["学生", "管理员"], banned: false, createdAt: "2026-10-01T00:00:00Z" },
+            { userId: "u2", studentId: "2022110002", realName: "李四", nickname: null, email: "li@cuc.edu.cn", roles: ["学生"], banned: true, createdAt: "2026-10-02T00:00:00Z" },
+          ],
+          total: 2, page: 1, pageSize: 20,
+        }),
+      });
+    });
+    const patchCalls: unknown[] = [];
+    await page.route("**/api/admin/users/*", async (route: Route) => {
+      if (route.request().method() !== "PATCH") {
+        await route.fallback();
+        return;
+      }
+      patchCalls.push(route.request().postDataJSON());
+      const body = route.request().postDataJSON() as { banned: boolean };
+      await route.fulfill({ status: 200, contentType: "application/json", body: JSON.stringify({ banned: body.banned }) });
+    });
+
+    await page.goto("/admin/users");
+    const selfRow = page.getByTestId("用户行").first();
+    const otherRow = page.getByTestId("用户行").nth(1);
+
+    // 自己那一行：正常态 + 禁用按钮不可用并附提示
+    const selfBanButton = selfRow.getByTestId("禁用启用按钮");
+    await expect(selfBanButton).toBeDisabled();
+    await expect(selfBanButton).toHaveAttribute("title", "不能禁用自己的账号");
+    await selfBanButton.click({ force: true }).catch(() => undefined); // 禁用态点击不触发请求
+    await page.waitForTimeout(150);
+    expect(patchCalls).toHaveLength(0);
+    await expect(selfRow.getByTestId("账号状态")).toContainText("正常"); // 状态未变
+
+    // 已被禁用的他人行：按钮为「启用」且可用
+    const otherButton = otherRow.getByTestId("禁用启用按钮");
+    await expect(otherButton).toBeEnabled();
+    await expect(otherButton).toHaveText("启用");
+  });
+});

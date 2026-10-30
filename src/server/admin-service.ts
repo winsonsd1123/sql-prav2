@@ -48,6 +48,14 @@ export interface AdminWhitelistView {
   domains: AdminWhitelistDomain[];
 }
 
+export type AdminSetBanResult =
+  | { status: "ok"; banned: boolean }
+  | { status: "unauthorized" }
+  | { status: "forbidden" }
+  | { status: "invalid_banned" }
+  | { status: "self_protection" }
+  | { status: "error" };
+
 export type AdminWhitelistResult =
   | ({ status: "ok" } & AdminWhitelistView)
   | { status: "unauthorized" }
@@ -62,7 +70,7 @@ export type AdminWhitelistSaveResult =
   | { status: "invalid"; error: string }
   | { status: "error" };
 
-/** 可注入依赖（测试接缝）：token 验证 / 权限并集 / profiles 分页 / 全量角色 / 封禁集合 / 白名单读写 */
+/** 可注入依赖（测试接缝）：token 验证 / 权限并集 / profiles 分页 / 全量角色 / 封禁集合 / 角色读写 / 认证封禁写入 / 白名单读写 */
 export interface AdminDeps {
   verifyAccessToken(token: string): Promise<{ userId: string } | null>;
   fetchUserPermissions(userId: string): Promise<string[]>;
@@ -72,6 +80,7 @@ export interface AdminDeps {
   fetchValidRoleNames(): Promise<string[]>;
   fetchUserRolesByUser(userId: string): Promise<string[]>;
   writeUserRoleChanges(userId: string, changes: { add: string[]; remove: string[] }): Promise<{ add: string[]; remove: string[] }>;
+  setUserBanned(userId: string, banned: boolean): Promise<void>;
   fetchAllowlistView(): Promise<AdminWhitelistView>;
   replaceAllowlistDomains(domains: AdminWhitelistDomain[]): Promise<void>;
   updateAllowAnyDomain(allowAnyDomain: boolean): Promise<void>;
@@ -154,6 +163,15 @@ export const defaultAdminDeps: AdminDeps = {
     if (remove.length > 0) await client.from("user_roles").delete().eq("user_id", userId).in("role", remove);
     if (add.length > 0) await client.from("user_roles").insert(add.map((role) => ({ user_id: userId, role })));
     return { add, remove };
+  },
+
+  // 认证管理 API 封禁写入（账号禁用真源，service_role）：true = 永久封禁（会话立即失效且阻止登录），false = 清除封禁恢复登录
+  setUserBanned: async (userId, banned) => {
+    const { error } = await serverPrivilegedClient().auth.admin.updateUserById(userId, {
+      // 永久封禁：ban_duration 足够长（约 100 年）即事实永久；解封传 "none" 清除 banned_until
+      ban_duration: banned ? "876000h" : "none",
+    });
+    if (error) throw new Error(error.message);
   },
 
   // 白名单管理视图（service_role）：singleton 总开关 + 域名清单（含备注），域名按字典序稳定展示
@@ -269,6 +287,32 @@ export async function setAdminUserRoles(
     const remove = [...existing].filter((role) => !requested.includes(role));
     await deps.writeUserRoleChanges(targetUserId, { add, remove });
     return { status: "ok", roles: requested };
+  } catch {
+    return { status: "error" };
+  }
+}
+
+/** 账号禁用/启用编排（T4，spec #41）：鉴权前置 → 载荷校验 → 自我保护 → 认证管理 API 封禁/解封。
+ *  禁用真源在云端认证服务（GLOSSARY「账号禁用」）：封禁立即失效目标用户会话并阻止登录；解封恢复登录。
+ *  自我保护（ADR-0007）：操作者==目标且 banned=true → 服务端强制拒绝，封禁不生效（对自己解封不属自我锁定，放行）。 */
+export async function setAdminUserBan(
+  targetUserId: string,
+  banned: unknown,
+  authorization: string | null,
+  deps: AdminDeps = defaultAdminDeps,
+): Promise<AdminSetBanResult> {
+  const auth = await authorizeAdminRequest(authorization, deps);
+  if (auth.status !== "ok") return auth;
+
+  // 载荷校验：banned 必须是布尔
+  if (typeof banned !== "boolean") return { status: "invalid_banned" };
+
+  // 自我保护：不能禁用自己（体验层按钮禁用之外的服务端强制）
+  if (auth.userId === targetUserId && banned) return { status: "self_protection" };
+
+  try {
+    await deps.setUserBanned(targetUserId, banned);
+    return { status: "ok", banned };
   } catch {
     return { status: "error" };
   }

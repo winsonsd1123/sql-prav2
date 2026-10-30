@@ -20,6 +20,7 @@ function makeDeps(overrides: Partial<AdminDeps> = {}): AdminDeps {
     fetchValidRoleNames: async () => ["学生", "助教", "教师", "管理员"],
     fetchUserRolesByUser: async () => [],
     writeUserRoleChanges: async () => ({ add: [], remove: [] }),
+    setUserBanned: async () => undefined,
     fetchAllowlistView: async () => ({ allowAnyDomain: false, domains: [] }),
     replaceAllowlistDomains: async () => undefined,
     updateAllowAnyDomain: async () => undefined,
@@ -221,6 +222,71 @@ describe("角色全量设置编排", () => {
     const result = await setAdminUserRoles(
       "u1", ["学生"], "Bearer valid-token",
       makeDeps({ fetchUserRolesByUser: async () => { throw new Error("db down"); } }),
+    );
+    expect(result).toEqual({ status: "error" });
+  });
+});
+
+// ══════════════ T4 · 账号禁用与启用（issue #45）══════════════
+// 接缝：setAdminUserBan（服务层编排）——鉴权前置、载荷校验、自我保护、认证管理 API 封禁/解封。
+import { setAdminUserBan } from "@/server/admin-service";
+
+describe("账号禁用与启用编排", () => {
+  it("禁用：下调认证管理 API 的封禁（永久封禁），操作立即生效", async () => {
+    const setUserBanned = vi.fn();
+    const result = await setAdminUserBan("u1", true, "Bearer valid-token", makeDeps({ setUserBanned: setUserBanned as never }));
+    expect(result).toEqual({ status: "ok", banned: true });
+    expect(setUserBanned).toHaveBeenCalledWith("u1", true);
+  });
+
+  it("启用：清除封禁恢复登录", async () => {
+    const setUserBanned = vi.fn();
+    const result = await setAdminUserBan("u2", false, "Bearer valid-token", makeDeps({ setUserBanned: setUserBanned as never }));
+    expect(result).toEqual({ status: "ok", banned: false });
+    expect(setUserBanned).toHaveBeenCalledWith("u2", false);
+  });
+
+  it("鉴权前置：无 token 401，不触认证管理 API", async () => {
+    const setUserBanned = vi.fn();
+    const result = await setAdminUserBan("u1", true, null, makeDeps({ setUserBanned: setUserBanned as never }));
+    expect(result).toEqual({ status: "unauthorized" });
+    expect(setUserBanned).not.toHaveBeenCalled();
+  });
+
+  it("鉴权前置：无「访问后台」403，不触认证管理 API", async () => {
+    const setUserBanned = vi.fn();
+    const result = await setAdminUserBan(
+      "u1", true, "Bearer valid-token",
+      makeDeps({ fetchUserPermissions: async () => [], setUserBanned: setUserBanned as never }),
+    );
+    expect(result).toEqual({ status: "forbidden" });
+    expect(setUserBanned).not.toHaveBeenCalled();
+  });
+
+  it("自我保护：禁用自己（操作者==目标且 banned=true）→ 服务端强制拒绝，封禁不生效", async () => {
+    const setUserBanned = vi.fn();
+    // admin-1 为 makeDeps 中 valid-token 对应的操作者 id
+    const result = await setAdminUserBan("admin-1", true, "Bearer valid-token", makeDeps({ setUserBanned: setUserBanned as never }));
+    expect(result).toEqual({ status: "self_protection" });
+    expect(setUserBanned).not.toHaveBeenCalled();
+  });
+
+  it("自我保护不误伤解封：对自己提交 banned=false 正常放行（恢复登录不属于自我锁定）", async () => {
+    const result = await setAdminUserBan("admin-1", false, "Bearer valid-token", makeDeps());
+    expect(result).toEqual({ status: "ok", banned: false });
+  });
+
+  it("载荷 banned 非布尔：拒绝且不触认证管理 API", async () => {
+    const setUserBanned = vi.fn();
+    const result = await setAdminUserBan("u1", "yes" as unknown as boolean, "Bearer valid-token", makeDeps({ setUserBanned: setUserBanned as never }));
+    expect(result).toEqual({ status: "invalid_banned" });
+    expect(setUserBanned).not.toHaveBeenCalled();
+  });
+
+  it("认证管理 API 抛异常：服务不可用（500 语义），不向调用方泄露细节", async () => {
+    const result = await setAdminUserBan(
+      "u1", true, "Bearer valid-token",
+      makeDeps({ setUserBanned: async () => { throw new Error("auth admin down"); } }),
     );
     expect(result).toEqual({ status: "error" });
   });
