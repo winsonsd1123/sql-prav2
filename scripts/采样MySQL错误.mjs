@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 /**
  * MySQL 错误采样脚本（issue #3）：对故意写错的 SQL 集连本地 MySQL 采样，
- * 产出结构化夹具 src/kernel/__tests__/fixtures/MySQL错误夹具.json。
+ * 产出结构化夹具 src/kernel/__tests__/fixtures/mysql-error-fixtures.json。
  *
  * 凭据纪律：只从环境变量读取，绝不写入仓库。
  *   MYSQL_USER  默认 root
@@ -130,6 +130,6 @@ const 夹具 = {
   采样环境: { 版本, 库名: "playground" },
   样本,
 };
-const 输出 = path.join(仓库根, "src/kernel/__tests__/fixtures/MySQL错误夹具.json");
+const 输出 = path.join(仓库根, "src/kernel/__tests__/fixtures/mysql-error-fixtures.json");
 writeFileSync(输出, JSON.stringify(夹具, null, 2) + "\n", "utf8");
 console.log(`已写入 ${path.relative(仓库根, 输出)}（${样本.length} 条样本，MySQL ${版本}）`);

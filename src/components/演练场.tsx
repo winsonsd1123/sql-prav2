@@ -2,7 +2,7 @@
 
 import { useSyncExternalStore, useMemo, useState, useEffect, useRef, useCallback } from "react";
 import { generatePracticeSession } from "@/kernel/question-picking";
-import { 请求判定, 订阅引擎就绪, 引擎是否就绪 } from "@/kernel/worker客户端";
+import { requestJudge, subscribeEngineReady, isEngineReady } from "@/kernel/worker-client";
 import SQL编辑器 from "@/components/SQL编辑器";
 import 库浏览器 from "@/components/库浏览器";
 import 差异对照 from "@/components/差异对照";
@@ -107,8 +107,8 @@ export default function Playground() {
     return () => window.removeEventListener("keydown", 按键, true);
   }, []);
   // 引擎就绪态（issue #10）：Worker 启动即加载 WASM，主线程展示首次加载指示
-  const [引擎就绪, 设引擎就绪] = useState(引擎是否就绪);
-  useEffect(() => 订阅引擎就绪(() => 设引擎就绪(引擎是否就绪())), []);
+  const [引擎就绪, 设引擎就绪] = useState(isEngineReady);
+  useEffect(() => subscribeEngineReady(() => 设引擎就绪(isEngineReady())), []);
   // 长查询期间学生可能切题：判题返回时若已切题则丢弃（结果属于旧题）
   const 当前题号引用 = useRef(当前题号);
   useEffect(() => {
@@ -237,7 +237,7 @@ export default function Playground() {
     设判定中(true);
     try {
       // 判题在 Web Worker 中进行（issue #10）：主线程不阻塞，编辑/切题/浏览库保持可交互
-      const 结果 = await 请求判定(SQL输入, 会话, 会话.questions[发起题号]);
+      const 结果 = await requestJudge(SQL输入, 会话, 会话.questions[发起题号]);
       if (当前题号引用.current !== 发起题号) return; // 期间已切题，丢弃旧结果
       设结果(结果);
       if (结果.judge === "通过") {

@@ -1,11 +1,11 @@
 import { describe, expect, it } from "vitest";
 import { generateSession } from "@/kernel/generate";
-import { 判定 } from "@/kernel/judge";
+import { judge } from "@/kernel/judge";
 import { 加载域包A } from "@/domain-packs/学生课程成绩/域包A";
 
 /**
  * T5 · 四层随机化与结构性防抄袭。
- * 接缝：generateSession(种子, 域包) 与 判定(SQL, 会话, 题目)。
+ * 接缝：generateSession(种子, 域包) 与 judge(SQL, 会话, 题目)。
  * 防抄袭测试只断言"判定为错误"，不断言错误文案格式（归 T2 管辖）。
  */
 
@@ -89,7 +89,7 @@ describe("结构性防抄袭", () => {
 
   it("前置：A 会话参考答案自判通过", async () => {
     for (const 题目 of 会话A.questions) {
-      expect((await 判定(题目.referenceAnswer, 会话A, 题目)).judge).toBe("通过");
+      expect((await judge(题目.referenceAnswer, 会话A, 题目)).judge).toBe("通过");
     }
   });
 
@@ -102,7 +102,7 @@ describe("结构性防抄袭", () => {
     expect(涉及列名的SQL.length).toBeGreaterThan(0);
     const 结果们 = await Promise.all(
       涉及列名的SQL.map(async (sql, i) =>
-        判定(sql, 会话B, 会话B.questions[i]),
+        judge(sql, 会话B, 会话B.questions[i]),
       ),
     );
     for (const 结果 of 结果们) {
@@ -114,7 +114,7 @@ describe("结构性防抄袭", () => {
 
   it("B 会话用自己的参考答案仍全部通过（随机化不破坏可作答性）", async () => {
     for (const 题目 of 会话B.questions) {
-      expect((await 判定(题目.referenceAnswer, 会话B, 题目)).judge).toBe("通过");
+      expect((await judge(题目.referenceAnswer, 会话B, 题目)).judge).toBe("通过");
     }
   });
 });

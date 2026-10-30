@@ -4,7 +4,7 @@
 // 并排差异表：表头浅底、差异行与单元格用错误色标出。
 
 import { 构造对照, type 对照侧视图 } from "@/components/对照";
-import { 显示 } from "@/kernel/execute";
+import { formatValue } from "@/kernel/execute";
 import type { ResultSet } from "@/kernel/types";
 
 function 侧表格({ 标题, 侧 }: { 标题: string; 侧: 对照侧视图 }) {
@@ -50,7 +50,7 @@ function 侧表格({ 标题, 侧 }: { 标题: string; 侧: 对照侧视图 }) {
                       格.差异 ? "bg-fail/15 font-medium text-fail" : ""
                     }`}
                   >
-                    {格.值 === null ? <em className="text-muted">NULL</em> : 显示(格.值)}
+                    {格.值 === null ? <em className="text-muted">NULL</em> : formatValue(格.值)}
                   </td>
                 ))}
               </tr>

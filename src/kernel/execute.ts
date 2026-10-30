@@ -1,43 +1,43 @@
 import type { Session, ResultSet, DisplayValue } from "./types";
-import { 注册垫片函数, 转译, type 垫片宿主 } from "./转译";
-import { 行数上限提示, 防护超限错误 } from "./防护";
+import { registerShimFunctions, translateSql, type ShimHost } from "./sql-translate";
+import { ROW_LIMIT_MESSAGE, GuardLimitError } from "./guard";
 
 import type initSqlJs from "sql.js";
 
-type 引擎 = Awaited<ReturnType<typeof initSqlJs>>;
-type 数据库 = InstanceType<引擎["Database"]>;
+type Engine = Awaited<ReturnType<typeof initSqlJs>>;
+type Database = InstanceType<Engine["Database"]>;
 
-let 已加载引擎: 引擎 | null = null;
+let loadedEngine: Engine | null = null;
 
 /** sql.js 为 WASM 包，需动态加载；浏览器（主线程或 Worker，均无 Node fs）中 wasm 文件位于 public/ */
-async function 加载引擎(): Promise<引擎> {
-  if (!已加载引擎) {
+async function loadEngine(): Promise<Engine> {
+  if (!loadedEngine) {
     // Worker 全局无 window 但有 self；Node 测试环境两者皆无，走 sql.js 默认路径
-    const 在浏览器 = typeof window !== "undefined" || typeof self !== "undefined";
+    const isBrowser = typeof window !== "undefined" || typeof self !== "undefined";
     const init = (await import("sql.js")).default;
-    已加载引擎 = await init(
-      在浏览器 ? { locateFile: () => "/sql-wasm.wasm" } : {},
+    loadedEngine = await init(
+      isBrowser ? { locateFile: () => "/sql-wasm.wasm" } : {},
     );
   }
-  return 已加载引擎;
+  return loadedEngine;
 }
 
 /** 预热引擎：Worker 启动时立即加载 WASM，主线程据此展示首次加载指示 */
-export async function 预热引擎(): Promise<void> {
-  await 加载引擎();
+export async function warmUpEngine(): Promise<void> {
+  await loadEngine();
 }
 
 /** 从会话库建立内存数据库（纯函数式：每次全新，执行不可变更会话） */
-export async function 打开内存库(会话: Session): Promise<数据库> {
-  const SQL = await 加载引擎();
+export async function openInMemoryDb(session: Session): Promise<Database> {
+  const SQL = await loadEngine();
   const db = new SQL.Database();
-  for (const 表 of 会话.database.tables) {
-    db.run(表.DDL);
-    if (表.rows.length === 0) continue;
-    const 占位 = 表.rows[0].map(() => "?").join(", ");
-    const stmt = db.prepare(`INSERT INTO ${表.tableName} VALUES (${占位})`);
-    for (const 行 of 表.rows) {
-      stmt.run(行 as (string | number | null)[]);
+  for (const table of session.database.tables) {
+    db.run(table.DDL);
+    if (table.rows.length === 0) continue;
+    const placeholders = table.rows[0].map(() => "?").join(", ");
+    const stmt = db.prepare(`INSERT INTO ${table.tableName} VALUES (${placeholders})`);
+    for (const row of table.rows) {
+      stmt.run(row as (string | number | null)[]);
     }
     stmt.free();
   }
@@ -45,17 +45,17 @@ export async function 打开内存库(会话: Session): Promise<数据库> {
 }
 
 /** 按语句策略清洗：仅接受单条 SELECT，容忍单个尾分号；违规返回产品提示 */
-export function 清洗语句(SQL文本: string): { ok: true; 语句: string } | { ok: false; 提示: string } {
-  let 文本 = SQL文本.trim();
-  if (文本.endsWith(";")) 文本 = 文本.slice(0, -1).trimEnd();
-  if (文本.length === 0) return { ok: false, 提示: "演练场仅接受单条 SELECT 查询语句，请输入内容。" };
-  if (文本.includes(";")) return { ok: false, 提示: "演练场仅接受单条 SELECT 查询语句，请勿一次提交多条语句。" };
-  if (!/^select\b/i.test(文本)) return { ok: false, 提示: "演练场仅接受单条 SELECT 查询语句，INSERT/UPDATE/DELETE/DDL 均不在练习范围内。" };
-  return { ok: true, 语句: 文本 };
+export function sanitizeStatement(sqlText: string): { ok: true; statement: string } | { ok: false; message: string } {
+  let text = sqlText.trim();
+  if (text.endsWith(";")) text = text.slice(0, -1).trimEnd();
+  if (text.length === 0) return { ok: false, message: "演练场仅接受单条 SELECT 查询语句，请输入内容。" };
+  if (text.includes(";")) return { ok: false, message: "演练场仅接受单条 SELECT 查询语句，请勿一次提交多条语句。" };
+  if (!/^select\b/i.test(text)) return { ok: false, message: "演练场仅接受单条 SELECT 查询语句，INSERT/UPDATE/DELETE/DDL 均不在练习范围内。" };
+  return { ok: true, statement: text };
 }
 
 /** 规范化为 MySQL 显示值：NULL 与空串严格区分、数值与字符串严格区分 */
-function 规范化(v: unknown): DisplayValue {
+function normalizeValue(v: unknown): DisplayValue {
   if (v === null || v === undefined) return null;
   if (typeof v === "number") return `N:${v}`;
   if (typeof v === "bigint") return `N:${v}`;
@@ -66,26 +66,26 @@ function 规范化(v: unknown): DisplayValue {
  * 行数上限（issue #10）：结果超限时抛防护超限错误（产品提示），不进入 MySQL 错误映射。
  * 取舍：sql.js 的 exec 同步物化全部结果行，上限检查发生在物化之后——
  * 真正的内存/时间兜底由 Worker 超时终止负责，行数上限拦截"能跑完但结果巨大"的查询。 */
-export async function 执行查询(
-  语句: string,
-  会话: Session,
-  行数上限?: number,
-  时刻?: Date,
+export async function executeQuery(
+  statement: string,
+  session: Session,
+  rowLimit?: number,
+  time?: Date,
 ): Promise<ResultSet> {
-  const db = await 打开内存库(会话);
+  const db = await openInMemoryDb(session);
   try {
     // 转译层（issue #5）：学生 SQL 为 MySQL 方言，垫片函数 + 语法改写对学生透明
     // （sql.js 类型声明缺 create_aggregate，垫片宿主为最小结构类型）
     // 时刻为判定级常量：缺省取当前时间，由判定入口生成一次并透传两次执行
-    注册垫片函数(db as unknown as 垫片宿主, 时刻);
-    const 结果 = db.exec(转译(语句));
-    if (结果.length === 0) return { columns: [], rows: [] };
-    if (行数上限 !== undefined && 结果[0].values.length > 行数上限) {
-      throw new 防护超限错误("行数上限", 行数上限提示);
+    registerShimFunctions(db as unknown as ShimHost, time);
+    const result = db.exec(translateSql(statement));
+    if (result.length === 0) return { columns: [], rows: [] };
+    if (rowLimit !== undefined && result[0].values.length > rowLimit) {
+      throw new GuardLimitError("行数上限", ROW_LIMIT_MESSAGE);
     }
     return {
-      columns: 结果[0].columns,
-      rows: 结果[0].values.map((行) => 行.map(规范化)),
+      columns: result[0].columns,
+      rows: result[0].values.map((row) => row.map(normalizeValue)),
     };
   } finally {
     db.close();
@@ -93,6 +93,6 @@ export async function 执行查询(
 }
 
 /** UI 展示用的显示文本（去掉类型标记） */
-export function 显示(v: DisplayValue): string {
+export function formatValue(v: DisplayValue): string {
   return v === null ? "NULL" : v.slice(2);
 }

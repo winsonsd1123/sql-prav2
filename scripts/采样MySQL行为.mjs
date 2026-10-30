@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 /**
  * MySQL 日期/字符串函数行为采样脚本（issue #5）：在真实 MySQL 上执行行为样本集，
- * 采回期望结果，产出 src/kernel/__tests__/fixtures/MySQL行为夹具.json，
+ * 采回期望结果，产出 src/kernel/__tests__/fixtures/mysql-behavior-fixtures.json，
  * 作为转译层行为对照测试（T4）的验收基准——等价于日期版的错误夹具。
  *
  * 凭据纪律：只从环境变量读取，绝不写入仓库。
@@ -112,6 +112,6 @@ const 夹具 = {
   采样环境: { 版本, 库名: "playground", 表: "员工（固定 7 行，与行为对照测试会话一致）" },
   样本,
 };
-const 输出 = path.join(仓库根, "src/kernel/__tests__/fixtures/MySQL行为夹具.json");
+const 输出 = path.join(仓库根, "src/kernel/__tests__/fixtures/mysql-behavior-fixtures.json");
 writeFileSync(输出, JSON.stringify(夹具, null, 2) + "\n", "utf8");
 console.log(`已写入 ${path.relative(仓库根, 输出)}（${样本.length} 条样本，MySQL ${版本}）`);

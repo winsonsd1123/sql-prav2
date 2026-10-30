@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { generateSession } from "@/kernel/generate";
-import { 判定 } from "@/kernel/judge";
+import { judge } from "@/kernel/judge";
 import { 加载域包A } from "@/domain-packs/学生课程成绩/域包A";
 import { 加载域包B } from "@/domain-packs/员工部门薪资/域包B";
 import type { DomainPack } from "@/kernel/types";
@@ -95,7 +95,7 @@ for (const 域包 of 域包们) {
     it.each(会话.questions.map((题目) => [题目.templateId, 题目]))(
       "模板 %s 参考答案自判通过",
       async (_id, 题目) => {
-        expect(await 判定(题目.referenceAnswer, 会话, 题目)).toEqual({ judge: "通过" });
+        expect(await judge(题目.referenceAnswer, 会话, 题目)).toEqual({ judge: "通过" });
       },
     );
 
@@ -104,7 +104,7 @@ for (const 域包 of 域包们) {
       async (_id, 题目) => {
         const 变体 = 列序颠倒(题目.referenceAnswer);
         if (变体 === 题目.referenceAnswer) return; // 单列查询无变体
-        expect(await 判定(变体, 会话, 题目)).toEqual({ judge: "通过" });
+        expect(await judge(变体, 会话, 题目)).toEqual({ judge: "通过" });
       },
     );
 
@@ -112,7 +112,7 @@ for (const 域包 of 域包们) {
       "模板 %s 典型错误写法判不通过",
       async (_id, 题目) => {
         const 错误 = 题目.commonMistake!;
-        const 结果 = await 判定(错误, 会话, 题目);
+        const 结果 = await judge(错误, 会话, 题目);
         // 典型错误均为合法 SELECT，应在结果比对层被判不通过，而非语法/运行时错误
         expect(结果.judge, `错误写法应判不通过：${错误}`).toBe("不通过");
       },
@@ -126,7 +126,7 @@ for (const 域包 of 域包们) {
     )(
       "模板 %s 语义陷阱变体判不通过",
       async (_键, 陷阱, 题目) => {
-        const 结果 = await 判定(陷阱, 会话, 题目);
+        const 结果 = await judge(陷阱, 会话, 题目);
         expect(结果.judge, `语义陷阱应判不通过：${陷阱}`).toBe("不通过");
       },
     );
