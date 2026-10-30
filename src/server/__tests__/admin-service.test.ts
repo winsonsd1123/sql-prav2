@@ -16,6 +16,9 @@ function makeDeps(overrides: Partial<AdminDeps> = {}): AdminDeps {
     fetchProfilePage: async () => ({ rows: [], total: 0 }),
     fetchAllUserRoles: async () => [],
     fetchBannedUserIds: async () => new Set<string>(),
+    fetchAllowlistView: async () => ({ allowAnyDomain: false, domains: [] }),
+    replaceAllowlistDomains: async () => undefined,
+    updateAllowAnyDomain: async () => undefined,
     ...overrides,
   };
 }

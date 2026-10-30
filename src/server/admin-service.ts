@@ -26,13 +26,42 @@ export type AdminUsersResult =
   | { status: "forbidden" }
   | { status: "error" };
 
-/** 可注入依赖（测试接缝）：token 验证 / 权限并集 / profiles 分页 / 全量角色 / 封禁集合 */
+/** 白名单域名条目（管理视图含备注；备注可空） */
+export interface AdminWhitelistDomain {
+  domain: string;
+  note: string | null;
+}
+
+/** 白名单管理视图：总开关 + 域名清单（含备注，供管理页展示现状） */
+export interface AdminWhitelistView {
+  allowAnyDomain: boolean;
+  domains: AdminWhitelistDomain[];
+}
+
+export type AdminWhitelistResult =
+  | ({ status: "ok" } & AdminWhitelistView)
+  | { status: "unauthorized" }
+  | { status: "forbidden" }
+  | { status: "invalid"; error: string }
+  | { status: "error" };
+
+export type AdminWhitelistSaveResult =
+  | { status: "ok" }
+  | { status: "unauthorized" }
+  | { status: "forbidden" }
+  | { status: "invalid"; error: string }
+  | { status: "error" };
+
+/** 可注入依赖（测试接缝）：token 验证 / 权限并集 / profiles 分页 / 全量角色 / 封禁集合 / 白名单读写 */
 export interface AdminDeps {
   verifyAccessToken(token: string): Promise<{ userId: string } | null>;
   fetchUserPermissions(userId: string): Promise<string[]>;
   fetchProfilePage(query: { search: string; page: number; pageSize: number }): Promise<{ rows: AdminProfileRow[]; total: number }>;
   fetchAllUserRoles(): Promise<AdminRoleRow[]>;
   fetchBannedUserIds(): Promise<Set<string>>;
+  fetchAllowlistView(): Promise<AdminWhitelistView>;
+  replaceAllowlistDomains(domains: AdminWhitelistDomain[]): Promise<void>;
+  updateAllowAnyDomain(allowAnyDomain: boolean): Promise<void>;
 }
 
 /** 从 Authorization 头提取 Bearer token；非 Bearer 方案或空 token 返回 null */
@@ -93,6 +122,39 @@ export const defaultAdminDeps: AdminDeps = {
     }
     return banned;
   },
+
+  // 白名单管理视图（service_role）：singleton 总开关 + 域名清单（含备注），域名按字典序稳定展示
+  fetchAllowlistView: async () => {
+    const client = serverPrivilegedClient();
+    const [configResult, domainResult] = await Promise.all([
+      client.from("email_allowlist_config").select("allow_any_domain").eq("singleton", true).maybeSingle(),
+      client.from("email_allowlist_domains").select("domain,note").order("domain"),
+    ]);
+    return {
+      allowAnyDomain: (configResult.data as { allow_any_domain: boolean } | null)?.allow_any_domain ?? false,
+      domains: (domainResult.data ?? []) as AdminWhitelistDomain[],
+    };
+  },
+
+  // 全量替换域名清单（幂等）：先清空再写入新清单（PostgREST 无事务，两步串行；失败抛错由编排层兜底为 500）
+  replaceAllowlistDomains: async (domains) => {
+    const client = serverPrivilegedClient();
+    const { error: deleteError } = await client.from("email_allowlist_domains").delete().neq("domain", "");
+    if (deleteError) throw new Error(deleteError.message);
+    if (domains.length === 0) return;
+    const { error: insertError } = await client.from("email_allowlist_domains").insert(
+      domains.map((entry) => ({ domain: entry.domain, note: entry.note })),
+    );
+    if (insertError) throw new Error(insertError.message);
+  },
+
+  // 切换「放开任意域名注册」总开关（singleton 行 upsert）
+  updateAllowAnyDomain: async (allowAnyDomain) => {
+    const { error } = await serverPrivilegedClient()
+      .from("email_allowlist_config")
+      .upsert({ singleton: true, allow_any_domain: allowAnyDomain });
+    if (error) throw new Error(error.message);
+  },
 };
 
 /** 鉴权链（共享收口，全部管理 API 复用）：Bearer → 验明身份 → 权限并集 → 持「访问后台」放行 */
@@ -137,6 +199,68 @@ export async function listAdminUsers(
       page,
       pageSize: ADMIN_USERS_PAGE_SIZE,
     };
+  } catch {
+    return { status: "error" };
+  }
+}
+
+/** 域名归一：去首尾空白、转小写；空串 / 含 @ / 内含空白视为非法返回 null */
+function normalizeDomain(raw: string): string | null {
+  const domain = raw.trim().toLowerCase();
+  if (domain === "" || domain.includes("@") || /\s/.test(domain)) return null;
+  return domain;
+}
+
+/** 白名单管理视图读取：鉴权前置 → 读总开关与域名清单（含备注） */
+export async function getAdminWhitelist(
+  authorization: string | null,
+  deps: AdminDeps = defaultAdminDeps,
+): Promise<AdminWhitelistResult> {
+  const auth = await authorizeAdminRequest(authorization, deps);
+  if (auth.status !== "ok") return auth;
+  try {
+    const view = await deps.fetchAllowlistView();
+    return { status: "ok", ...view };
+  } catch {
+    return { status: "error" };
+  }
+}
+
+/** 域名清单全量保存（幂等）：鉴权前置 → 归一与校验 → 全量替换；空清单合法（全关时无人可注册） */
+export async function saveAdminWhitelistDomains(
+  rawDomains: { domain: string; note?: string | null }[],
+  authorization: string | null,
+  deps: AdminDeps = defaultAdminDeps,
+): Promise<AdminWhitelistSaveResult> {
+  const auth = await authorizeAdminRequest(authorization, deps);
+  if (auth.status !== "ok") return auth;
+
+  const normalized = new Map<string, string | null>();
+  for (const entry of rawDomains) {
+    const domain = normalizeDomain(entry.domain);
+    if (domain === null) return { status: "invalid", error: "域名格式不正确" };
+    // 重复条目以首见为准（幂等语义：同一域名只落一行）
+    if (!normalized.has(domain)) normalized.set(domain, entry.note?.trim() ? entry.note.trim() : null);
+  }
+  try {
+    await deps.replaceAllowlistDomains([...normalized.entries()].map(([domain, note]) => ({ domain, note })));
+    return { status: "ok" };
+  } catch {
+    return { status: "error" };
+  }
+}
+
+/** 总开关切换：鉴权前置 → 更新 allow_any_domain（singleton） */
+export async function updateAdminWhitelistConfig(
+  allowAnyDomain: boolean,
+  authorization: string | null,
+  deps: AdminDeps = defaultAdminDeps,
+): Promise<AdminWhitelistSaveResult> {
+  const auth = await authorizeAdminRequest(authorization, deps);
+  if (auth.status !== "ok") return auth;
+  try {
+    await deps.updateAllowAnyDomain(allowAnyDomain);
+    return { status: "ok" };
   } catch {
     return { status: "error" };
   }
