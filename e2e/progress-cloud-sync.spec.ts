@@ -41,7 +41,7 @@ test("判定后约 3 秒节流静默上云，载荷含尝试次数与草稿", as
   const row = stub.receivedWrites.find((r) => r.seed === 61);
   expect(row).toBeDefined();
   expect(row!.user_id).toBe(USER_ID);
-  expect(row!.progress.尝试次数?.["0"]).toBeGreaterThanOrEqual(1);
+  expect(row!.progress.attemptCounts?.["0"]).toBeGreaterThanOrEqual(1);
 });
 
 test("云端已有进度：进入同会话即完整恢复（通过状态、尝试门槛、草稿）", async ({ page }) => {
@@ -51,9 +51,9 @@ test("云端已有进度：进入同会话即完整恢复（通过状态、尝�
     seed: 62,
     pack_id: "student-course-grade",
     progress: {
-      已通过题号: [0],
-      尝试次数: { "1": 3 },
-      草稿: { "1": "SELECT 云端草稿" },
+      passedIndices: [0],
+      attemptCounts: { "1": 3 },
+      drafts: { "1": "SELECT 云端草稿" },
     },
   };
   stub.rows.set(stub.rowKey(cloudRow), cloudRow);
@@ -107,7 +107,7 @@ test("断网兜底：云写失败静默不弹 UI，恢复后自动冲写云端",
   // 网络恢复：退避重试自动冲写成功
   cloudDown = false;
   await expect
-    .poll(() => stub.receivedWrites.some((r) => r.seed === 64 && (r.progress.尝试次数?.["0"] ?? 0) >= 1), {
+    .poll(() => stub.receivedWrites.some((r) => r.seed === 64 && (r.progress.attemptCounts?.["0"] ?? 0) >= 1), {
       timeout: 20_000,
     })
     .toBe(true);

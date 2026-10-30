@@ -390,3 +390,24 @@ NT1–NT6 的**唯一译名来源**：GLOSSARY 词条英文名为基准，本表
 | 最大参数数 / 原状态 | maxArity / prevState | 转译内部；GroupConcatState 字段 见过→seen、值→values、分隔符→separator |
 | 号 / 显示前缀（1055 文案函数参数） | index / displayPrefix | 该局部函数名 文案→errorMessage |
 | SQL文本 | sqlText | execute/转译参数 |
+
+### NT3 补录（实施中确立的译名与数据契约）
+
+| 现 | 译 | 说明 |
+|---|---|---|
+| 取键 / 初始化 / 序列化 / 未就绪快照 / 订阅集合 | getKey / init / serialize / notReadySnapshot / subscribers | LocalStorageOptions 字段 |
+| 取快照 / 写 / 订阅（方法） | getSnapshot / write / subscribe | LocalStorage 方法 |
+| 配置 / 缓存 / 原文 / 值 | options / cache / raw / value | local-storage 内部 |
+| 排程 / 立即刷新 | schedule / flushNow | 草稿保存器方法 |
+| 静默毫秒 | debounceMs | createDraftSaver 参数 |
+| 豁免 | exempt | viewAnswer/isAnswerUnlocked/attemptsToUnlockAnswer 参数 |
+| 当前题号 / 总题数 / 步 / 次 | currentIndex / totalQuestions / step / count | progress 内部参数 |
+| 次数（attemptN 测试参数） | times | progress 测试 |
+| 已完成 / 总数（completion 返回字段） | completed / total | 返回值字段 |
+| 列名 / 列差异 / 行 / 行差异（对照侧视图字段） | columns / columnDiff / rows / rowDiff | ComparisonSideView 字段 |
+| 左 / 右 / 截断说明 | left / right / truncationNote | ComparisonView 字段 |
+| 值 / 差异（对照单元格字段） | value / diff | ComparisonCell 字段 |
+| 前N行 | rowLimit | buildComparison 参数 |
+| 已占用 / 名 / 位置 / 总 / 匹配 | used / name / position / count / matched | comparison 内部（matched 原名即英文） |
+| 记前 / 记后 | recordedBefore / recordedAfter | progress 测试解构变量 |
+| 通过 / 已通过（测试局部） | passed / passedProgress | progress 测试 |

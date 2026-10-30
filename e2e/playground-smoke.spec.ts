@@ -160,7 +160,7 @@ test("已通过的题提示与答案自由查看，通过后查看不挂已借�
   await page.evaluate(() => {
     localStorage.setItem(
       "sql-playground:progress:student-course-grade:42",
-      JSON.stringify({ 已通过题号: [0], 已看提示: {}, 已借助答案题号: [], 尝试次数: { "0": 3 } }),
+      JSON.stringify({ passedIndices: [0], hintsSeen: {}, assistedAnswerIndices: [], attemptCounts: { "0": 3 } }),
     );
   });
   await page.reload();
@@ -193,10 +193,10 @@ async function 预置进度(page: Page, 进度: object) {
 async function 通过第0题(page: Page) {
   await page.goto("/?seed=42");
   await 预置进度(page, {
-    已通过题号: [],
-    已看提示: {},
-    已借助答案题号: [],
-    尝试次数: { "0": 3 },
+    passedIndices: [],
+    hintsSeen: {},
+    assistedAnswerIndices: [],
+    attemptCounts: { "0": 3 },
   });
   await page.getByRole("button", { name: "查看参考答案" }).click();
   await page.getByTestId("确认查看答案").click();
@@ -210,11 +210,11 @@ test("通过后 1.5 秒自动跳到环形查找的下一未通过题并恢复草
   // 题 1 已通过、题 0 刚通过 → 目标应为题 2；预置题 2 草稿验证跳转恢复
   await page.goto("/?seed=42");
   await 预置进度(page, {
-    已通过题号: [1],
-    已看提示: {},
-    已借助答案题号: [],
-    尝试次数: { "0": 3 },
-    草稿: { "2": "-- 我是第3题草稿" },
+    passedIndices: [1],
+    hintsSeen: {},
+    assistedAnswerIndices: [],
+    attemptCounts: { "0": 3 },
+    drafts: { "2": "-- 我是第3题草稿" },
   });
   await page.getByRole("button", { name: "查看参考答案" }).click();
   await page.getByTestId("确认查看答案").click();
@@ -263,10 +263,10 @@ test("已通过题再次验证不弹反馈条不跳转；全部通过时不跳�
 
   // 全部通过场景：题 1-9 预置已通过，通过题 0 后目标为 null → 停在原题
   await 预置进度(page, {
-    已通过题号: [1, 2, 3, 4, 5, 6, 7, 8, 9],
-    已看提示: {},
-    已借助答案题号: [],
-    尝试次数: { "0": 3 },
+    passedIndices: [1, 2, 3, 4, 5, 6, 7, 8, 9],
+    hintsSeen: {},
+    assistedAnswerIndices: [],
+    attemptCounts: { "0": 3 },
   });
   await page.getByRole("button", { name: "查看参考答案" }).click();
   await page.getByTestId("确认查看答案").click();
@@ -286,11 +286,11 @@ test("已通过题再次验证不弹反馈条不跳转；全部通过时不跳�
 async function 预置混合进度(page: Page) {
   await page.goto("/?seed=42");
   await 预置进度(page, {
-    已通过题号: [1, 2, 3, 4, 5, 6, 7, 8, 9],
+    passedIndices: [1, 2, 3, 4, 5, 6, 7, 8, 9],
     // 1 起题号：题 3、4 看过提示；题 10 借助答案；其余 6 题独立完成
-    已看提示: { "2": 1, "3": 1 },
-    已借助答案题号: [9],
-    尝试次数: { "0": 3 },
+    hintsSeen: { "2": 1, "3": 1 },
+    assistedAnswerIndices: [9],
+    attemptCounts: { "0": 3 },
   });
   await page.getByRole("button", { name: "查看参考答案" }).click();
   await page.getByTestId("确认查看答案").click();

@@ -8,33 +8,33 @@ import 库浏览器 from "@/components/库浏览器";
 import 差异对照 from "@/components/差异对照";
 import 提示与答案 from "@/components/提示与答案";
 import {
-  种子存储,
-  域包存储,
-  进度存储,
-  迁移进度,
-  换一套种子,
-  设域包,
-  实例名,
-  域包注册表,
-  创建草稿保存器,
-} from "@/components/会话存储";
+  seedStore,
+  packStore,
+  progressStore,
+  migrateProgress,
+  regenerateSession,
+  setPack,
+  instanceLabel,
+  domainPackRegistry,
+  createDraftSaver,
+} from "@/components/session-store";
 import {
-  空进度,
-  记通过,
-  记尝试,
-  揭示下一层提示,
-  查看答案,
-  完成度,
-  是否借助答案,
-  是否已通过,
-  提示是否解锁,
-  答案是否解锁,
-  答案解锁还差尝试,
-  记草稿,
-  取草稿,
-  下一未通过题,
-  完成分档统计,
-} from "@/components/进度";
+  emptyProgress,
+  recordPass,
+  recordAttempt,
+  revealNextHintLayer,
+  viewAnswer,
+  completion,
+  usedAnswerAssistance,
+  isPassed,
+  isHintUnlocked,
+  isAnswerUnlocked,
+  attemptsToUnlockAnswer,
+  saveDraft,
+  getDraft,
+  nextUnpassedQuestion,
+  completionTierStats,
+} from "@/components/progress";
 import 会话总结 from "@/components/会话总结";
 import { usePermissions } from "@/components/current-permissions";
 import { hasPermission, PERMISSIONS } from "@/lib/permissions";
@@ -54,14 +54,14 @@ const 取桌面快照 = () => window.matchMedia("(min-width: 1024px)").matches;
 
 export default function Playground() {
   // 种子/域包/进度：三个外部存储，写入走共享通知总线（见 会话存储）
-  const 种子 = useSyncExternalStore(种子存储.订阅, 种子存储.取快照, () => null);
+  const 种子 = useSyncExternalStore(seedStore.subscribe, seedStore.getSnapshot, () => null);
   const 域包ID = useSyncExternalStore(
-    域包存储.订阅,
-    域包存储.取快照,
-    () => 域包注册表[0].packId, // SSR 快照：客户端真实值在 hydrate 后生效
+    packStore.subscribe,
+    packStore.getSnapshot,
+    () => domainPackRegistry[0].packId, // SSR 快照：客户端真实值在 hydrate 后生效
   );
   const 域包 = useMemo(
-    () => 域包注册表.find((d) => d.packId === 域包ID) ?? 域包注册表[0],
+    () => domainPackRegistry.find((d) => d.packId === 域包ID) ?? domainPackRegistry[0],
     [域包ID],
   );
   const 会话 = useMemo(
@@ -115,7 +115,7 @@ export default function Playground() {
     当前题号引用.current = 当前题号;
   }, [当前题号]);
 
-  // 通过后自动流转（issue #18 T7）：反馈条 + 1.5 秒倒计时跳到环形查找的下一未通过题；
+  // 通过后自动流转（issue #18 T7）：反馈条 + 1.5 秒倒计时跳到环形查找的nextUnpassedQuestion；
   // 倒计时内编辑或点击界面即取消跳转、反馈条转常驻；目标为 null（全部通过）不跳。
   const [通过反馈, 设通过反馈] = useState<{
     目标题号: number | null;
@@ -136,7 +136,7 @@ export default function Playground() {
       window.removeEventListener("pointerdown", 取消自动跳转, { capture: true });
   }, [通过反馈]);
 
-  // 1.5 秒静默后自动跳转：目标 = 环形查找的下一未通过题；跳转复用 切换题目（草稿落盘+恢复）
+  // 1.5 秒静默后自动跳转：目标 = 环形查找的nextUnpassedQuestion；跳转复用 切换题目（草稿落盘+恢复）
   useEffect(() => {
     if (!通过反馈?.倒计时中 || 通过反馈.目标题号 === null || !会话) return;
     const 目标 = 通过反馈.目标题号;
@@ -166,7 +166,7 @@ export default function Playground() {
   }
 
   // 进度随会话（域包+种子）持久于 localStorage；换一套/换域包即换键，天然重置
-  const 进度 = useSyncExternalStore(进度存储.订阅, 进度存储.取快照, () => 空进度);
+  const 进度 = useSyncExternalStore(progressStore.subscribe, progressStore.getSnapshot, () => emptyProgress);
 
   // 会话总结（issue #19 T8）：触发语义为「事件性」——仅在"从非全通过变为全通过"
   // 的时刻弹出；刷新载入已全通过的进度（首帧即全通过）不重弹。新会话（换一套/换域包）
@@ -175,7 +175,7 @@ export default function Playground() {
   const 上一全通过 = useRef<boolean | null>(null);
   useEffect(() => {
     if (!会话) return;
-    const 全通过 = 进度.已通过题号.length === 会话.questions.length;
+    const 全通过 = 进度.passedIndices.length === 会话.questions.length;
     if (上一全通过.current === null) {
       上一全通过.current = 全通过; // 首帧：记录基线，不触发（刷新已全通过不重弹）
       return;
@@ -187,7 +187,7 @@ export default function Playground() {
   // SQL 草稿按题保留并随进度持久（issue #15）：逐键编辑走防抖写（500ms 静默窗口），
   // 切题/换会话/卸载前立即刷新，避免丢最后一次编辑。
   const 草稿保存器 = useMemo(
-    () => 创建草稿保存器((题号, SQL) => 迁移进度((p) => 记草稿(p, 题号, SQL))),
+    () => createDraftSaver((题号, SQL) => migrateProgress((p) => saveDraft(p, 题号, SQL))),
     [],
   );
   // 编辑回调必须引用稳定：SQL编辑器 的 updateListener 在创建时捕获 onChange，
@@ -196,7 +196,7 @@ export default function Playground() {
     () => (v: string) => {
       用户已编辑.current = true; // 首次编辑后不再自动跟随进度恢复草稿
       设SQL输入(v);
-      草稿保存器.排程(当前题号引用.current, v);
+      草稿保存器.schedule(当前题号引用.current, v);
       // 倒计时中学生开始编辑 → 取消自动跳转（引用取实时反馈态，避免陈旧闭包）
       if (通过反馈引用.current?.倒计时中) 取消自动跳转();
     },
@@ -208,11 +208,11 @@ export default function Playground() {
   const 用户已编辑 = useRef(false);
   useEffect(() => {
     if (种子 === null || 用户已编辑.current) return;
-    设SQL输入(取草稿(进度存储.取快照(), 当前题号));
+    设SQL输入(getDraft(progressStore.getSnapshot(), 当前题号));
   }, [种子, 进度, 当前题号]);
   // 刷新/关闭页面前与组件卸载时落盘待写草稿
   useEffect(() => {
-    const 落盘 = () => 草稿保存器.立即刷新();
+    const 落盘 = () => 草稿保存器.flushNow();
     window.addEventListener("beforeunload", 落盘);
     return () => {
       window.removeEventListener("beforeunload", 落盘);
@@ -229,7 +229,7 @@ export default function Playground() {
   }
 
   const 题目: QuestionInstance = 会话.questions[当前题号];
-  const { 已完成, 总数 } = 完成度(进度, 会话.questions.length);
+  const { completed, total } = completion(进度, 会话.questions.length);
 
   async function 验证() {
     if (!会话) return;
@@ -242,23 +242,23 @@ export default function Playground() {
       设结果(结果);
       if (结果.judge === "通过") {
         // 通过的提交不计尝试（issue #16 口径）
-        const 此前未通过 = !是否已通过(进度存储.取快照(), 发起题号);
-        迁移进度((p) => 记通过(p, 发起题号));
+        const 此前未通过 = !isPassed(progressStore.getSnapshot(), 发起题号);
+        migrateProgress((p) => recordPass(p, 发起题号));
         // 仅首次通过触发自动流转（issue #18）：已通过题再次验证不弹反馈条
         if (此前未通过) {
-          const 目标 = 下一未通过题(进度存储.取快照(), 发起题号, 会话.questions.length);
+          const 目标 = nextUnpassedQuestion(progressStore.getSnapshot(), 发起题号, 会话.questions.length);
           设通过反馈({ 目标题号: 目标, 倒计时中: 目标 !== null });
         }
       } else {
         // 不通过/错误均计一次尝试
-        迁移进度((p) => 记尝试(p, 发起题号));
+        migrateProgress((p) => recordAttempt(p, 发起题号));
       }
     } catch (e) {
       // 超时/行数上限等防护触发：产品级提示（非伪造 MySQL 错误）
       if (当前题号引用.current !== 发起题号) return;
       设结果({ judge: "拦截", errorMessage: e instanceof Error ? e.message : String(e) });
       // 防护拦截同样计一次尝试（口径：每次验证提交计 1，仅通过不计）
-      迁移进度((p) => 记尝试(p, 发起题号));
+      migrateProgress((p) => recordAttempt(p, 发起题号));
     } finally {
       设判定中(false);
     }
@@ -273,35 +273,35 @@ export default function Playground() {
   }
 
   function 换一套() {
-    草稿保存器.立即刷新(); // 先把待写草稿落盘到旧会话的进度键，再换键
-    换一套种子();
+    草稿保存器.flushNow(); // 先把待写草稿落盘到旧会话的进度键，再换键
+    regenerateSession();
     重置作答();
     已弹过禁粘横幅.current = false; // 新会话可再弹一次禁粘贴规则提示
   }
 
   function 切换域包(目标域包ID: string) {
     if (目标域包ID === 域包.packId) return;
-    草稿保存器.立即刷新(); // 同上：落盘后再换键，避免草稿写进新会话
-    设域包(目标域包ID);
+    草稿保存器.flushNow(); // 同上：落盘后再换键，避免草稿写进新会话
+    setPack(目标域包ID);
     重置作答();
   }
 
   /** 切题：先落盘当前题待写草稿，再切换并恢复目标题已有草稿（issue #15）。
-   *  草稿从 进度存储 实时快照读取（而非渲染闭包里的旧 进度）：
+   *  草稿从 progressStore 实时快照读取（而非渲染闭包里的旧 进度）：
    *  防抖窗口内编辑→切题→切回时，落盘后的最新草稿才能被正确恢复。 */
   function 切换题目(目标题号: number) {
-    草稿保存器.立即刷新();
+    草稿保存器.flushNow();
     设当前题号(目标题号);
     设结果(null);
-    设SQL输入(取草稿(进度存储.取快照(), 目标题号));
+    设SQL输入(getDraft(progressStore.getSnapshot(), 目标题号));
   }
 
   /** 左栏题目目录行状态（同一级联两处查表共享）：当前 > 借助答案 > 通过 > 未做 */
   type 题目行状态 = "当前" | "借助" | "通过" | "未做";
   function 题目行状态(i: number): 题目行状态 {
     if (i === 当前题号) return "当前";
-    if (进度.已借助答案题号.includes(i)) return "借助";
-    if (进度.已通过题号.includes(i)) return "通过";
+    if (进度.assistedAnswerIndices.includes(i)) return "借助";
+    if (进度.passedIndices.includes(i)) return "通过";
     return "未做";
   }
   // 行状态只靠小圆点：当前=墨 / 借助=紫 / 通过=绿 / 未做=空心
@@ -323,8 +323,8 @@ export default function Playground() {
     <div className="mx-auto flex min-h-screen w-full max-w-[1440px] flex-col px-4 py-4 lg:px-6">
       {总结开 && 会话 && (
         <会话总结
-          分档={完成分档统计(进度, 会话.questions.length)}
-          已完成={进度.已通过题号.length}
+          分档={completionTierStats(进度, 会话.questions.length)}
+          已完成={进度.passedIndices.length}
           总数={会话.questions.length}
           on再来一套={换一套}
           on关闭={() => 设总结开(false)}
@@ -335,7 +335,7 @@ export default function Playground() {
         <h1 className="标题 text-[1.65rem] leading-none">SQL 演练场</h1>
         <div className="flex flex-wrap items-center gap-2">
           <span className="inline-flex rounded-full bg-ink/[0.06] p-0.5">
-            {域包注册表.map((d) => (
+            {domainPackRegistry.map((d) => (
               <button
                 key={d.packId}
                 onClick={() => 切换域包(d.packId)}
@@ -353,11 +353,11 @@ export default function Playground() {
             <span className="h-1 w-14 overflow-hidden rounded-full bg-ink/10" aria-hidden>
               <span
                 className="block h-full rounded-full bg-ink/40"
-                style={{ width: `${总数 === 0 ? 0 : (已完成 / 总数) * 100}%` }}
+                style={{ width: `${total === 0 ? 0 : (completed / total) * 100}%` }}
               />
             </span>
             <span data-testid="完成度" className="font-mono text-xs text-muted">
-              已完成 {已完成}/{总数}
+              已完成 {completed}/{total}
             </span>
           </span>
           <button onClick={换一套} className="次按钮 px-3 py-1.5 text-xs">
@@ -412,7 +412,7 @@ export default function Playground() {
               <span className="rounded-full bg-ink/[0.06] px-2.5 py-0.5 font-medium text-ink">
                 {题目.knowledgeArea}
               </span>
-              {是否借助答案(进度, 当前题号) && (
+              {usedAnswerAssistance(进度, 当前题号) && (
                 <span className="rounded-full bg-assist/10 px-2.5 py-0.5 font-medium text-assist">
                   已借助答案
                 </span>
@@ -464,18 +464,18 @@ export default function Playground() {
                 key={当前题号}
                 提示={题目.hints}
                 参考答案={题目.referenceAnswer}
-                已看层数={进度.已看提示[String(当前题号)] ?? 0}
-                已借助答案={是否借助答案(进度, 当前题号)}
+                已看层数={进度.hintsSeen[String(当前题号)] ?? 0}
+                已借助答案={usedAnswerAssistance(进度, 当前题号)}
                 解锁状态={{
-                  已通过: 是否已通过(进度, 当前题号),
-                  提示已解锁: 提示是否解锁(进度, 当前题号),
-                  答案已解锁: 答案是否解锁(进度, 当前题号, 答案豁免),
-                  尝试次数: 进度.尝试次数[String(当前题号)] ?? 0,
+                  已通过: isPassed(进度, 当前题号),
+                  提示已解锁: isHintUnlocked(进度, 当前题号),
+                  答案已解锁: isAnswerUnlocked(进度, 当前题号, 答案豁免),
+                  尝试次数: 进度.attemptCounts[String(当前题号)] ?? 0,
                 }}
-                答案还差尝试={答案解锁还差尝试(进度, 当前题号, 答案豁免)}
+                答案还差尝试={attemptsToUnlockAnswer(进度, 当前题号, 答案豁免)}
                 答案豁免={答案豁免}
-                on揭示提示={() => 迁移进度((p) => 揭示下一层提示(p, 当前题号)[0])}
-                on查看答案={() => 迁移进度((p) => 查看答案(p, 当前题号, 答案豁免)[0])}
+                on揭示提示={() => migrateProgress((p) => revealNextHintLayer(p, 当前题号)[0])}
+                on查看答案={() => migrateProgress((p) => viewAnswer(p, 当前题号, 答案豁免)[0])}
               />
             </div>
             <div className="flex flex-wrap items-center gap-3">
@@ -565,7 +565,7 @@ export default function Playground() {
         >
           <库浏览器
             表={会话.database.tables}
-            实例名={实例名(会话.seed)}
+            实例名={instanceLabel(会话.seed)}
             打开={库浏览器开}
             on关闭={关闭库浏览器}
           />

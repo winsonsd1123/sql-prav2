@@ -8,8 +8,8 @@
 // 云端无记录时保留本地现状，云端为准仅作用于同键冲突。
 
 import { browserClient } from "@/lib/supabase/browser-client";
-import { 种子存储, 域包存储, 进度存储 } from "@/components/会话存储";
-import { 解析进度 } from "@/components/进度";
+import { seedStore, packStore, progressStore } from "@/components/session-store";
+import { parseProgress } from "@/components/progress";
 import {
   mergeProgress,
   createProgressThrottler,
@@ -26,9 +26,9 @@ export const CLOUD_WRITE_THROTTLE_MS = 3000;
 
 /** 当前三元组会话标识（null = 种子未就绪，SSR/首帧） */
 function sessionKey(): { userId: string; seed: number; packId: string } | null {
-  const seed = 种子存储.取快照();
+  const seed = seedStore.getSnapshot();
   if (seed === null) return null;
-  return { userId: "", seed, packId: 域包存储.取快照() };
+  return { userId: "", seed, packId: packStore.getSnapshot() };
 }
 
 /** 进度云同步协调器：创建后调用 start；stop 用于组件卸载清理 */
@@ -56,7 +56,7 @@ export function createProgressSync(
     if (stopped) return;
     const key = tripleKey();
     if (key === null) return;
-    const progress = 进度存储.取快照();
+    const progress = progressStore.getSnapshot();
     const { error } = await client
       .from(PROGRESS_TABLE)
       .upsert({ user_id: userId, seed: key.seed, pack_id: key.packId, progress });
@@ -87,7 +87,7 @@ export function createProgressSync(
     const key = tripleKey();
     // 会话尚未做过云端恢复（首帧/换一套/换域包后的新键）：等恢复完成再推
     if (key === null || `${key.packId}:${key.seed}` !== currentKey) return;
-    const snapshot = 进度存储.取快照();
+    const snapshot = progressStore.getSnapshot();
     const serialized = JSON.stringify(snapshot);
     if (currentKey !== null && serialized === baseline) return; // 恢复写回或幂等变更，不上写
     const [nextState, action] = syncStateMachine(state, { type: "judgement", at: Date.now() });
@@ -119,13 +119,13 @@ export function createProgressSync(
       baseline = null; // 云端无记录：不迁移、不清空本地
       return;
     }
-    const cloudProgress = 解析进度(
+    const cloudProgress = parseProgress(
       JSON.stringify((data as Record<string, unknown> | null)?.progress ?? null),
     );
-    const local = 进度存储.取快照();
+    const local = progressStore.getSnapshot();
     const merged = mergeProgress(local, cloudProgress);
     baseline = JSON.stringify(merged); // 恢复写回不触发推送
-    if (JSON.stringify(merged) !== JSON.stringify(local)) 进度存储.写(merged);
+    if (JSON.stringify(merged) !== JSON.stringify(local)) progressStore.write(merged);
   };
 
   const flushOnBackOnline = () => {
@@ -136,9 +136,9 @@ export function createProgressSync(
 
   return {
     start: () => {
-      cleanups.push(进度存储.订阅(() => onProgressChange()));
-      cleanups.push(种子存储.订阅(() => void restoreFromCloud()));
-      cleanups.push(域包存储.订阅(() => void restoreFromCloud()));
+      cleanups.push(progressStore.subscribe(() => onProgressChange()));
+      cleanups.push(seedStore.subscribe(() => void restoreFromCloud()));
+      cleanups.push(packStore.subscribe(() => void restoreFromCloud()));
       window.addEventListener("online", flushOnBackOnline);
       cleanups.push(() => window.removeEventListener("online", flushOnBackOnline));
       const flushOnUnload = () => throttler.flush();

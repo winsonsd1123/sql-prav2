@@ -101,7 +101,7 @@ test("提示与答案展示区不禁复制", async ({ page }) => {
   await page.evaluate(() => {
     localStorage.setItem(
       "sql-playground:progress:student-course-grade:42",
-      JSON.stringify({ 已通过题号: [], 已看提示: {}, 已借助答案题号: [], 尝试次数: { "0": 3 } }),
+      JSON.stringify({ passedIndices: [], hintsSeen: {}, assistedAnswerIndices: [], attemptCounts: { "0": 3 } }),
     );
   });
   await page.reload();

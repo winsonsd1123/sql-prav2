@@ -4,9 +4,9 @@
 //   首个判定起算，窗口结束写最新值，不随后续判定顺延）；
 // - 同步状态机：断网/失败积压 → 指数退避静默重试 → 恢复在线立即冲写的纯状态转移。
 // 全部纯函数/可注入计时器，供单测穷举（不依赖真实云与真实时钟）。
-// 进度记录（已通过题号/已看提示 等）为既有中文数据结构（src/components/进度），字段名不在本票范围。
+// 进度记录 ProgressRecord 的 JSON 字段（passedIndices/hintsSeen 等）随 NT3 英文化（#37）。
 
-import type { 进度记录 } from "@/components/进度";
+import type { ProgressRecord } from "@/components/progress";
 
 /** 并集（数字数组），结果升序去重 */
 function union(local: number[], cloud: number[]): number[] {
@@ -17,16 +17,16 @@ function union(local: number[], cloud: number[]): number[] {
  * 本地与云进度合并（云端为准、同键覆盖）：字段取并集保互不丢题；
  * 同键冲突取云端值；云端为空记录（无该会话数据）时原样保留本地，不作清空。
  */
-export function mergeProgress(local: 进度记录, cloud: 进度记录): 进度记录 {
-  const hintsSeen: Record<string, number> = { ...local.已看提示, ...cloud.已看提示 };
-  const attempts: Record<string, number> = { ...local.尝试次数, ...cloud.尝试次数 };
+export function mergeProgress(local: ProgressRecord, cloud: ProgressRecord): ProgressRecord {
+  const hintsSeen: Record<string, number> = { ...local.hintsSeen, ...cloud.hintsSeen };
+  const attempts: Record<string, number> = { ...local.attemptCounts, ...cloud.attemptCounts };
   // 空对象合并后仍可能残留本地独有条目——这正是并集语义，无需清理
   return {
-    已通过题号: union(local.已通过题号, cloud.已通过题号),
-    已借助答案题号: union(local.已借助答案题号, cloud.已借助答案题号),
-    已看提示: hintsSeen,
-    尝试次数: attempts,
-    草稿: { ...local.草稿, ...cloud.草稿 },
+    passedIndices: union(local.passedIndices, cloud.passedIndices),
+    assistedAnswerIndices: union(local.assistedAnswerIndices, cloud.assistedAnswerIndices),
+    hintsSeen: hintsSeen,
+    attemptCounts: attempts,
+    drafts: { ...local.drafts, ...cloud.drafts },
   };
 }
 
@@ -36,10 +36,10 @@ export function mergeProgress(local: 进度记录, cloud: 进度记录): 进度�
  * flush = 会话结束/页面卸载前把待写值立刻落一次并取消计时。
  */
 export function createProgressThrottler(
-  write: (progress: 进度记录) => void,
+  write: (progress: ProgressRecord) => void,
   throttleMs = 3000,
-): { schedule: (progress: 进度记录) => void; flush: () => void } {
-  let pending: 进度记录 | null = null;
+): { schedule: (progress: ProgressRecord) => void; flush: () => void } {
+  let pending: ProgressRecord | null = null;
   let timer: ReturnType<typeof setTimeout> | null = null;
   const flushNow = () => {
     if (pending === null) return;
