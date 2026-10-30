@@ -1,7 +1,7 @@
 import { describe, it, expect } from "vitest";
 import 夹具JSON from "./fixtures/mysql-error-fixtures.json";
 import { generateSession } from "../generate";
-import { 加载域包A } from "@/domain-packs/学生课程成绩/域包A";
+import { loadPackA } from "@/domain-packs/student-course-grades/pack-a";
 import { judge } from "../judge";
 
 /**
@@ -22,7 +22,7 @@ const 夹具 = 夹具JSON as {
 const 边界 = "(?![A-Za-z0-9_$\\u4e00-\\u9fff])";
 
 describe("错误保真度夹具回归", () => {
-  const 域包 = 加载域包A();
+  const 域包 = loadPackA();
   const 会话 = generateSession(42, 域包);
   const 题目 = 会话.questions[0];
 

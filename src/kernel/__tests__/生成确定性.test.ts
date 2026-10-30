@@ -1,9 +1,9 @@
 import { describe, expect, it } from "vitest";
 import { generateSession } from "@/kernel/generate";
-import { 加载域包A } from "@/domain-packs/学生课程成绩/域包A";
+import { loadPackA } from "@/domain-packs/student-course-grades/pack-a";
 
 describe("会话生成的确定性（种子 → 域包A → 会话）", () => {
-  const 域包 = 加载域包A();
+  const 域包 = loadPackA();
 
   it("同一种子多次生成，会话的字节级序列化完全一致", () => {
     const a = JSON.stringify(generateSession(20260101, 域包));

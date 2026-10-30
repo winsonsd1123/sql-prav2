@@ -10,7 +10,7 @@ import type { DomainPack, QuestionTemplate } from "@/kernel/types";
  * 3. 数据：中文业务值（人名/课程名/城市），每表 15-50 行；
  * 4. 刻意注入：NULL（空概率）、重复值（池小于行数）、空串、极端值（0/100 等）。
  */
-export function 加载域包A(): DomainPack {
+export function loadPackA(): DomainPack {
   const templates = load(yaml as unknown as string) as QuestionTemplate[];
   if (!Array.isArray(templates) || templates.length < 25 || templates.length > 35) {
     throw new Error("域包A应包含 25-35 个题目模板");

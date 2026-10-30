@@ -1,8 +1,8 @@
 import { describe, expect, it } from "vitest";
 import { generatePracticeSession } from "@/kernel/question-picking";
 import { generateSession } from "@/kernel/generate";
-import { 加载域包A } from "@/domain-packs/学生课程成绩/域包A";
-import { 加载域包B } from "@/domain-packs/员工部门薪资/域包B";
+import { loadPackA } from "@/domain-packs/student-course-grades/pack-a";
+import { loadPackB } from "@/domain-packs/employee-department-salary/pack-b";
 import type { DomainPack } from "@/kernel/types";
 
 /**
@@ -21,7 +21,7 @@ const 知识点顺序 = [
   "综合应用",
 ];
 
-const 域包们: DomainPack[] = [加载域包A(), 加载域包B()];
+const 域包们: DomainPack[] = [loadPackA(), loadPackB()];
 
 describe.each(域包们.map((域包) => [域包.name, 域包]))(
   "%s 会话按知识点出题",

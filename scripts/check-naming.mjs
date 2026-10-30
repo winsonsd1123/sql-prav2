@@ -32,10 +32,6 @@ const fileNameBaseline = new Set([
   "src/kernel/__tests__/错误映射.test.ts",
   "src/kernel/__tests__/生成确定性.test.ts",
   "src/kernel/__tests__/随机化.test.ts",
-  "src/domain-packs/学生课程成绩/域包A.ts",
-  "src/domain-packs/员工部门薪资/域包B.ts",
-  "src/domain-packs/学生课程成绩/templates.yaml",
-  "src/domain-packs/员工部门薪资/templates.yaml",
   "scripts/采样MySQL行为.mjs",
   "scripts/采样MySQL错误.mjs",
   "scripts/静态服务.mjs",
@@ -43,15 +39,9 @@ const fileNameBaseline = new Set([
 
 // 标识符棘轮基线：文件 → 当前中文声明数（2026-10-29 快照，#32 清偿进度表；减到 0 删行）
 const ratchetBaseline = {
-  "e2e/draft-persistence.spec.ts": 4,
-  "e2e/no-paste.spec.ts": 10,
-  "e2e/playground-smoke.spec.ts": 13,
-  "e2e/worker-execution-guard.spec.ts": 6,
   "scripts/采样MySQL行为.mjs": 14,
   "scripts/采样MySQL错误.mjs": 14,
   "scripts/静态服务.mjs": 4,
-  "src/domain-packs/员工部门薪资/域包B.ts": 2,
-  "src/domain-packs/学生课程成绩/域包A.ts": 2,
   "src/kernel/__tests__/1055静态检查.test.ts": 2,
   "src/kernel/__tests__/会话出题.test.ts": 12,
   "src/kernel/__tests__/全量题库回归.test.ts": 16,
@@ -62,7 +52,6 @@ const ratchetBaseline = {
   "src/kernel/__tests__/生成确定性.test.ts": 2,
   "src/kernel/__tests__/行为对照.test.ts": 19,
   "src/kernel/__tests__/随机化.test.ts": 19,
-  "src/types/yaml.d.ts": 1,
 };
 
 function collectFiles(dir) {

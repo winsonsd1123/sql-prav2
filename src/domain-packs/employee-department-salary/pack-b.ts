@@ -11,7 +11,7 @@ import type { DomainPack, QuestionTemplate } from "@/kernel/types";
  * 4. 刻意注入：NULL（空概率）、重复值（池小于行数）、空串、极端值（0 元发放等）。
  * 日期题只用固定日期列（入职日期/发放日期），规避 NOW/CURDATE 的跨执行抖动。
  */
-export function 加载域包B(): DomainPack {
+export function loadPackB(): DomainPack {
   const templates = load(yaml as unknown as string) as QuestionTemplate[];
   if (!Array.isArray(templates) || templates.length < 25 || templates.length > 35) {
     throw new Error("域包B应包含 25-35 个题目模板");
