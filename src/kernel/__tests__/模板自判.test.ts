@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { generateSession } from "@/kernel/generate";
-import { 判定 } from "@/kernel/judge";
+import { judge } from "@/kernel/judge";
 import { 加载域包A } from "@/domain-packs/学生课程成绩/域包A";
 
 const 会话 = generateSession(20260101, 加载域包A());
@@ -29,7 +29,7 @@ describe("每个题目模板的判题等价", () => {
   it.each(会话.questions.map((题目) => [题目.templateId, 题目]))(
     "模板 %s 的参考答案自判必须通过",
     async (_id, 题目) => {
-      const 结果 = await 判定(题目.referenceAnswer, 会话, 题目);
+      const 结果 = await judge(题目.referenceAnswer, 会话, 题目);
       expect(结果.judge).toBe("通过");
     },
   );
@@ -39,7 +39,7 @@ describe("每个题目模板的判题等价", () => {
     async (_id, 题目) => {
       const 变体 = 列序颠倒(题目.referenceAnswer);
       if (变体 === 题目.referenceAnswer) return; // 单列查询无变体
-      const 结果 = await 判定(变体, 会话, 题目);
+      const 结果 = await judge(变体, 会话, 题目);
       expect(结果.judge).toBe("通过");
     },
   );
@@ -47,13 +47,13 @@ describe("每个题目模板的判题等价", () => {
   it("错误写法必须不通过（缺 DISTINCT）", async () => {
     const 题目 = 会话.questions.find((q) => q.templateId.includes("distinct"));
     const 不去重 = 题目!.referenceAnswer.replace(/distinct\s+/i, "");
-    const 结果 = await 判定(不去重, 会话, 题目!);
+    const 结果 = await judge(不去重, 会话, 题目!);
     expect(结果.judge).toBe("不通过");
   });
 
   it("多条语句被演练场产品提示拦截", async () => {
     const 题目 = 会话.questions[0];
-    const 结果 = await 判定("SELECT 1; SELECT 2", 会话, 题目);
+    const 结果 = await judge("SELECT 1; SELECT 2", 会话, 题目);
     expect(结果.judge).toBe("拦截");
     if (结果.judge !== "拦截") return;
     // 产品提示为中文、说明演练场范围规则，且不伪装成 MySQL 错误格式
@@ -65,7 +65,7 @@ describe("每个题目模板的判题等价", () => {
     "非 SELECT 语句被拦截并得到中文产品提示：%s",
     async (SQL) => {
       const 题目 = 会话.questions[0];
-      const 结果 = await 判定(SQL, 会话, 题目);
+      const 结果 = await judge(SQL, 会话, 题目);
       expect(结果.judge).toBe("拦截");
       if (结果.judge !== "拦截") return;
       expect(结果.errorMessage).toContain("演练场仅接受单条 SELECT 查询语句");
@@ -75,13 +75,13 @@ describe("每个题目模板的判题等价", () => {
 
   it("容忍单个尾分号", async () => {
     const 题目 = 会话.questions[0];
-    const 结果 = await 判定(题目.referenceAnswer + ";", 会话, 题目);
+    const 结果 = await judge(题目.referenceAnswer + ";", 会话, 题目);
     expect(结果.judge).toBe("通过");
   });
 
   it("SQLite 语法错误原文直通", async () => {
     const 题目 = 会话.questions[0];
-    const 结果 = await 判定("SELECT FORM 学生", 会话, 题目);
+    const 结果 = await judge("SELECT FORM 学生", 会话, 题目);
     expect(结果.judge).toBe("错误");
     if (结果.judge === "错误") expect(结果.errorMessage.length).toBeGreaterThan(0);
   });

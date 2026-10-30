@@ -374,3 +374,19 @@ NT1–NT6 的**唯一译名来源**：GLOSSARY 词条英文名为基准，本表
 | 判定（JudgeResult 判别字段） | judge | 判别字段单列 |
 | 判定结果 tag 值「通过/不通过/错误/拦截」 | 保留中文 | 跨文件运行时契约（UI 徽章与判定文案同源） |
 | 行数 / 起始值 / 实际表名 / 类型（表列复数） | rowCount / startValue / actualTableName / types | types 字段修饰类推 |
+
+### NT2 补录（实施中确立的译名与运行时契约）
+
+| 现 | 译 | 说明 |
+|---|---|---|
+| 时刻 | time | 判定级常量（judge/executeQuery/registerShimFunctions 参数） |
+| 错误码 / 文案（MySqlError 字段） | errorCode / message | SQLSTATE 保持原名 |
+| 语句 / 提示（清洗语句返回字段） | statement / message | |
+| 类型 / 值（Token 字段） | kind / value | kind 的字面量值「标识符/数字/字符串/符号」保留中文（文件内判别用） |
+| 前缀 / 列名 / 位置（ColumnRef 字段） | prefix / columnName / position | 引用事件字段 引用→ref |
+| 学生SQL / 会话 / 题目（WorkerRequest 字段） | studentSql / session / question | WorkerResponse 字段 结果→result；type 值「就绪/结果」保留中文 |
+| 种类（GuardLimitError 字段） | kind | 字面量值「超时/行数上限/环境异常」与 Error.name「防护超限错误」保留中文（运行时契约） |
+| 名 / 函数 / 参数 / 聚合（ShimHost 方法参数） | name / fn / args / aggregate | |
+| 最大参数数 / 原状态 | maxArity / prevState | 转译内部；GroupConcatState 字段 见过→seen、值→values、分隔符→separator |
+| 号 / 显示前缀（1055 文案函数参数） | index / displayPrefix | 该局部函数名 文案→errorMessage |
+| SQL文本 | sqlText | execute/转译参数 |

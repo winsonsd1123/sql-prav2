@@ -1,8 +1,8 @@
 import { describe, it, expect } from "vitest";
-import 夹具JSON from "./fixtures/MySQL错误夹具.json";
+import 夹具JSON from "./fixtures/mysql-error-fixtures.json";
 import { generateSession } from "../generate";
 import { 加载域包A } from "@/domain-packs/学生课程成绩/域包A";
-import { 判定 } from "../judge";
+import { judge } from "../judge";
 
 /**
  * 夹具回归（错误保真度验收基准）：
@@ -53,7 +53,7 @@ describe("错误保真度夹具回归", () => {
 
   for (const 样本 of 夹具.样本) {
     it(`${样本.id} → ERROR ${样本.错误码} (${样本.sqlstate})`, async () => {
-      const 结果 = await 判定(代入(样本.sql), 会话, 题目);
+      const 结果 = await judge(代入(样本.sql), 会话, 题目);
       expect(结果.judge).toBe("错误");
       if (结果.judge !== "错误") return;
       expect(结果.errorCode).toBe(样本.错误码);
