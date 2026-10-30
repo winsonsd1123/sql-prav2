@@ -6,7 +6,7 @@ import { judge } from "../judge";
 
 /**
  * 转译层行为对照（T4 验收基准，issue #5）：
- * 样本集先在真实 MySQL 26.7 上执行、结果固化入 MySQL行为夹具.json；
+ * 样本集先在真实 MySQL 26.7 上执行、结果固化入 mysql-behavior-fixtures.json；
  * 同一批 SQL 经判题内核（转译 + sql.js）执行后逐值断言一致。
  * 学生写的是 MySQL 方言（SEPARATOR 等），转译须对学生透明。
  */
