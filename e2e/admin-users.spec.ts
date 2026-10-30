@@ -102,3 +102,74 @@ test("分页切换：下一页/上一页往返，越界方向禁用", async ({ p
   await expect(page.getByTestId("用户列表统计")).toContainText("第 1/2 页");
   await expect(page.getByTestId("用户列表上一页")).toBeDisabled();
 });
+
+// ══════════════ T3 · 角色分配与回收（issue #44）══════════════
+// 行内角色编辑：全量集合保存载荷、保存后徽章更新、自我保护禁用态（体验层；服务端强制在单测断言）。
+
+test.describe("角色行内编辑", () => {
+  /** PUT /api/admin/users/:id/roles 桩：捕获请求（方法/头/载荷），回放保存后的集合 */
+  async function mockRolesPutApi(page: Page) {
+    const received: { url: string; method: string; authorization: string | null; body: unknown }[] = [];
+    await page.route("**/api/admin/users/*/roles", async (route: Route) => {
+      const request = route.request();
+      received.push({
+        url: request.url(),
+        method: request.method(),
+        authorization: request.headers()["authorization"] ?? null,
+        body: request.postDataJSON(),
+      });
+      const body = request.postDataJSON() as { roles: string[] };
+      await route.fulfill({ status: 200, contentType: "application/json", body: JSON.stringify({ roles: body.roles }) });
+    });
+    return received;
+  }
+
+  test("保存载荷正确：编辑行内勾选后 PUT 全量集合，徽章即时更新", async ({ page }) => {
+    const received = await mockRolesPutApi(page);
+    await page.goto("/admin/users");
+    const firstRow = page.getByTestId("用户行").first();
+    await expect(firstRow.getByTestId("用户角色")).toContainText("助教");
+
+    await firstRow.getByTestId("角色编辑").click();
+    // 取消「助教」、勾上「教师」→ 全量集合应为 [学生, 教师]
+    await firstRow.getByTestId("角色复选-助教").uncheck();
+    await firstRow.getByTestId("角色复选-教师").check();
+    await firstRow.getByTestId("角色保存").click();
+
+    await expect(firstRow.getByTestId("角色编辑")).toBeVisible(); // 编辑器收起即保存完成
+    expect(received).toHaveLength(1);
+    expect(received[0].method).toBe("PUT");
+    expect(received[0].url).toContain("/api/admin/users/u1/roles");
+    expect(received[0].authorization).toBe("Bearer e2e-access-token");
+    expect(received[0].body).toEqual({ roles: ["学生", "教师"] });
+
+    await expect(firstRow.getByTestId("用户角色")).toContainText("学生");
+    await expect(firstRow.getByTestId("用户角色")).toContainText("教师");
+    await expect(firstRow.getByTestId("用户角色")).not.toContainText("助教");
+  });
+
+  test("自我保护：自己那一行「管理员」复选禁用并附提示（体验层）", async ({ page }) => {
+    // 覆盖列表桩：把当前会话用户（e2e-user）放进列表
+    await page.route("**/api/admin/users*", async (route) => {
+      await route.fulfill({
+        status: 200,
+        contentType: "application/json",
+        body: JSON.stringify({
+          users: [{ userId: "e2e-user", studentId: "2022110000", realName: "本人", nickname: null, email: "me@cuc.edu.cn", roles: ["学生", "管理员"], banned: false, createdAt: "2026-10-01T00:00:00Z" }],
+          total: 1, page: 1, pageSize: 20,
+        }),
+      });
+    });
+    await page.goto("/admin/users");
+    const selfRow = page.getByTestId("用户行").first();
+    await selfRow.getByTestId("角色编辑").click();
+
+    const adminCheckbox = selfRow.getByTestId("角色复选-管理员");
+    await expect(adminCheckbox).toBeVisible();
+    await expect(adminCheckbox).toBeDisabled();
+    await expect(adminCheckbox).toBeChecked(); // 自己的管理员角色保持选中且不可取消
+    await expect(selfRow.getByTestId("角色编辑器")).toContainText("「管理员」不可自行回收");
+    // 其他角色不受影响
+    await expect(selfRow.getByTestId("角色复选-学生")).toBeEnabled();
+  });
+});

@@ -4,6 +4,7 @@ import { describe, expect, it, vi } from "vitest";
 import {
   authorizeAdminRequest,
   listAdminUsers,
+  setAdminUserRoles,
   type AdminDeps,
   type AdminProfileRow,
   type AdminRoleRow,
@@ -16,6 +17,9 @@ function makeDeps(overrides: Partial<AdminDeps> = {}): AdminDeps {
     fetchProfilePage: async () => ({ rows: [], total: 0 }),
     fetchAllUserRoles: async () => [],
     fetchBannedUserIds: async () => new Set<string>(),
+    fetchValidRoleNames: async () => ["学生", "助教", "教师", "管理员"],
+    fetchUserRolesByUser: async () => [],
+    writeUserRoleChanges: async () => ({ add: [], remove: [] }),
     ...overrides,
   };
 }
@@ -134,6 +138,86 @@ describe("用户列表编排", () => {
       { q: "", page: "1" },
       "Bearer valid-token",
       makeDeps({ fetchProfilePage: async () => { throw new Error("db down"); } }),
+    );
+    expect(result).toEqual({ status: "error" });
+  });
+});
+
+// ══════════════ T3 · 角色分配与回收（issue #44）══════════════
+// 接缝：setAdminUserRoles（服务层编排）——鉴权前置、全量集合校验、自我保护、差集增删、幂等。
+describe("角色全量设置编排", () => {
+  it("鉴权前置：无 token 401，不触角色读写", async () => {
+    const writeUserRoleChanges = vi.fn();
+    const result = await setAdminUserRoles("u1", ["学生"], null, makeDeps({ writeUserRoleChanges: writeUserRoleChanges as never }));
+    expect(result).toEqual({ status: "unauthorized" });
+    expect(writeUserRoleChanges).not.toHaveBeenCalled();
+  });
+
+  it("鉴权前置：无「访问后台」403，不触角色读写", async () => {
+    const writeUserRoleChanges = vi.fn();
+    const result = await setAdminUserRoles(
+      "u1", ["学生"], "Bearer valid-token",
+      makeDeps({ fetchUserPermissions: async () => [], writeUserRoleChanges: writeUserRoleChanges as never }),
+    );
+    expect(result).toEqual({ status: "forbidden" });
+    expect(writeUserRoleChanges).not.toHaveBeenCalled();
+  });
+
+  it("非法角色名（不在角色表中）：拒绝且不落库", async () => {
+    const writeUserRoleChanges = vi.fn();
+    const result = await setAdminUserRoles("u1", ["学生", "超级管理员"], "Bearer valid-token", makeDeps({ writeUserRoleChanges: writeUserRoleChanges as never }));
+    expect(result).toEqual({ status: "invalid_roles" });
+    expect(writeUserRoleChanges).not.toHaveBeenCalled();
+  });
+
+  it("载荷非数组 / 含非字符串元素：拒绝", async () => {
+    expect(await setAdminUserRoles("u1", "学生", "Bearer valid-token", makeDeps())).toEqual({ status: "invalid_roles" });
+    expect(await setAdminUserRoles("u1", ["学生", 42], "Bearer valid-token", makeDeps())).toEqual({ status: "invalid_roles" });
+  });
+
+  it("自我保护：操作者==目标且新集合不含「管理员」：拒绝且不落库（服务端强制）", async () => {
+    const writeUserRoleChanges = vi.fn();
+    // admin-1 为 makeDeps 中 valid-token 对应的操作者 id
+    const result = await setAdminUserRoles("admin-1", ["学生", "助教"], "Bearer valid-token", makeDeps({ writeUserRoleChanges: writeUserRoleChanges as never }));
+    expect(result).toEqual({ status: "self_protection" });
+    expect(writeUserRoleChanges).not.toHaveBeenCalled();
+  });
+
+  it("自我保护不误伤他人：对别的用户提交不含「管理员」的集合正常落库", async () => {
+    const result = await setAdminUserRoles("u1", ["学生", "助教"], "Bearer valid-token", makeDeps());
+    expect(result).toEqual({ status: "ok", roles: ["学生", "助教"] });
+  });
+
+  it("差集增删：按现有角色与新集合的差集下发写入（增删都只发生变更部分）", async () => {
+    const writeUserRoleChanges = vi.fn(async (_userId: string, changes: { add: string[]; remove: string[] }) => changes);
+    const result = await setAdminUserRoles(
+      "u1", ["学生", "教师", "管理员"], "Bearer valid-token",
+      makeDeps({ fetchUserRolesByUser: async () => ["学生", "助教"], writeUserRoleChanges: writeUserRoleChanges as never }),
+    );
+    expect(result).toEqual({ status: "ok", roles: ["学生", "教师", "管理员"] });
+    expect(writeUserRoleChanges).toHaveBeenCalledTimes(1);
+    expect(writeUserRoleChanges).toHaveBeenCalledWith("u1", { add: ["教师", "管理员"], remove: ["助教"] });
+  });
+
+  it("幂等：提交与现有完全相同的集合 → 增删均空集，仍成功返回", async () => {
+    const writeUserRoleChanges = vi.fn(async (_userId: string, changes: { add: string[]; remove: string[] }) => changes);
+    const result = await setAdminUserRoles(
+      "u1", ["学生", "助教"], "Bearer valid-token",
+      makeDeps({ fetchUserRolesByUser: async () => ["助教", "学生"], writeUserRoleChanges: writeUserRoleChanges as never }),
+    );
+    expect(writeUserRoleChanges).toHaveBeenCalledWith("u1", { add: [], remove: [] });
+    expect(result).toEqual({ status: "ok", roles: ["学生", "助教"] });
+  });
+
+  it("载荷重复角色名：归一去重后按集合处理", async () => {
+    const result = await setAdminUserRoles("u1", ["学生", "学生"], "Bearer valid-token", makeDeps());
+    expect(result).toEqual({ status: "ok", roles: ["学生"] });
+  });
+
+  it("数据层抛异常：服务不可用（500 语义），不向调用方泄露细节", async () => {
+    const result = await setAdminUserRoles(
+      "u1", ["学生"], "Bearer valid-token",
+      makeDeps({ fetchUserRolesByUser: async () => { throw new Error("db down"); } }),
     );
     expect(result).toEqual({ status: "error" });
   });

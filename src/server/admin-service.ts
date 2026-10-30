@@ -5,6 +5,7 @@
 import { serverAnonClient, serverPrivilegedClient } from "@/lib/supabase/server-client";
 import { PERMISSIONS, hasPermission } from "@/lib/permissions";
 import {
+  ADMIN_ROLE_NAME,
   ADMIN_USERS_PAGE_SIZE,
   mergeUserRows,
   normalizeUsersQuery,
@@ -26,13 +27,24 @@ export type AdminUsersResult =
   | { status: "forbidden" }
   | { status: "error" };
 
-/** 可注入依赖（测试接缝）：token 验证 / 权限并集 / profiles 分页 / 全量角色 / 封禁集合 */
+export type AdminSetRolesResult =
+  | { status: "ok"; roles: string[] }
+  | { status: "unauthorized" }
+  | { status: "forbidden" }
+  | { status: "invalid_roles" }
+  | { status: "self_protection" }
+  | { status: "error" };
+
+/** 可注入依赖（测试接缝）：token 验证 / 权限并集 / profiles 分页 / 全量角色 / 封禁集合 / 角色合法集 / 角色写入 */
 export interface AdminDeps {
   verifyAccessToken(token: string): Promise<{ userId: string } | null>;
   fetchUserPermissions(userId: string): Promise<string[]>;
   fetchProfilePage(query: { search: string; page: number; pageSize: number }): Promise<{ rows: AdminProfileRow[]; total: number }>;
   fetchAllUserRoles(): Promise<AdminRoleRow[]>;
   fetchBannedUserIds(): Promise<Set<string>>;
+  fetchValidRoleNames(): Promise<string[]>;
+  fetchUserRolesByUser(userId: string): Promise<string[]>;
+  writeUserRoleChanges(userId: string, changes: { add: string[]; remove: string[] }): Promise<{ add: string[]; remove: string[] }>;
 }
 
 /** 从 Authorization 头提取 Bearer token；非 Bearer 方案或空 token 返回 null */
@@ -93,6 +105,26 @@ export const defaultAdminDeps: AdminDeps = {
     }
     return banned;
   },
+
+  // 角色合法集（roles 表 name 主键；service_role 读）
+  fetchValidRoleNames: async () => {
+    const { data } = await serverPrivilegedClient().from("roles").select("name");
+    return ((data ?? []) as { name: string }[]).map((row) => row.name);
+  },
+
+  // 指定用户现有角色（service_role 读，供差集计算）
+  fetchUserRolesByUser: async (userId) => {
+    const { data } = await serverPrivilegedClient().from("user_roles").select("role").eq("user_id", userId);
+    return ((data ?? []) as { role: string }[]).map((row) => row.role);
+  },
+
+  // 差集落库（service_role 写）：先删后增；on conflict do nothing 保证幂等，重提交零脏数据
+  writeUserRoleChanges: async (userId, { add, remove }) => {
+    const client = serverPrivilegedClient();
+    if (remove.length > 0) await client.from("user_roles").delete().eq("user_id", userId).in("role", remove);
+    if (add.length > 0) await client.from("user_roles").insert(add.map((role) => ({ user_id: userId, role })));
+    return { add, remove };
+  },
 };
 
 /** 鉴权链（共享收口，全部管理 API 复用）：Bearer → 验明身份 → 权限并集 → 持「访问后台」放行 */
@@ -137,6 +169,43 @@ export async function listAdminUsers(
       page,
       pageSize: ADMIN_USERS_PAGE_SIZE,
     };
+  } catch {
+    return { status: "error" };
+  }
+}
+
+/** 角色全量设置编排（T3，spec #41）：鉴权前置 → 载荷与角色合法集校验 → 自我保护 → 差集增删。
+ *  全量语义：roles 为目标用户应有的完整角色集合，按现有差集增删 user_roles，重复提交幂等。
+ *  自我保护（ADR-0007）：操作者==目标用户且新集合不含「管理员」→ 服务端强制拒绝，不落库。 */
+export async function setAdminUserRoles(
+  targetUserId: string,
+  roles: unknown,
+  authorization: string | null,
+  deps: AdminDeps = defaultAdminDeps,
+): Promise<AdminSetRolesResult> {
+  const auth = await authorizeAdminRequest(authorization, deps);
+  if (auth.status !== "ok") return auth;
+
+  // 载荷归一：仅接受字符串数组；trim 后去重（保持首次出现顺序）
+  if (!Array.isArray(roles) || roles.some((role) => typeof role !== "string")) {
+    return { status: "invalid_roles" };
+  }
+  const requested = [...new Set((roles as string[]).map((role) => role.trim()))];
+
+  const validRoleNames: ReadonlySet<string> = new Set(await deps.fetchValidRoleNames());
+  if (requested.some((role) => !validRoleNames.has(role))) return { status: "invalid_roles" };
+
+  // 自我保护：不能回收自己的「管理员」角色（体验层禁用之外的服务端强制）
+  if (auth.userId === targetUserId && !requested.includes(ADMIN_ROLE_NAME)) {
+    return { status: "self_protection" };
+  }
+
+  try {
+    const existing = new Set(await deps.fetchUserRolesByUser(targetUserId));
+    const add = requested.filter((role) => !existing.has(role));
+    const remove = [...existing].filter((role) => !requested.includes(role));
+    await deps.writeUserRoleChanges(targetUserId, { add, remove });
+    return { status: "ok", roles: requested };
   } catch {
     return { status: "error" };
   }

@@ -5,7 +5,7 @@
 // 观感与演练场同一设计语言：卡片容器、语义 class、宋体标题、JetBrains Mono 数字列。
 import { useEffect, useState } from "react";
 import { browserClient } from "@/lib/supabase/browser-client";
-import type { AdminUserRow } from "@/lib/admin-users";
+import { ADMIN_ROLE_CANDIDATES, ADMIN_ROLE_NAME, type AdminUserRow } from "@/lib/admin-users";
 
 interface UsersPageData {
   users: AdminUserRow[];
@@ -30,6 +30,13 @@ export default function AdminUsersList() {
   const [data, setData] = useState<UsersPageData | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  // 当前会话用户 id：标记「自己那一行」，禁用其「管理员」复选（体验层；服务端才是强制）
+  const [currentUserId, setCurrentUserId] = useState<string | null>(null);
+  // 行内角色编辑（T3）：editingUserId 为空 = 无行处于编辑态
+  const [editingUserId, setEditingUserId] = useState<string | null>(null);
+  const [editingRoles, setEditingRoles] = useState<string[]>([]);
+  const [saving, setSaving] = useState(false);
+  const [roleError, setRoleError] = useState<string | null>(null);
 
   // 数据加载（照 current-permissions 的 effect 内 async IIFE 模式）：
   // 搜索词或页码变化即重拉；状态更新全部在 await 之后，effect 内无同步 setState。
@@ -40,6 +47,7 @@ export default function AdminUsersList() {
         const { data: sessionData } = await browserClient().auth.getSession();
         const token = sessionData.session?.access_token;
         if (cancelled) return;
+        setCurrentUserId(sessionData.session?.user?.id ?? null);
         setLoading(true);
         setError(null);
         if (!token) {
@@ -72,6 +80,53 @@ export default function AdminUsersList() {
     event.preventDefault();
     setSearch(input.trim());
     setPage(1);
+  }
+
+  // ── 行内角色编辑（T3，spec #41）：进入编辑 / 勾选切换 / 全量保存 ──
+
+  function beginEditRoles(user: AdminUserRow) {
+    setEditingUserId(user.userId);
+    setEditingRoles(user.roles);
+    setRoleError(null);
+  }
+
+  function toggleEditingRole(role: string) {
+    setEditingRoles((current) =>
+      current.includes(role) ? current.filter((item) => item !== role) : [...current, role],
+    );
+  }
+
+  /** 全量保存：PUT /api/admin/users/:id/roles（Bearer token）；成功后行内徽章即时更新 */
+  async function saveRoles(user: AdminUserRow) {
+    try {
+      setSaving(true);
+      setRoleError(null);
+      const { data: sessionData } = await browserClient().auth.getSession();
+      const token = sessionData.session?.access_token;
+      if (!token) {
+        setRoleError("登录态已失效，请重新登录");
+        return;
+      }
+      const response = await fetch(`/api/admin/users/${encodeURIComponent(user.userId)}/roles`, {
+        method: "PUT",
+        headers: { authorization: `Bearer ${token}`, "content-type": "application/json" },
+        body: JSON.stringify({ roles: editingRoles }),
+      });
+      if (!response.ok) {
+        const body = (await response.json().catch(() => null)) as { error?: string } | null;
+        setRoleError(body?.error ?? "角色保存失败，请稍后重试");
+        return;
+      }
+      const body = (await response.json()) as { roles: string[] };
+      setData((current) =>
+        current ? { ...current, users: current.users.map((row) => (row.userId === user.userId ? { ...row, roles: body.roles } : row)) } : current,
+      );
+      setEditingUserId(null);
+    } catch {
+      setRoleError("角色保存失败，请稍后重试");
+    } finally {
+      setSaving(false);
+    }
   }
 
   return (
@@ -128,20 +183,80 @@ export default function AdminUsersList() {
                       <td className="px-2 py-2 text-muted">{user.nickname ?? "—"}</td>
                       <td className="px-2 py-2 text-xs text-muted">{user.email ?? "—"}</td>
                       <td className="px-2 py-2">
-                        <span className="flex flex-wrap gap-1" data-testid="用户角色">
-                          {user.roles.length ? (
-                            user.roles.map((role) => (
-                              <span
-                                key={role}
-                                className="whitespace-nowrap rounded-full bg-panel px-2 py-0.5 text-[11px] text-ink"
+                        {editingUserId === user.userId ? (
+                          <span className="flex flex-col gap-1.5" data-testid="角色编辑器">
+                            <span className="flex flex-wrap gap-1">
+                              {ADMIN_ROLE_CANDIDATES.map((role) => {
+                                const isSelfAdminLock = user.userId === currentUserId && role === ADMIN_ROLE_NAME;
+                                return (
+                                  <button
+                                    type="button"
+                                    role="checkbox"
+                                    aria-checked={editingRoles.includes(role)}
+                                    key={role}
+                                    className={`whitespace-nowrap rounded-full px-2 py-0.5 text-[11px] transition-colors ${
+                                      editingRoles.includes(role) ? "bg-[color-mix(in_srgb,var(--色-墨)_10%,transparent)] text-ink" : "bg-panel text-muted"
+                                    } ${isSelfAdminLock ? "cursor-not-allowed opacity-60" : ""}`}
+                                    title={isSelfAdminLock ? "不能回收自己的管理员角色" : undefined}
+                                    data-testid={`角色复选-${role}`}
+                                    disabled={isSelfAdminLock}
+                                    onClick={() => toggleEditingRole(role)}
+                                  >
+                                    {role}
+                                  </button>
+                                );
+                              })}
+                            </span>
+                            <span className="flex flex-wrap items-center gap-1.5">
+                              <button
+                                type="button"
+                                className="次按钮 px-2.5 py-1 text-[11px]"
+                                data-testid="角色保存"
+                                disabled={saving}
+                                onClick={() => void saveRoles(user)}
                               >
-                                {role}
-                              </span>
-                            ))
-                          ) : (
-                            <span className="text-[11px] text-muted">未分配</span>
-                          )}
-                        </span>
+                                {saving ? "保存中…" : "保存"}
+                              </button>
+                              <button
+                                type="button"
+                                className="次按钮 px-2.5 py-1 text-[11px]"
+                                data-testid="角色取消"
+                                disabled={saving}
+                                onClick={() => setEditingUserId(null)}
+                              >
+                                取消
+                              </button>
+                              {user.userId === currentUserId && (
+                                <span className="text-[11px] text-muted">「管理员」不可自行回收</span>
+                              )}
+                            </span>
+                          </span>
+                        ) : (
+                          <span className="flex flex-wrap items-center gap-1">
+                            <span className="flex flex-wrap gap-1" data-testid="用户角色">
+                              {user.roles.length ? (
+                                user.roles.map((role) => (
+                                  <span
+                                    key={role}
+                                    className="whitespace-nowrap rounded-full bg-panel px-2 py-0.5 text-[11px] text-ink"
+                                  >
+                                    {role}
+                                  </span>
+                                ))
+                              ) : (
+                                <span className="text-[11px] text-muted">未分配</span>
+                              )}
+                            </span>
+                            <button
+                              type="button"
+                              className="次按钮 px-2 py-0.5 text-[11px]"
+                              data-testid="角色编辑"
+                              onClick={() => beginEditRoles(user)}
+                            >
+                              编辑
+                            </button>
+                          </span>
+                        )}
                       </td>
                       <td className="px-2 py-2 text-xs">
                         {user.banned ? (
@@ -163,6 +278,12 @@ export default function AdminUsersList() {
               </tbody>
             </table>
           </div>
+
+          {roleError && (
+            <p className="mt-2 text-center text-xs text-[var(--色-错误)]" data-testid="角色保存错误" role="alert">
+              {roleError}
+            </p>
+          )}
 
           <div className="mt-3 flex flex-wrap items-center justify-between gap-2 text-xs text-muted">
             <span data-testid="用户列表统计" className="font-mono">

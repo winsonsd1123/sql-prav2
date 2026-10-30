@@ -40,6 +40,12 @@ export interface NormalizedUsersQuery {
 /** 每页条数（spec：注册时间倒序、每页 20） */
 export const ADMIN_USERS_PAGE_SIZE = 20;
 
+/** 「管理员」角色名（数据值中文，ADR-0006）：自我保护判定与界面禁用态共用的常量 */
+export const ADMIN_ROLE_NAME = "管理员";
+
+/** 后台角色编辑的候选集（与 roles 表种子一致：学生/助教/教师/管理员；合法性以服务端查询为准） */
+export const ADMIN_ROLE_CANDIDATES = ["学生", "助教", "教师", ADMIN_ROLE_NAME] as const;
+
 /** 搜索词与页码归一：空白搜索词归空；页码非正整数/非法一律回落第 1 页 */
 export function normalizeUsersQuery(raw: { q?: string | null; page?: string | null }): NormalizedUsersQuery {
   const search = (raw.q ?? "").trim();
