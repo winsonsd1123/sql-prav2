@@ -1,6 +1,7 @@
 "use client";
 
 import { useSyncExternalStore, useMemo, useState, useEffect, useRef, useCallback } from "react";
+import Link from "next/link";
 import { generatePracticeSession } from "@/kernel/question-picking";
 import { requestJudge, subscribeEngineReady, isEngineReady } from "@/kernel/worker-client";
 import SqlEditor from "@/components/SqlEditor";
@@ -73,6 +74,8 @@ export default function Playground() {
   // 无权限点（含加载失败回退）一律走学生摩擦力
   const permissionSet = usePermissions();
   const answerExemption = hasPermission(permissionSet, PERMISSIONS.viewAnswersAnytime);
+  // 持「访问后台」者可见后台管理入口（T1 骨架；显隐仅为体验层，安全边界在服务端）
+  const adminConsoleAllowed = hasPermission(permissionSet, PERMISSIONS.adminConsole);
   const [sqlInput, setSqlInput] = useState("");
   const [result, setResult] = useState<JudgeResult | null>(null);
   const [judging, setJudging] = useState(false);
@@ -370,6 +373,11 @@ export default function Playground() {
           >
             表结构（Ctrl/⌘+B）
           </button>
+          {adminConsoleAllowed && (
+            <Link href="/admin" className="次按钮 px-3 py-1.5 text-xs" data-testid="后台管理入口">
+              后台管理
+            </Link>
+          )}
         </div>
       </header>
 
