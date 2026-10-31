@@ -1,10 +1,19 @@
 import { test, expect, type Page } from "@playwright/test";
-import { presetLoginState } from "./helpers";
+import { presetLoginState, collectConsoleProblems } from "./helpers";
 
 // T1 · 后台管理骨架（issue #42 / spec #41，ADR-0005 / ADR-0007）：
 // 持「访问后台」权限点（mock 管理员）→ 演练场顶部入口可见、/admin 骨架页与侧边导航可达；
 // 无权限点 → 入口不可见、直访被重定向回演练场；未登录 → 引导登录。
 // 界面显隐仅为体验层，安全边界在 API 层（后续票）。
+
+// console 卫生（spec #41 UI 强化）：全用例期间页面不得出现 console.error/warning 或未捕获异常
+let consoleProblems: string[] = [];
+test.beforeEach(async ({ page }) => {
+  consoleProblems = collectConsoleProblems(page);
+});
+test.afterEach(() => {
+  expect(consoleProblems, `console 卫生违例：\n${consoleProblems.join("\n")}`).toEqual([]);
+});
 
 test.describe("已登录", () => {
   test.beforeEach(async ({ page }) => {

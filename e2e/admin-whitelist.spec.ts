@@ -1,5 +1,5 @@
 import { test, expect, type Page, type Route } from "@playwright/test";
-import { presetLoginState } from "./helpers";
+import { presetLoginState, collectConsoleProblems } from "./helpers";
 
 // T5 · 邮箱白名单管理（issue #46 / spec #41）：离线 route-mock 覆盖配置展示、编辑保存载荷与总开关切换。
 // 权限两跳照 admin-users.spec.ts 的 mock 模式；/api/admin/whitelist* 用内存状态回放（写操作改状态后重读可见）。
@@ -58,9 +58,15 @@ async function mockAdminPermissions(page: Page) {
   });
 }
 
+// console 卫生（spec #41 UI 强化）：全用例期间页面不得出现 console.error/warning 或未捕获异常
+let consoleProblems: string[] = [];
 test.beforeEach(async ({ page }) => {
+  consoleProblems = collectConsoleProblems(page);
   await presetLoginState(page);
   await mockAdminPermissions(page);
+});
+test.afterEach(() => {
+  expect(consoleProblems, `console 卫生违例：\n${consoleProblems.join("\n")}`).toEqual([]);
 });
 
 test("配置展示：总开关收紧状态与域名清单（含备注）", async ({ page }) => {

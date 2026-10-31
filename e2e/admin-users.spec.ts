@@ -1,5 +1,5 @@
 import { test, expect, type Page, type Route } from "@playwright/test";
-import { presetLoginState } from "./helpers";
+import { presetLoginState, collectConsoleProblems } from "./helpers";
 
 // T2 · 用户管理列表（issue #43 / spec #41）：离线 route-mock 覆盖列表渲染、搜索交互与分页切换。
 // 权限两跳照 admin-console.spec.ts 的 mock 模式；/api/admin/users 按 query 参数回放不同页数据。
@@ -46,10 +46,16 @@ async function mockAdminPermissions(page: Page) {
   });
 }
 
+// console 卫生（spec #41 UI 强化）：全用例期间页面不得出现 console.error/warning 或未捕获异常
+let consoleProblems: string[] = [];
 test.beforeEach(async ({ page }) => {
+  consoleProblems = collectConsoleProblems(page);
   await presetLoginState(page);
   await mockAdminPermissions(page);
   await mockUsersApi(page);
+});
+test.afterEach(() => {
+  expect(consoleProblems, `console 卫生违例：\n${consoleProblems.join("\n")}`).toEqual([]);
 });
 
 test("列表渲染：字段齐全，角色徽章与账号状态正确", async ({ page }) => {
