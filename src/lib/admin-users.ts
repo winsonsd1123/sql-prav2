@@ -11,6 +11,28 @@ export interface AdminProfileRow {
   created_at: string | null;
 }
 
+/** PostgREST 返回的 profiles 原始行：列名照迁移 20261028000001（主键列是 id，不是 user_id） */
+export interface ProfileRestRow {
+  id: string;
+  student_id: string | null;
+  real_name: string | null;
+  nickname: string | null;
+  email: string | null;
+  created_at: string | null;
+}
+
+/** PostgREST 行 → 契约行：id 归位 user_id（此前 defaultDeps 直接 as 强转，真库行无 user_id 致全列表对齐失效） */
+export function mapProfileRow(row: ProfileRestRow): AdminProfileRow {
+  return {
+    user_id: row.id,
+    student_id: row.student_id,
+    real_name: row.real_name,
+    nickname: row.nickname,
+    email: row.email,
+    created_at: row.created_at,
+  };
+}
+
 /** user_roles 全量行（复合主键 user_id + role） */
 export interface AdminRoleRow {
   user_id: string;

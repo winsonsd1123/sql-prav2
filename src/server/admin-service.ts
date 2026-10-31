@@ -6,11 +6,13 @@ import { serverAnonClient, serverPrivilegedClient } from "@/lib/supabase/server-
 import { PERMISSIONS, hasPermission, mergePermissions } from "@/lib/permissions";
 import {
   ADMIN_USERS_PAGE_SIZE,
+  mapProfileRow,
   mergeUserRows,
   normalizeUsersQuery,
   type AdminProfileRow,
   type AdminRoleRow,
   type AdminUserRow,
+  type ProfileRestRow,
 } from "@/lib/admin-users";
 
 // 行类型随纯函数模块定义，此处透出供服务层测试与消费方引用
@@ -110,11 +112,12 @@ export const defaultAdminDeps: AdminDeps = {
     return [...new Set(((permissionsResult.data ?? []) as { permission: string }[]).map((row) => row.permission))];
   },
 
-  // profiles 分页：注册时间倒序 + 单框模糊搜索（学号/姓名/昵称/邮箱 OR ilike），count 精确
+  // profiles 分页：注册时间倒序 + 单框模糊搜索（学号/姓名/昵称/邮箱 OR ilike），count 精确。
+  // 列名照 PostgREST 真实形状（主键 id），经 mapProfileRow 归位 user_id——不许 as 直转契约类型。
   fetchProfilePage: async ({ search, page, pageSize }) => {
     let query = serverPrivilegedClient()
       .from("profiles")
-      .select("*", { count: "exact" })
+      .select("id,student_id,real_name,nickname,email,created_at", { count: "exact" })
       .order("created_at", { ascending: false })
       .range((page - 1) * pageSize, page * pageSize - 1);
     if (search) {
@@ -124,7 +127,7 @@ export const defaultAdminDeps: AdminDeps = {
       query = query.or(`student_id.ilike.${like},real_name.ilike.${like},nickname.ilike.${like},email.ilike.${like}`);
     }
     const { data, count } = await query;
-    return { rows: (data ?? []) as AdminProfileRow[], total: count ?? 0 };
+    return { rows: ((data ?? []) as ProfileRestRow[]).map(mapProfileRow), total: count ?? 0 };
   },
 
   // 全量角色持有（service_role；供当前页用户行合并）

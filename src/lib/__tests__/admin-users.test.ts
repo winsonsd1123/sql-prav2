@@ -1,8 +1,45 @@
 import { describe, expect, it } from "vitest";
-import { mergeUserRows, normalizeUsersQuery, type AdminProfileRow, type AdminRoleRow } from "@/lib/admin-users";
+import {
+  mapProfileRow,
+  mergeUserRows,
+  normalizeUsersQuery,
+  type AdminProfileRow,
+  type AdminRoleRow,
+} from "@/lib/admin-users";
 
 // 边界穷举：搜索词/页码归一 × 用户行合并（角色对齐、封禁对齐、空/越界页）
 // 用户行期望值来自手排样例（独立于实现的真源），非复算。
+
+// PostgREST 行映射（真库回归，issue #41 UI 报错追因）：profiles 表主键列是 id
+//（迁移 20261028000001），而契约行用 user_id——此前 defaultDeps 对查询结果直接 as 强转，
+// 真实行无 user_id → 全列表 key/角色/封禁对齐取 undefined。期望值按迁移列定义手排。
+describe("PostgREST profiles 行映射（id → user_id）", () => {
+  it("全字段映射：id 归位 user_id，其余 snake_case 透传", () => {
+    expect(
+      mapProfileRow({
+        id: "u-6f0f",
+        student_id: "2022110001",
+        real_name: "张三",
+        nickname: "三三",
+        email: "zhang@cuc.edu.cn",
+        created_at: "2026-10-02T10:00:00Z",
+      }),
+    ).toEqual({
+      user_id: "u-6f0f",
+      student_id: "2022110001",
+      real_name: "张三",
+      nickname: "三三",
+      email: "zhang@cuc.edu.cn",
+      created_at: "2026-10-02T10:00:00Z",
+    });
+  });
+
+  it("可空字段 null 透传，不串列", () => {
+    expect(
+      mapProfileRow({ id: "u2", student_id: null, real_name: null, nickname: null, email: null, created_at: null }),
+    ).toEqual({ user_id: "u2", student_id: null, real_name: null, nickname: null, email: null, created_at: null });
+  });
+});
 
 describe("搜索词与页码归一", () => {
   it("缺省：空搜索、第 1 页", () => {
