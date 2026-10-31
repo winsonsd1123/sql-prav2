@@ -58,7 +58,7 @@ async function mockAdminPermissions(page: Page) {
   });
 }
 
-// console 卫生（spec #41 UI 强化）：全用例期间页面不得出现 console.error/warning 或未捕获异常
+// console 卫生（用户指令加严）：全用例期间页面不得出现 console.error/warning 或未捕获异常
 let consoleProblems: string[] = [];
 test.beforeEach(async ({ page }) => {
   consoleProblems = collectConsoleProblems(page);

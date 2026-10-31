@@ -18,7 +18,7 @@ export async function presetLoginState(page: Page) {
   });
 }
 
-// console 卫生断言（spec #41 UI 强化）：收集用例期间页面的 console error/warning 与未捕获异常，
+// console 卫生断言（用户指令加严，2026-10-31 真库 key 警告追因后）：收集用例期间页面的 console error/warning 与未捕获异常，
 // 供 afterEach 断言为空——DOM 正确但 console 报错的体验层缺陷（未捕获异常、请求错误等）不逃逸。
 // 边界：React 的 key 类警告是 dev-only（生产 build 剥除），此处捕获的是生产可观测问题；
 // dev-only 警告的复现走 dev server 手动/脚本验证（2026-10 已验证 admin 列表全分支零警告）。

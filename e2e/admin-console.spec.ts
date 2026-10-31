@@ -6,7 +6,7 @@ import { presetLoginState, collectConsoleProblems } from "./helpers";
 // 无权限点 → 入口不可见、直访被重定向回演练场；未登录 → 引导登录。
 // 界面显隐仅为体验层，安全边界在 API 层（后续票）。
 
-// console 卫生（spec #41 UI 强化）：全用例期间页面不得出现 console.error/warning 或未捕获异常
+// console 卫生（用户指令加严）：全用例期间页面不得出现 console.error/warning 或未捕获异常
 let consoleProblems: string[] = [];
 test.beforeEach(async ({ page }) => {
   consoleProblems = collectConsoleProblems(page);
