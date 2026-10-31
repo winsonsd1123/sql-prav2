@@ -22,6 +22,10 @@ Issue 以 GitHub issue 形式跟踪，通过 `gh` CLI 操作。见 `docs/agents/
 
 单上下文布局：仓库根目录 `GLOSSARY.md` + `docs/adr/`。见 `docs/agents/domain.md`。
 
+### 跨工具交接
+
+实现交给外部 agent（如 Cursor）施工、本仓库会话验收时：交接流程与文档模板见 `docs/agents/cursor-handoff.md`。
+
 ### 命名语言
 
 代码用英文：标识符、文件/目录名、路由、数据库对象（表/列/触发器/RLS 策略）、auth 元数据键（DB snake_case / TS camelCase / 组件 PascalCase / 文件 kebab-case）。中文只用于：文档、注释、测试描述、commit message、界面文案、域包题面与试题内容、种子数据值。见 `docs/adr/0006`。
