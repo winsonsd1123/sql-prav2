@@ -4,7 +4,7 @@ import { presetLoginState, collectConsoleProblems, createCloudProgressStub } fro
 // T1 · 后台管理骨架（issue #42 / spec #41，ADR-0005 / ADR-0007）：
 // 持「访问后台」权限点（mock 管理员）→ 演练场顶部入口可见、/admin 骨架页与侧边导航可达；
 // 无权限点 → 入口不可见、直访被重定向回演练场；未登录 → 引导登录。
-// #50 起追加全高侧栏布局断言（桌面纵向 / 窄屏横排）。
+// #50 起追加全高侧栏布局断言（桌面纵向 / 窄屏横排）；#51 追加账户区（邮箱 + 登出）。
 // 界面显隐仅为体验层，安全边界在 API 层（后续票）。
 
 // console 卫生（用户指令加严）：全用例期间页面不得出现 console.error/warning 或未捕获异常
@@ -114,6 +114,7 @@ test.describe("已登录", () => {
     await mockAdminPageApis(page);
     await page.goto("/admin/users");
     await expect(page.getByTestId("用户列表")).toBeVisible();
+    await expect(page.getByTestId("当前账户邮箱")).toHaveText("e2e@cuc.edu.cn");
     await waitForAnimationsSettled(page);
 
     const sidebar = page.getByTestId("后台侧栏");
@@ -122,10 +123,12 @@ test.describe("已登录", () => {
     const whitelist = await nav.getByRole("link", { name: "邮箱白名单" }).boundingBox();
     const brand = await page.getByRole("heading", { name: "后台管理", exact: true }).boundingBox();
     const back = await sidebar.getByRole("link", { name: "返回演练场" }).boundingBox();
+    const email = await sidebar.getByTestId("当前账户邮箱").boundingBox();
+    const signOut = await sidebar.getByTestId("登出按钮").boundingBox();
     const box = await sidebar.boundingBox();
     const content = await page.getByTestId("用户列表").boundingBox();
     const viewport = page.viewportSize();
-    if (!users || !whitelist || !brand || !back || !box || !content || !viewport) {
+    if (!users || !whitelist || !brand || !back || !email || !signOut || !box || !content || !viewport) {
       throw new Error("布局元素未渲染出 bounding box");
     }
 
@@ -138,6 +141,11 @@ test.describe("已登录", () => {
     // 全高：侧栏几乎占满视口高度，返回演练场贴近侧栏底部
     expect(box.height).toBeGreaterThan(viewport.height * 0.9);
     expect(box.y + box.height - (back.y + back.height)).toBeLessThan(48);
+    // #51 账户与出口区：邮箱在菜单之下、出口之上，登出与返回演练场同行
+    expect(email.y).toBeGreaterThan(whitelist.y);
+    expect(email.y).toBeLessThan(back.y);
+    expect(signOut.y).toBe(back.y);
+    expect(signOut.x).toBeGreaterThan(back.x);
     // 宽度落在主流惯例区间
     expect(box.width).toBeGreaterThanOrEqual(220);
     expect(box.width).toBeLessThanOrEqual(256);
@@ -164,11 +172,31 @@ test.describe("已登录", () => {
     expect(whitelist.y).toBe(users.y);
     expect(whitelist.x).toBeGreaterThan(users.x);
     expect(navBox.y + navBox.height).toBeLessThanOrEqual(content.y);
+    // 账户区在窄屏仍可访问
+    await expect(page.getByTestId("当前账户邮箱")).toHaveText("e2e@cuc.edu.cn");
+    await expect(page.getByTestId("登出按钮")).toBeVisible();
 
     await nav.getByRole("link", { name: "邮箱白名单" }).click();
     await expect(page).toHaveURL(/\/admin\/whitelist$/);
     await expect(nav.getByRole("link", { name: "邮箱白名单" })).toHaveAttribute("aria-current", "page");
     await expect(page.getByTestId("白名单管理")).toBeVisible();
+  });
+
+  // #51 全应用首个主动登出入口
+  test("账户区：显示当前登录邮箱，登出调用 auth logout 并跳转登录页", async ({ page }) => {
+    await mockAdminPermissions(page);
+    await mockAdminPageApis(page);
+    await page.route("**/auth/v1/logout*", async (route) => {
+      await route.fulfill({ status: 204, body: "" });
+    });
+    await page.goto("/admin/users");
+    await expect(page.getByTestId("当前账户邮箱")).toHaveText("e2e@cuc.edu.cn");
+
+    const logoutRequest = page.waitForRequest("**/auth/v1/logout*");
+    await page.getByTestId("登出按钮").click();
+    expect((await logoutRequest).method()).toBe("POST");
+    await expect(page).toHaveURL(/\/login$/);
+    expect(await page.evaluate(() => localStorage.getItem("演练场-supabase-auth"))).toBeNull();
   });
 
   test("无权限点：不见入口，直访 /admin 被重定向回演练场", async ({ page }) => {
