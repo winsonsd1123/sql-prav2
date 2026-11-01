@@ -8,8 +8,8 @@
 // 鉴权在 API 层（ADR-0007）；经 admin-api-client 带 Bearer token。
 
 import { useState } from "react";
-import { bearerHeaders, getSessionAuth } from "@/lib/admin-api-client";
-import { GateReportView } from "@/components/admin-domain-pack-generator";
+import { postAdminJson } from "@/lib/admin-api-client";
+import { GateReportView } from "@/components/domain-pack-gate-report-view";
 import {
   validateRefineForm,
   resolveRefineOutcome,
@@ -69,33 +69,23 @@ export default function AdminDomainPackRefiner({ packs, targetBasePackId, onAppl
     if (errors.length > 0) return;
     setFailure(null);
     setPhase({ kind: "refining" });
-    try {
-      const { token } = await getSessionAuth();
-      if (!token) {
-        setFailure({ phase: "error", message: "登录态已失效，请重新登录", retryable: true, needsKeyConfig: false });
-        setPhase({ kind: "idle" });
-        return;
-      }
-      const response = await fetch("/api/admin/domain-packs/refine", {
-        method: "POST",
-        headers: bearerHeaders(token, { "content-type": "application/json" }),
-        body: JSON.stringify({
-          packId: selectedBase,
-          intent,
-          ...(sampleSql.trim() !== "" ? { sampleSql } : {}),
-        }),
-      });
-      const body = (await response.json().catch(() => null)) as unknown;
-      const outcome = resolveRefineOutcome(response.status, body);
-      if (outcome.phase === "error") {
-        setFailure(outcome);
-        setPhase({ kind: "idle" });
-      } else {
-        setPhase({ kind: "report", outcome });
-      }
-    } catch {
-      setFailure({ phase: "error", message: "微调请求失败，请稍后重试", retryable: true, needsKeyConfig: false });
+    // 共享请求骨架（admin-api-client.postAdminJson）：与生成区块同款，无会话/网络失败统一兜底
+    const result = await postAdminJson("/api/admin/domain-packs/refine", {
+      packId: selectedBase,
+      intent,
+      ...(sampleSql.trim() !== "" ? { sampleSql } : {}),
+    });
+    if (!result.ok) {
+      setFailure({ phase: "error", message: "登录态已失效，请重新登录", retryable: true, needsKeyConfig: false });
       setPhase({ kind: "idle" });
+      return;
+    }
+    const outcome = resolveRefineOutcome(result.status, result.body);
+    if (outcome.phase === "error") {
+      setFailure(outcome);
+      setPhase({ kind: "idle" });
+    } else {
+      setPhase({ kind: "report", outcome });
     }
   };
 
@@ -103,32 +93,24 @@ export default function AdminDomainPackRefiner({ packs, targetBasePackId, onAppl
   const apply = async () => {
     if (phase.kind !== "report") return;
     setPhase({ kind: "applying", outcome: phase.outcome });
-    try {
-      const { token } = await getSessionAuth();
-      if (!token) {
-        setFailure({ phase: "error", message: "登录态已失效，请重新登录", retryable: true, needsKeyConfig: false });
-        setPhase({ kind: "idle" });
-        return;
-      }
-      const response = await fetch("/api/admin/domain-packs/refine/apply", {
-        method: "POST",
-        headers: bearerHeaders(token, { "content-type": "application/json" }),
-        body: JSON.stringify({ packId: selectedBase, pack: phase.outcome.draft }),
-      });
-      const body = (await response.json().catch(() => null)) as unknown;
-      const outcome = resolveApplyOutcome(response.status, body);
-      if (outcome.phase === "applied") {
-        setPhase({ kind: "applied", packId: outcome.packId, changeClass: outcome.changeClass, versionLabel: outcome.versionLabel });
-        onApplied?.();
-      } else if (outcome.phase === "gate-rejected") {
-        // 服务端闸门拒绝：报告已更新，回报告态供教师放弃或改意图重试
-        setPhase({ kind: "report", outcome: { ...phase.outcome, report: outcome.report } });
-      } else {
-        setFailure({ phase: "error", message: outcome.message, retryable: outcome.retryable, needsKeyConfig: false });
-        setPhase({ kind: "report", outcome: phase.outcome });
-      }
-    } catch {
-      setFailure({ phase: "error", message: "确认生效请求失败，请稍后重试", retryable: true, needsKeyConfig: false });
+    const result = await postAdminJson("/api/admin/domain-packs/refine/apply", {
+      packId: selectedBase,
+      pack: phase.outcome.draft,
+    });
+    if (!result.ok) {
+      setFailure({ phase: "error", message: "登录态已失效，请重新登录", retryable: true, needsKeyConfig: false });
+      setPhase({ kind: "idle" });
+      return;
+    }
+    const outcome = resolveApplyOutcome(result.status, result.body);
+    if (outcome.phase === "applied") {
+      setPhase({ kind: "applied", packId: outcome.packId, changeClass: outcome.changeClass, versionLabel: outcome.versionLabel });
+      onApplied?.();
+    } else if (outcome.phase === "gate-rejected") {
+      // 服务端闸门拒绝：报告已更新，回报告态供教师放弃或改意图重试
+      setPhase({ kind: "report", outcome: { ...phase.outcome, report: outcome.report } });
+    } else {
+      setFailure({ phase: "error", message: outcome.message, retryable: outcome.retryable, needsKeyConfig: false });
       setPhase({ kind: "report", outcome: phase.outcome });
     }
   };
