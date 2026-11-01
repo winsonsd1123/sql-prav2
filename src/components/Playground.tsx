@@ -19,6 +19,8 @@ import {
   domainPackRegistry,
   createDraftSaver,
 } from "@/components/session-store";
+import { packExposureStore } from "@/components/pack-exposure-store";
+import { filterExposedPacks } from "@/lib/pack-exposure";
 import {
   emptyProgress,
   recordPass,
@@ -65,6 +67,15 @@ export default function Playground() {
     () => domainPackRegistry.find((d) => d.packId === packId) ?? domainPackRegistry[0],
     [packId],
   );
+  // 域包放出（#55）：可演练列表 = 注册表 ∩ 系统级放出清单；清单异步就绪前为 null（未配置=全放），
+  // 首屏按全放渲染、就绪后过滤，不闪错。放出与否不影响进行中会话：当前选中的域包即使不再放出，
+  // 会话与进度照旧，只是切换胶囊不再展示它。
+  const exposure = useSyncExternalStore(
+    packExposureStore.subscribe,
+    packExposureStore.getSnapshot,
+    packExposureStore.getServerSnapshot,
+  );
+  const visiblePacks = useMemo(() => filterExposedPacks(domainPackRegistry, exposure), [exposure]);
   const session = useMemo(
     () => (seed === null ? null : generatePracticeSession(seed, pack)),
     [seed, pack],
@@ -338,7 +349,7 @@ export default function Playground() {
         <h1 className="标题 text-[1.65rem] leading-none">SQL 演练场</h1>
         <div className="flex flex-wrap items-center gap-2">
           <span className="inline-flex rounded-full bg-ink/[0.06] p-0.5">
-            {domainPackRegistry.map((d) => (
+            {visiblePacks.map((d) => (
               <button
                 key={d.packId}
                 onClick={() => onSwitchPack(d.packId)}

@@ -24,6 +24,9 @@ function makeDeps(overrides: Partial<AdminDeps> = {}): AdminDeps {
     fetchAllowlistView: async () => ({ allowAnyDomain: false, domains: [] }),
     replaceAllowlistDomains: async () => undefined,
     updateAllowAnyDomain: async () => undefined,
+    // #55 新增接缝：域包放出清单读写（本文件用例不触，给空实现补齐 AdminDeps 形状）
+    fetchExposedPackIds: async () => [],
+    replaceExposedPackIds: async () => undefined,
     ...overrides,
   };
 }
