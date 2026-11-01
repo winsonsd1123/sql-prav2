@@ -5,6 +5,7 @@
 
 import type { GateIssue, GateReport } from "@/kernel/domain-pack-gate";
 import type { DomainPack } from "@/kernel/types";
+import { parsePackIdVersion } from "@/kernel/domain-pack-versioning";
 
 /** 草稿关键信息摘要：确认发布前给教师核对的清单（GLOSSARY「难度档位」五档分布） */
 export interface DomainPackDraftSummary {
@@ -82,6 +83,8 @@ export function buildGateReportSections(report: GateReport): GateReportSectionVi
 /** 域包列表行：管理页「域包列表」区块的渲染口径（GLOSSARY「域包放出」状态随清单派生） */
 export interface DomainPackListRow {
   packId: string;
+  /** 基础名（去 @vN 后缀）：微调入口与版本历史查询的锚点（票 #62，基础名永不改） */
+  basePackId: string;
   name: string;
   tableCount: number;
   templateCount: number;
@@ -94,31 +97,38 @@ export interface DomainPackListRow {
 }
 
 /**
- * 域包列表行视图模型：内置在前、云端新增在后（与 mergePackRegistries 同序；
- * 云端与内置同 id 的行不占列表位——那是演练配置覆盖，不是新包）。
+ * 域包列表行视图模型（票 #62 起输入为「已按基础名收敛为最新版」的展示清单，
+ * 收敛由页面层 pickLatestVersionPerBase(mergePackRegistries(...)) 完成——
+ * 内置包被 B 类微调出新版本后，列表该行即云端新版本（来源「云端」），旧版本进版本历史区块）。
+ * builtinBaseIds 为内置基础名集合：无后缀且基础名命中 = 来源「内置」，否则「云端」。
  * exposedIds 传 null 表示未配置（默认全部放出）。
  */
 export function buildDomainPackListRows(
-  builtin: readonly DomainPack[],
-  cloud: readonly DomainPack[],
+  packs: readonly DomainPack[],
+  builtinBaseIds: ReadonlySet<string>,
   exposedIds: ReadonlySet<string> | null,
 ): DomainPackListRow[] {
-  const builtinIds = new Set(builtin.map((p) => p.packId));
-  const packs = [...builtin, ...cloud.filter((p) => !builtinIds.has(p.packId))];
   return packs.map((pack) => {
     const tierOverview = { "1": 0, "2": 0, "3": 0, "4": 0, "5": 0 } as DomainPackListRow["tierOverview"];
     for (const template of pack.templates) {
       const key = String(template.difficulty) as keyof DomainPackListRow["tierOverview"];
       if (key in tierOverview) tierOverview[key] += 1;
     }
+    const { base, version } = parsePackIdVersion(pack.packId);
+    const isBuiltin = version === 1 && builtinBaseIds.has(base);
     return {
       packId: pack.packId,
+      basePackId: base,
       name: pack.name,
       tableCount: pack.schemaSkeleton.length,
       templateCount: pack.templates.length,
       tierOverview,
-      source: builtinIds.has(pack.packId) ? ("内置" as const) : ("云端" as const),
-      exposed: exposedIds === null ? true : exposedIds.has(pack.packId),
+      source: isBuiltin ? ("内置" as const) : ("云端" as const),
+      // 放出按基础名或完整 id 双口径（与 filterExposedPacks 一致：微调不改变放出状态）
+      exposed:
+        exposedIds === null ||
+        exposedIds.has(pack.packId) ||
+        (base !== pack.packId && exposedIds.has(base)),
     };
   });
 }

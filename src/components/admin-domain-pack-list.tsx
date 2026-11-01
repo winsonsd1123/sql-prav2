@@ -13,15 +13,17 @@ import { buildDomainPackListRows, type DomainPackListRow } from "@/components/do
 import type { DomainPack } from "@/kernel/types";
 
 export interface AdminDomainPackListProps {
-  /** 内置域包（随前端发布，来源列恒「内置」） */
-  builtin: readonly DomainPack[];
-  /** 云端域包（domain_pack_asset，含 LLM 生成后发布的；与内置同 id 的行不占列表位） */
-  cloud: readonly DomainPack[];
+  /** 展示清单（票 #62 起由页面收敛：每个基础名只留最新版本） */
+  packs: readonly DomainPack[];
+  /** 内置基础名集合（来源列判定：无后缀且基础名命中 = 内置） */
+  builtinBaseIds: ReadonlySet<string>;
   /** 云端就绪标记（false = 仍在拉取，列表只含内置，副注说明） */
   cloudLoaded: boolean;
+  /** 行内「微调」入口回调（票 #62）：携带该行基础名，页面据此定位微调区块 */
+  onRefine?: (basePackId: string) => void;
 }
 
-export default function AdminDomainPackList({ builtin, cloud, cloudLoaded }: AdminDomainPackListProps) {
+export default function AdminDomainPackList({ packs, builtinBaseIds, cloudLoaded, onRefine }: AdminDomainPackListProps) {
   // null = 放出清单未配置（默认全部放出）；undefined = 尚未加载完成（列表暂不渲染）
   const [exposedIds, setExposedIds] = useState<ReadonlySet<string> | null | undefined>(undefined);
 
@@ -49,7 +51,7 @@ export default function AdminDomainPackList({ builtin, cloud, cloudLoaded }: Adm
   }, []);
 
   const rows: DomainPackListRow[] =
-    exposedIds === undefined ? [] : buildDomainPackListRows(builtin, cloud, exposedIds);
+    exposedIds === undefined ? [] : buildDomainPackListRows(packs, builtinBaseIds, exposedIds);
 
   return (
     <section
@@ -74,7 +76,8 @@ export default function AdminDomainPackList({ builtin, cloud, cloudLoaded }: Adm
               <th className="py-1 pr-3 font-normal">模板数</th>
               <th className="py-1 pr-3 font-normal">难度五档概览</th>
               <th className="py-1 pr-3 font-normal">来源</th>
-              <th className="py-1 font-normal">放出状态</th>
+              <th className="py-1 pr-3 font-normal">放出状态</th>
+              <th className="py-1 font-normal">操作</th>
             </tr>
           </thead>
           <tbody>
@@ -88,14 +91,24 @@ export default function AdminDomainPackList({ builtin, cloud, cloudLoaded }: Adm
                   {(["1", "2", "3", "4", "5"] as const).map((t) => `${t}档:${row.tierOverview[t]}`).join(" ")}
                 </td>
                 <td className="py-1.5 pr-3 text-xs text-muted">{row.source}</td>
-                <td className="py-1.5 text-xs">
-                  {exposedIds === null ? (
+                <td className="py-1.5 pr-3 text-xs">
+                  {row.exposed && exposedIds === null ? (
                     <span className="text-emerald-700">已放出（默认全放）</span>
-                  ) : exposedIds.has(row.packId) ? (
+                  ) : row.exposed ? (
                     <span className="text-emerald-700">已放出</span>
                   ) : (
                     <span className="text-muted">未放出</span>
                   )}
+                </td>
+                <td className="py-1.5">
+                  <button
+                    type="button"
+                    className="次按钮 px-2 py-1 text-xs"
+                    data-testid={`微调入口-${row.name}`}
+                    onClick={() => onRefine?.(row.basePackId)}
+                  >
+                    微调
+                  </button>
                 </td>
               </tr>
             ))}

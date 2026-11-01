@@ -113,15 +113,19 @@ describe("buildDomainPackListRows：域包列表行视图模型（内置 + 云�
     const { builtinDomainPacks } = await import("@/components/domain-pack-registry");
     const { assetToKernelPack } = await import("@/kernel/domain-pack-contract");
     const { builtinPackAssets } = await import("@/domain-packs/builtin-packs");
-    // 云端一个新包 + 一个与内置同 id 的行（合并语义：同 id 只覆盖演练配置，列表仍是一行「内置」）
     const cloudOnly = assetToKernelPack({ ...builtinPackAssets[0], packId: "library-borrow", name: "图书馆借阅" });
-    const sameIdAsBuiltin = assetToKernelPack(builtinPackAssets[1]);
 
-    const rows = buildDomainPackListRows(builtinDomainPacks, [cloudOnly, sameIdAsBuiltin], new Set(["student-course-grade"]));
+    // 票 #62 起输入为已按基础名收敛的展示清单（页面层收敛），此处直接给收敛后形态
+    const rows = buildDomainPackListRows(
+      [...builtinDomainPacks, cloudOnly],
+      new Set(builtinDomainPacks.map((d) => d.packId)),
+      new Set(["student-course-grade"]),
+    );
 
     expect(rows).toHaveLength(3);
     expect(rows[0]).toMatchObject({
       packId: "student-course-grade",
+      basePackId: "student-course-grade",
       name: "学生-课程-成绩",
       source: "内置",
       tableCount: 3,
@@ -138,7 +142,27 @@ describe("buildDomainPackListRows：域包列表行视图模型（内置 + 云�
   it("放出清单为 null（未配置 = 默认全部放出）时所有行 exposed 为 true", async () => {
     const { buildDomainPackListRows } = await import("@/components/domain-pack-admin-view-model");
     const { builtinDomainPacks } = await import("@/components/domain-pack-registry");
-    const rows = buildDomainPackListRows(builtinDomainPacks, [], null);
+    const rows = buildDomainPackListRows(builtinDomainPacks, new Set(builtinDomainPacks.map((d) => d.packId)), null);
     expect(rows.every((r) => r.exposed)).toBe(true);
+  });
+
+  it("版本化（票 #62）：内置包微调出 @v2 后该行显示云端新版本，放出按基础名双口径仍判定已放出", async () => {
+    const { buildDomainPackListRows } = await import("@/components/domain-pack-admin-view-model");
+    const { builtinDomainPacks } = await import("@/components/domain-pack-registry");
+    const { builtinPackAssets } = await import("@/domain-packs/builtin-packs");
+    const { assetToKernelPack } = await import("@/kernel/domain-pack-contract");
+    const v2 = assetToKernelPack({ ...builtinPackAssets[0], packId: "student-course-grade@v2" });
+    // 展示清单已收敛：基础名同名只留 v2
+    const rows = buildDomainPackListRows(
+      [v2, builtinDomainPacks[1]],
+      new Set(builtinDomainPacks.map((d) => d.packId)),
+      new Set(["student-course-grade"]),
+    );
+    expect(rows[0]).toMatchObject({
+      packId: "student-course-grade@v2",
+      basePackId: "student-course-grade",
+      source: "云端",
+      exposed: true,
+    });
   });
 });
