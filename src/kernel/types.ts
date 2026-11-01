@@ -58,12 +58,31 @@ export interface QuestionTemplate {
   paramPool?: Record<string, (string | number | Record<string, string>)[]>;
 }
 
+/**
+ * 演练配置（GLOSSARY「演练配置」，票 #61）：会话总题数 + 各难度档位的数量分布。
+ * A 类改动（ADR-0009：不参与种子生成，即时生效、不产生域包版本）——
+ * 影响的是抽题（题目选取）而非库/数据生成路径。
+ */
+export interface PracticeConfiguration {
+  /** 每次会话的题目总数 */
+  totalQuestions: number;
+  /** 各档位数量分布，键为档位数字的字符串形式（"1"-"5"，JSON 对象键必为字符串） */
+  tierDistribution: Record<string, number>;
+}
+
 /** 域包：一个业务场景的完整定义 */
 export interface DomainPack {
   packId: string;
   name: string;
   schemaSkeleton: TableDefinition[];
   templates: QuestionTemplate[];
+  /**
+   * 演练配置（票 #61）：抽题按此生成（总题数 + 各档分布）。缺省回退旧算法
+   * （固定 10 题、知识点保底 + 种子随机余量，不施加难度约束）——
+   * 兼容自造模板且不带配置的历史调用方（单测夹具）。
+   * 数据资产域包（契约必填 practiceConfig）经 assetToKernelPack 恒有值。
+   */
+  practiceConfig?: PracticeConfiguration;
   /**
    * 有序知识点清单（票 #58 下放域包字段）：会话抽题按此顺序推进。
    * 数据资产域包（契约校验必填）恒有值；缺省回退 question-picking 的内置七类

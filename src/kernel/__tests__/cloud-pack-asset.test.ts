@@ -31,11 +31,12 @@ describe("云端域包夹具与资产转换", () => {
     expect(session.questions).toHaveLength(10);
   });
 
-  it("转换携带知识点清单、不携带难度定义与演练配置（#58 抽题按域包清单推进）", () => {
+  it("转换携带知识点清单与演练配置、不携带难度定义（#58 顺序 / #61 配置抽题）", () => {
     const parsed = parseDomainPackJson(mkCloudPackJson());
     if (!parsed.ok) return;
     const pack = assetToKernelPack(parsed.pack);
-    expect(Object.keys(pack)).toEqual(["packId", "name", "schemaSkeleton", "templates", "knowledgeAreas"]);
+    expect(Object.keys(pack)).toEqual(["packId", "name", "schemaSkeleton", "templates", "knowledgeAreas", "practiceConfig"]);
     expect(pack.knowledgeAreas).toEqual(parsed.pack.knowledgeAreas);
+    expect(pack.practiceConfig).toEqual(parsed.pack.practiceConfig);
   });
 });

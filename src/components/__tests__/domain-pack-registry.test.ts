@@ -30,6 +30,24 @@ describe("合并注册表 mergePackRegistries", () => {
     expect(merged).toHaveLength(3);
     expect(merged[0]).toBe(builtinDomainPacks[0]);
   });
+
+  it("云端同 id 资产只覆盖内置包的演练配置：内容仍以内置为准，配置即时生效（#61，A 类改动）", () => {
+    const overridden: DomainPack = {
+      ...builtinDomainPacks[0],
+      templates: [], // 云端行即使被篡改也不得影响内置模板（种子生成路径不可漂移）
+      practiceConfig: { totalQuestions: 7, tierDistribution: { "1": 1, "2": 2, "3": 2, "4": 1, "5": 1 } },
+    };
+    const merged = mergePackRegistries(builtinDomainPacks, [overridden]);
+    expect(merged).toHaveLength(2);
+    const builtin = merged[0];
+    expect(builtin.templates).toBe(builtinDomainPacks[0].templates);
+    expect(builtin.practiceConfig).toEqual(overridden.practiceConfig);
+    // 原内置常量不被原地修改（模块级共享数组）
+    expect(builtinDomainPacks[0].practiceConfig).toEqual({
+      totalQuestions: 10,
+      tierDistribution: { "1": 1, "2": 3, "3": 3, "4": 2, "5": 1 },
+    });
+  });
 });
 
 describe("初始 packId 选择 pickInitialPackId（延迟校验）", () => {
