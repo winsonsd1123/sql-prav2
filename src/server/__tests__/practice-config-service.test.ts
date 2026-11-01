@@ -211,7 +211,7 @@ describe("savePracticeConfig × 内置包底本纪律（票 #62）", () => {
   });
 
   it("版本化的内置包（packId 带后缀，如 student-course-grade@v2）保存配置：底稿仍取云端当前行（非内置 JSON）", async () => {
-    const v2 = mkCloudPackJson({ packId: "student-course-grade@v2" });
+    const v2 = mkCloudPackJson({ packId: "student-course-grade@v2" }) as unknown as import("@/kernel/domain-pack-contract").DomainPackAsset;
     const upsertMock = vi.fn().mockResolvedValue({ error: null });
     const result = await savePracticeConfig(
       {

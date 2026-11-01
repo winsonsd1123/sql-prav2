@@ -51,7 +51,9 @@ export default function AdminPacksPage() {
         }}
       />
       <div id="域包微调区块">
+        {/* key = 入口预选的基础名：列表行「微调」切换目标即重挂载区块回到预选值（避免 effect 内 setState 级联渲染） */}
         <AdminDomainPackRefiner
+          key={refineTarget ?? "none"}
           packs={displayPacks}
           targetBasePackId={refineTarget}
           onApplied={reloadCloud}

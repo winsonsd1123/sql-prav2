@@ -22,8 +22,8 @@ import {
 import { buildGateReportSections } from "@/components/domain-pack-admin-view-model";
 import type { GateReport } from "@/kernel/domain-pack-gate";
 
-/** 报告渲染：三段状态 + 逐条 GateIssue（与放出/配置区块同款卡片样式） */
-function GateReportView({ report }: { report: GateReport }) {
+/** 报告渲染：三段状态 + 逐条 GateIssue（与放出/配置区块同款卡片样式）；票 #62 起导出供微调区块复用 */
+export function GateReportView({ report }: { report: GateReport }) {
   const sections = buildGateReportSections(report);
   return (
     <div data-testid="验证报告" className="flex flex-col gap-2">

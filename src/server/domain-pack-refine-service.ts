@@ -219,11 +219,11 @@ export async function applyDomainPackRefinement(
     if (current === null) return { status: "not_found" };
 
     // 契约不合法的草稿直接走闸门拒绝（结构检查即契约校验，报告可读）；不另行手拼报告
-    if (!parseDomainPackJson(pack).ok) {
+    const parsedDraft = parseDomainPackJson(pack);
+    if (!parsedDraft.ok) {
       const report = await validateDomainPack(pack);
       return { status: "gate", report };
     }
-    const parsedDraft = parseDomainPackJson(pack);
     // 基础名不可改（ADR-0009）：草稿 packId 的基础名与目标不一致直接拒绝，不落库
     if (parsePackIdVersion(parsedDraft.pack.packId).base !== basePackId) {
       return { status: "base_name_changed", actualBasePackId: parsePackIdVersion(parsedDraft.pack.packId).base };

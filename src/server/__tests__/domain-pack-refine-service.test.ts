@@ -70,7 +70,7 @@ beforeEach(() => vi.clearAllMocks());
 
 describe("refineDomainPackDraft：微调草稿编排", () => {
   it("提示词承载当前资产全文与修改意图，草稿过闸门并附服务端 A/B 分类", async () => {
-    const current = mkCloudPackJson({ packId: PACK_ID });
+    const current = mkCloudPackJson({ packId: PACK_ID }) as unknown as DomainPackAsset;
     // A 类草稿：仅改难度档位描述
     const draft = {
       ...current,
@@ -95,7 +95,7 @@ describe("refineDomainPackDraft：微调草稿编排", () => {
   });
 
   it("B 类草稿（模板变）：分类 B，预告知将产生的版本号", async () => {
-    const current = mkCloudPackJson({ packId: PACK_ID });
+    const current = mkCloudPackJson({ packId: PACK_ID }) as unknown as DomainPackAsset;
     const draft = {
       ...current,
       templates: current.templates.map((t, i) => (i === 0 ? { ...t, prompt: `${t.prompt}（微调）` } : t)),
@@ -161,7 +161,7 @@ describe("refineDomainPackDraft：微调草稿编排", () => {
 
 describe("applyDomainPackRefinement：确认生效", () => {
   it("A 类：packId 不变、更新当前行、不写版本历史（即时生效，ADR-0009）", async () => {
-    const current = mkCloudPackJson({ packId: PACK_ID });
+    const current = mkCloudPackJson({ packId: PACK_ID }) as unknown as DomainPackAsset;
     const draft = {
       ...current,
       practiceConfig: { totalQuestions: 7, tierDistribution: { "1": 1, "2": 2, "3": 2, "4": 1, "5": 1 } },
@@ -184,7 +184,7 @@ describe("applyDomainPackRefinement：确认生效", () => {
   });
 
   it("B 类：产生新版本——旧资产写入版本历史，当前行更新为带 @v2 后缀的新资产", async () => {
-    const current = mkCloudPackJson({ packId: PACK_ID });
+    const current = mkCloudPackJson({ packId: PACK_ID }) as unknown as DomainPackAsset;
     const draft = {
       ...current,
       templates: current.templates.map((t, i) => (i === 0 ? { ...t, prompt: `${t.prompt}（微调）` } : t)),
@@ -213,7 +213,7 @@ describe("applyDomainPackRefinement：确认生效", () => {
   });
 
   it("B 类连续微调：版本号递增（v2 → v3），v2 写入历史", async () => {
-    const v2 = mkCloudPackJson({ packId: `${PACK_ID}@v2` });
+    const v2 = mkCloudPackJson({ packId: `${PACK_ID}@v2` }) as unknown as DomainPackAsset;
     const draft = {
       ...v2,
       templates: v2.templates.map((t, i) => (i === 1 ? { ...t, prompt: `${t.prompt}（微调）` } : t)),
@@ -233,7 +233,7 @@ describe("applyDomainPackRefinement：确认生效", () => {
   });
 
   it("草稿改了 packId 基础名：拒绝（ADR-0009 基础名永不改）", async () => {
-    const current = mkCloudPackJson({ packId: PACK_ID });
+    const current = mkCloudPackJson({ packId: PACK_ID }) as unknown as DomainPackAsset;
     const draft = { ...current, packId: "renamed-pack" };
     const tables = mkTables([{ pack_id: PACK_ID, asset: current }]);
     const result = await applyDomainPackRefinement(
@@ -246,7 +246,7 @@ describe("applyDomainPackRefinement：确认生效", () => {
   });
 
   it("闸门拒绝草稿：不落库，报告透传（与发布同一闸门）", async () => {
-    const current = mkCloudPackJson({ packId: PACK_ID });
+    const current = mkCloudPackJson({ packId: PACK_ID }) as unknown as DomainPackAsset;
     const draft = { ...current, templates: current.templates.slice(0, 3) }; // 模板数不足，闸门拒
     const tables = mkTables([{ pack_id: PACK_ID, asset: current }]);
     const result = await applyDomainPackRefinement(
@@ -259,7 +259,7 @@ describe("applyDomainPackRefinement：确认生效", () => {
   });
 
   it("无变化草稿（unchanged）：invalid——确认生效必须承载实际修改", async () => {
-    const current = mkCloudPackJson({ packId: PACK_ID });
+    const current = mkCloudPackJson({ packId: PACK_ID }) as unknown as DomainPackAsset;
     const tables = mkTables([{ pack_id: PACK_ID, asset: current }]);
     const result = await applyDomainPackRefinement(
       { packId: PACK_ID, pack: current },
@@ -295,7 +295,7 @@ describe("applyDomainPackRefinement：确认生效", () => {
 describe("getDomainPackVersionHistory：版本历史查询", () => {
   it("历史行按版本倒序，含当前版本（isCurrent 标记）", async () => {
     const v1 = mkCloudPackJson({ packId: PACK_ID });
-    const v2 = mkCloudPackJson({ packId: `${PACK_ID}@v2` });
+    const v2 = mkCloudPackJson({ packId: `${PACK_ID}@v2` }) as unknown as DomainPackAsset;
     const tables = mkTables(
       [{ pack_id: PACK_ID, asset: v2 }],
       [
