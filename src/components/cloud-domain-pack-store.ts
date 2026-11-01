@@ -87,6 +87,11 @@ export const cloudPackStore = {
   getServerSnapshot(): CloudPackSnapshot {
     return { packs: [], loaded: false };
   },
+  /** 管理页发布新域包后强制重拉（票 #60）：清就绪标记再懒加载，订阅者收最新清单 */
+  forceReload(): void {
+    loaded = false;
+    void loadCloudPacks();
+  },
 };
 
 /** 仅供单测复位模块级状态（生产不使用） */

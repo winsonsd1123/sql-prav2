@@ -106,6 +106,8 @@ test("教师勾选放出单个域包并保存：PUT 全量清单，学生端只�
   await page.route("**/api/admin/domain-packs/practice-config", async (route) => {
     await route.fulfill({ status: 200, contentType: "application/json", body: JSON.stringify({ packs: [] }) });
   });
+  // #60 起管理页挂域包列表区块（cloudPackStore 拉云端资产表），离线回放空行集保 console 卫生
+  await mockDomainPackAssetRows(page, []);
   await page.goto("/admin/packs");
   await expect(page.getByTestId("域包放出管理")).toBeVisible();
   // 未配置时从「全放」出发编辑：取消勾选「员工-部门-薪资」
