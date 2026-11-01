@@ -4,7 +4,7 @@
 // 序列化为纯 JSON（无函数、无代码执行），不引入新依赖。
 // 校验失败产出「字段路径 + 中文问题」的人类可读错误，供闸门与教师端展示。
 
-import type { TableDefinition, QuestionTemplate } from "./types";
+import type { DomainPack, TableDefinition, QuestionTemplate } from "./types";
 import { topologicalTableOrder } from "./generate";
 
 /** 难度档位定义（GLOSSARY「难度档位」）：难度 1-5 各档的含义，不参与种子生成（A 类改动） */
@@ -52,6 +52,19 @@ export const PACK_CONSTRAINTS = {
   minDifficulty: 1,
   maxDifficulty: 5,
 } as const;
+
+/**
+ * 数据资产 → 判题内核域包（票 #57 加载层复用）：结构/模板字段同构；
+ * 知识点清单与难度档位定义不进入种子生成路径（A 类改动，ADR-0009）。
+ */
+export function assetToKernelPack(asset: DomainPackAsset): DomainPack {
+  return {
+    packId: asset.packId,
+    name: asset.name,
+    schemaSkeleton: asset.schemaSkeleton,
+    templates: asset.templates,
+  };
+}
 
 export type ParseResult =
   | { ok: true; pack: DomainPackAsset }

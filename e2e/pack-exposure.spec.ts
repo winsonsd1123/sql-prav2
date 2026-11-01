@@ -77,9 +77,21 @@ async function mockPackExposureRows(page: Page, packIds: string[]) {
   });
 }
 
+/** 学生端 domain_pack_asset REST 桩（#57）：回放云端域包资产行集（空数组 = 云端无域包） */
+async function mockDomainPackAssetRows(page: Page, rows: unknown[]) {
+  await page.route("**/rest/v1/domain_pack_asset*", async (route) => {
+    await route.fulfill({
+      status: 200,
+      contentType: "application/json",
+      body: JSON.stringify(rows),
+    });
+  });
+}
+
 test("未配置（清单空）默认全部放出：学生端两个域包胶囊均可见", async ({ page }) => {
   await mockStudentPermissions(page);
   await mockPackExposureRows(page, []);
+  await mockDomainPackAssetRows(page, []);
   await page.goto("/?seed=42");
   await expect(page.getByRole("heading", { name: "SQL 演练场" })).toBeVisible();
   await expect(page.getByRole("button", { name: "学生-课程-成绩" })).toBeVisible();
@@ -100,6 +112,7 @@ test("教师勾选放出单个域包并保存：PUT 全量清单，学生端只�
 
   // —— 学生端：清单只含「学生-课程-成绩」→ 未放出的域包完全不可见 ——
   await mockPackExposureRows(page, calls.put[0]);
+  await mockDomainPackAssetRows(page, []);
   await page.goto("/?seed=42");
   await expect(page.getByRole("heading", { name: "SQL 演练场" })).toBeVisible();
   await expect(page.getByRole("button", { name: "学生-课程-成绩" })).toBeVisible();

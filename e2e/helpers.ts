@@ -81,3 +81,24 @@ export function createCloudProgressStub() {
   };
   return { rows, receivedWrites, attach, rowKey };
 }
+
+// 云端域包资产表桩（票 #57）：演练场加载层会拉 /rest/v1/domain_pack_asset 合并云端域包，
+// 离线 e2e 回放内存行集（默认空 = 云端无域包，学生端仅见内置两包）。
+export interface DomainPackAssetRow {
+  pack_id: string;
+  asset: unknown;
+}
+
+export function createDomainPackAssetStub() {
+  const rows: DomainPackAssetRow[] = [];
+  const attach = async (page: Page) => {
+    await page.route("**/rest/v1/domain_pack_asset*", async (route) => {
+      await route.fulfill({
+        status: 200,
+        contentType: "application/json",
+        body: JSON.stringify(rows),
+      });
+    });
+  };
+  return { rows, attach };
+}

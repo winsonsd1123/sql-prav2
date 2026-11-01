@@ -3,11 +3,10 @@
 // 断言口径复用全量回归测试（复用 #54 的 integrity.ts 与 generate.ts，不重写）。
 // 报告结构化（供教师端 #60 渲染）且可格式化为人类可读中文文本。
 
-import { parseDomainPackJson, type DomainPackAsset } from "./domain-pack-contract";
+import { parseDomainPackJson, assetToKernelPack, type DomainPackAsset } from "./domain-pack-contract";
 import { generateSession } from "./generate";
 import { collectIntegrityViolations } from "./integrity";
 import { openInMemoryDb, executeQuery } from "./execute";
-import type { DomainPack } from "./types";
 
 /** 生成/自判检查使用的固定测试种子（不取当前时间、不随机，保证闸门结论可复现） */
 export const GATE_TEST_SEEDS = [20260101, 42] as const;
@@ -36,16 +35,6 @@ export interface GateReport {
   structural: GateSection & { checkedTables: number; checkedTemplates: number };
   generation: GateSection & { seeds: readonly number[] };
   selfJudging: GateSection & { checkedTemplates: number; seed: number };
-}
-
-/** 数据资产 → 判题内核域包（结构/模板字段同构；知识点清单与难度定义不进入生成路径） */
-function toKernelPack(asset: DomainPackAsset): DomainPack {
-  return {
-    packId: asset.packId,
-    name: asset.name,
-    schemaSkeleton: asset.schemaSkeleton,
-    templates: asset.templates,
-  };
 }
 
 /**
@@ -84,7 +73,7 @@ export async function validateDomainPack(json: unknown): Promise<GateReport> {
   // 模板实例化失败发生在生成路径（generateSession 内替换占位符），
   // 但根因是模板问题（未知语义角色/缺参数），归类到自判检查报告，供逐题定位
   const instantiationIssues: GateIssue[] = [];
-  const pack = toKernelPack(asset);
+  const pack = assetToKernelPack(asset);
   const sessions = [];
   for (const seed of GATE_TEST_SEEDS) {
     try {
