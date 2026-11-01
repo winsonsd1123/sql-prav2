@@ -5,10 +5,16 @@ import { describe, expect, it, vi, beforeEach } from "vitest";
 import { mkCloudPackJson } from "@/kernel/__tests__/fixtures/cloud-domain-pack";
 
 const selectMock = vi.fn();
+const historySelectMock = vi.fn();
 
 vi.mock("@/lib/supabase/browser-client", () => ({
   browserClient: () => ({
-    from: (table: string) => (table === "domain_pack_asset" ? { select: selectMock } : {}),
+    from: (table: string) =>
+      table === "domain_pack_asset"
+        ? { select: selectMock }
+        : table === "domain_pack_version_history"
+          ? { select: historySelectMock }
+          : {},
   }),
 }));
 
@@ -23,13 +29,14 @@ function rowsOf(rows: unknown[]) {
 
 beforeEach(() => {
   selectMock.mockReset();
+  historySelectMock.mockReset();
   __resetCloudPackStoreForTest();
 });
 
 describe("学生端云端域包存储（cloudPackStore）", () => {
   it("初始快照：空清单 + 未就绪——学生端首屏仅见内置两包，不闪错域包", () => {
-    expect(cloudPackStore.getSnapshot()).toEqual({ packs: [], loaded: false });
-    expect(cloudPackStore.getServerSnapshot()).toEqual({ packs: [], loaded: false });
+    expect(cloudPackStore.getSnapshot()).toEqual({ packs: [], historyPacks: [], loaded: false });
+    expect(cloudPackStore.getServerSnapshot()).toEqual({ packs: [], historyPacks: [], loaded: false });
   });
 
   it("合法域包行收录为内核域包，loaded 置真", async () => {
@@ -105,5 +112,55 @@ describe("学生端云端域包存储（cloudPackStore）", () => {
     u1();
     u2();
     expect(selectMock).toHaveBeenCalledTimes(1);
+    expect(historySelectMock).toHaveBeenCalledTimes(1);
+  });
+});
+
+describe("学生端云端域包存储 × 版本历史（票 #62 / ADR-0009）", () => {
+  it("历史版本行收录进 historyPacks：旧 packId 会话据此解析旧内容", async () => {
+    rowsOf([{ pack_id: "library-loan", asset: mkCloudPackJson({ packId: "library-loan@v2" }) }]);
+    historySelectMock.mockResolvedValueOnce({
+      data: [{ pack_id: "library-loan", version_label: "v1", asset: mkCloudPackJson({ packId: "library-loan" }) }],
+      error: null,
+    });
+    const unsubscribe = cloudPackStore.subscribe(() => {});
+    await vi.waitFor(() => expect(cloudPackStore.getSnapshot().loaded).toBe(true));
+    unsubscribe();
+    const snapshot = cloudPackStore.getSnapshot();
+    expect(snapshot.packs.map((d) => d.packId)).toEqual(["library-loan@v2"]);
+    expect(snapshot.historyPacks.map((d) => d.packId)).toEqual(["library-loan"]);
+  });
+
+  it("历史表读取失败/异常 → historyPacks 降级空数组（旧会话解析不到云端旧版时暂不生成，不影响新会话）", async () => {
+    rowsOf([{ pack_id: "library-loan", asset: mkCloudPackJson({ packId: "library-loan@v2" }) }]);
+    historySelectMock.mockResolvedValueOnce({ data: null, error: { message: "offline" } });
+    const unsubscribe = cloudPackStore.subscribe(() => {});
+    await vi.waitFor(() => expect(cloudPackStore.getSnapshot().loaded).toBe(true));
+    unsubscribe();
+    expect(cloudPackStore.getSnapshot().historyPacks).toEqual([]);
+
+    __resetCloudPackStoreForTest();
+    rowsOf([{ pack_id: "library-loan", asset: mkCloudPackJson({ packId: "library-loan@v2" }) }]);
+    historySelectMock.mockRejectedValueOnce(new Error("network"));
+    const unsubscribe2 = cloudPackStore.subscribe(() => {});
+    await vi.waitFor(() => expect(cloudPackStore.getSnapshot().loaded).toBe(true));
+    unsubscribe2();
+    expect(cloudPackStore.getSnapshot().historyPacks).toEqual([]);
+  });
+
+  it("契约非法的历史行静默剔除；与当前版本同 packId 的历史行不重复收录", async () => {
+    rowsOf([{ pack_id: "library-loan", asset: mkCloudPackJson({ packId: "library-loan@v2" }) }]);
+    historySelectMock.mockResolvedValueOnce({
+      data: [
+        { pack_id: "bad", version_label: "v1", asset: mkCloudPackJson({ templates: [] }) },
+        { pack_id: "library-loan@v2", version_label: "v2", asset: mkCloudPackJson({ packId: "library-loan@v2" }) },
+        { pack_id: "library-loan", version_label: "v1", asset: mkCloudPackJson({ packId: "library-loan" }) },
+      ],
+      error: null,
+    });
+    const unsubscribe = cloudPackStore.subscribe(() => {});
+    await vi.waitFor(() => expect(cloudPackStore.getSnapshot().loaded).toBe(true));
+    unsubscribe();
+    expect(cloudPackStore.getSnapshot().historyPacks.map((d) => d.packId)).toEqual(["library-loan"]);
   });
 });

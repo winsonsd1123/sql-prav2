@@ -5,6 +5,7 @@
 // 云端域包异步拉取后与之合并。三件纯函数/常量供 session-store 与 演练场 共用。
 
 import { builtinDomainPacks } from "@/domain-packs/builtin-packs";
+import { parsePackIdVersion } from "@/kernel/domain-pack-versioning";
 import type { DomainPack } from "@/kernel/types";
 
 export { builtinDomainPacks };
@@ -42,4 +43,44 @@ export function pickInitialPackId(
 ): string {
   if (raw !== null && raw.trim().length > 0) return raw;
   return builtin[0].packId;
+}
+
+/**
+ * 每个基础名只保留最高版本（票 #62 / ADR-0009）：供展示用注册表（学生端切换胶囊、
+ * 管理页列表）收敛为「每个域包一行 = 当前最新版本」；被取代的旧版本仍留在
+ * 全量清单里供 findSessionPack 解析（进行中会话钉旧版本）。
+ */
+export function pickLatestVersionPerBase(packs: readonly DomainPack[]): DomainPack[] {
+  const latest = new Map<string, DomainPack>();
+  for (const pack of packs) {
+    const { base, version } = parsePackIdVersion(pack.packId);
+    const existing = latest.get(base);
+    if (existing === undefined) {
+      latest.set(base, pack);
+      continue;
+    }
+    const existingVersion = parsePackIdVersion(existing.packId).version;
+    if (version > existingVersion) latest.set(base, pack);
+  }
+  return [...latest.values()];
+}
+
+/**
+ * 会话域包解析（票 #62：进行中会话钉旧版本）：按学生当前 packId 在
+ * 内置静态资产 → 云端当前版本 → 云端历史版本 中查表。
+ * 旧 packId（v1）落到历史版本内容——题目序列与进度/草稿键（含 packId 文本）
+ * 与新版本天然隔离，零迁移（ADR-0009）；查无此包返回 null（会话暂不生成，#57 策略）。
+ */
+export function findSessionPack(
+  builtin: readonly DomainPack[],
+  cloud: readonly DomainPack[],
+  history: readonly DomainPack[],
+  packId: string,
+): DomainPack | null {
+  return (
+    builtin.find((d) => d.packId === packId) ??
+    cloud.find((d) => d.packId === packId) ??
+    history.find((d) => d.packId === packId) ??
+    null
+  );
 }
