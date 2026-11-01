@@ -71,7 +71,7 @@ export default function AdminPracticeConfigManager() {
     [entries, selectedPackId],
   );
 
-  /** 拉取配置视图（保存成功后复用，保证展示最新配置） */
+  /** 拉取配置视图（保存成功后复用，保证展示最新配置）；草稿随选中包同步重置 */
   const refresh = useCallback(async () => {
     try {
       const { token } = await getSessionAuth();
@@ -87,12 +87,15 @@ export default function AdminPracticeConfigManager() {
       const body = (await response.json()) as { packs: PracticeConfigEntry[] };
       setEntries(body.packs);
       setError(null);
-      // 选中态保持：首次取第一个包，刷新后保持当前选中
-      setSelectedPackId((current) => current ?? body.packs[0]?.packId ?? null);
+      // 选中态保持：首次取第一个包，刷新后保持当前选中；草稿重置为选中包的最新配置
+      const nextSelected = selectedPackId ?? body.packs[0]?.packId ?? null;
+      setSelectedPackId(nextSelected);
+      const entry = body.packs.find((e) => e.packId === nextSelected) ?? null;
+      setDraft(entry === null ? null : toDraft(entry));
     } catch {
       setError("演练配置加载失败，请稍后重试");
     }
-  }, []);
+  }, [selectedPackId]);
 
   useEffect(() => {
     (async () => {
@@ -101,10 +104,16 @@ export default function AdminPracticeConfigManager() {
     })();
   }, [refresh]);
 
-  // 切换选中包：草稿重置为该包当前配置
-  useEffect(() => {
-    if (selected !== null) setDraft(toDraft(selected));
-  }, [selected]);
+  // 切换选中包：草稿重置为该包当前配置（在事件处理器里完成，不经 effect 级联渲染）
+  const switchPack = useCallback(
+    (packId: string) => {
+      setSelectedPackId(packId);
+      const entry = entries?.find((e) => e.packId === packId) ?? null;
+      setDraft(entry === null ? null : toDraft(entry));
+      setNotice(null);
+    },
+    [entries],
+  );
 
   const draftErrors = draft === null ? [] : validateDraft(draft);
   const draftTierSum = useMemo(
@@ -188,7 +197,7 @@ export default function AdminPracticeConfigManager() {
         <select
           id="practice-config-pack"
           value={selectedPackId ?? ""}
-          onChange={(e) => setSelectedPackId(e.target.value)}
+          onChange={(e) => switchPack(e.target.value)}
           data-testid="演练配置域包选择"
           className="rounded-lg border border-ink/15 bg-paper px-2 py-1"
         >
@@ -234,7 +243,7 @@ export default function AdminPracticeConfigManager() {
             ))}
           </div>
           {draftErrors.length > 0 && (
-            <ul className="rounded-lg bg-amber-50 px-3 py-2 text-xs text-amber-800">
+            <ul data-testid="演练配置校验提示" className="rounded-lg bg-amber-50 px-3 py-2 text-xs text-amber-800">
               {draftErrors.map((message) => (
                 <li key={message}>{message}</li>
               ))}

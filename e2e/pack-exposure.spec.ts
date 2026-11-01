@@ -102,6 +102,10 @@ test("教师勾选放出单个域包并保存：PUT 全量清单，学生端只�
   // —— 教师端：后台勾选放出「学生-课程-成绩」并保存 ——
   await mockTeacherPermissions(page);
   const calls = await mockPackExposureAdminApi(page);
+  // 同页的演练配置区块（票 #61）拉自己的 API：桩成空视图，避免真实 401 打进 console 卫生断言
+  await page.route("**/api/admin/domain-packs/practice-config", async (route) => {
+    await route.fulfill({ status: 200, contentType: "application/json", body: JSON.stringify({ packs: [] }) });
+  });
   await page.goto("/admin/packs");
   await expect(page.getByTestId("域包放出管理")).toBeVisible();
   // 未配置时从「全放」出发编辑：取消勾选「员工-部门-薪资」
