@@ -11,7 +11,9 @@ import { authorizeAdminRequest, defaultAdminDeps, type AdminDeps } from "@/serve
 import { PERMISSIONS } from "@/lib/permissions";
 import { parseDomainPackJson, type DomainPackAsset } from "@/kernel/domain-pack-contract";
 import type { PracticeConfiguration } from "@/kernel/types";
-import { upsertDomainPackAsset, type DomainPackWriteClient } from "@/server/domain-pack-asset-service";
+import type { DomainPackWriteClient } from "@/server/domain-pack-asset-service";
+import { validateDomainPack } from "@/kernel/domain-pack-gate";
+import { parsePackIdVersion } from "@/kernel/domain-pack-versioning";
 import { builtinPackAssets } from "@/domain-packs/builtin-packs";
 import { serverPrivilegedClient } from "@/lib/supabase/server-client";
 import type { GateReport } from "@/kernel/domain-pack-gate";
@@ -64,12 +66,12 @@ function toEntry(asset: DomainPackAsset): PracticeConfigViewEntry {
   return { packId: asset.packId, name: asset.name, practiceConfig: asset.practiceConfig, tierTemplateCounts };
 }
 
-/** 云端行集 → packId → 合法资产（脏行剔除不进视图） */
+/** 云端行集 → 行 pack_id（= 基础名，写入纪律见保存函数）→ 合法资产（脏行剔除不进视图） */
 function toAssetMap(rows: { pack_id: string; asset: unknown }[]): Map<string, DomainPackAsset> {
   const map = new Map<string, DomainPackAsset>();
   for (const row of rows) {
     const parsed = parseDomainPackJson(row.asset);
-    if (parsed.ok) map.set(parsed.pack.packId, parsed.pack);
+    if (parsed.ok) map.set(row.pack_id, parsed.pack);
   }
   return map;
 }
@@ -129,13 +131,20 @@ export async function savePracticeConfig(
   if (auth.status !== "ok") return auth;
 
   try {
-    let current: DomainPackAsset | undefined = builtinPackAssets.find((a) => a.packId === payload.packId);
+    // 底稿解析（票 #62 收口 #61 遗留的「云端行与内置资产同源」写入纪律）：
+    // - 内置基础包（无版本后缀且命中内置基础名）：底稿恒取服务端内置 JSON——
+    //   云端行只允许承载「内置资产快照 + 演练配置覆盖」，不允许顶替种子内容
+    //   （防前端发布新内置 JSON 后，云端旧行漂移成为底本）；
+    // - 其余（云端生成包、内置包的带后缀新版本）：底稿取云端当前行（pack_id = 基础名）。
+    const { base, version } = parsePackIdVersion(payload.packId);
+    const builtin = version === 1 ? builtinPackAssets.find((a) => a.packId === base) : undefined;
+    let current: DomainPackAsset | undefined = builtin;
     try {
       const cloud = await fetchCloudAssets(deps.readClient ?? serverPrivilegedClient());
-      if (cloud !== null) current = cloud.get(payload.packId) ?? current;
+      if (cloud !== null && builtin === undefined) current = cloud.get(base) ?? undefined;
     } catch {
-      // 静默降级意图：云端读取异常时回退内置资产为底（内置包仍可保存；云端包保存前读取失败
-      // 会因找不到底稿被 not_found 拦下，不会写坏数据）
+      // 静默降级意图：云端读取异常时内置包仍可保存（内置底稿）；云端包保存前读取失败
+      // 会因找不到底稿被 not_found 拦下，不会写坏数据
     }
     if (current === undefined) return { status: "not_found" };
 
@@ -143,10 +152,15 @@ export async function savePracticeConfig(
     const parsed = parseDomainPackJson(merged);
     if (!parsed.ok) return { status: "invalid", errors: parsed.errors };
 
-    const written = await upsertDomainPackAsset(deps.writeClient ?? serverPrivilegedClient(), merged);
-    if (written.ok) return { status: "ok", packId: written.packId, practiceConfig: parsed.pack.practiceConfig };
-    if (written.kind === "gate") return { status: "gate", report: written.report };
-    return { status: "error", message: written.message };
+    // 过闸门后落库：当前表 pack_id 恒为基础名（一行一域包；带后缀的 packId 只存在于资产内部，
+    // 与 #62 微调生效的写入纪律一致——upsertDomainPackAsset 会以资产内部 packId 作键，故此处直写）
+    const report = await validateDomainPack(merged);
+    if (!report.passed) return { status: "gate", report };
+    const { error } = await (deps.writeClient ?? serverPrivilegedClient())
+      .from("domain_pack_asset")
+      .upsert({ pack_id: base, asset: parsed.pack });
+    if (error) return { status: "error", message: error.message };
+    return { status: "ok", packId: parsed.pack.packId, practiceConfig: parsed.pack.practiceConfig };
   } catch {
     return { status: "error", message: "保存演练配置失败" };
   }
