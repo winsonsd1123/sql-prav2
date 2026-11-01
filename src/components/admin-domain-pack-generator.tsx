@@ -12,56 +12,14 @@ import { useState } from "react";
 export interface AdminDomainPackGeneratorProps {
   onPublished?: () => void;
 }
-import { bearerHeaders, getSessionAuth } from "@/lib/admin-api-client";
+import { postAdminJson } from "@/lib/admin-api-client";
 import {
   resolveGenerateOutcome,
   resolvePublishOutcome,
   validateGeneratorForm,
   type GenerateOutcome,
 } from "@/components/domain-pack-generation-flow";
-import { buildGateReportSections } from "@/components/domain-pack-admin-view-model";
-import type { GateReport } from "@/kernel/domain-pack-gate";
-
-/** 报告渲染：三段状态 + 逐条 GateIssue（与放出/配置区块同款卡片样式）；票 #62 起导出供微调区块复用 */
-export function GateReportView({ report }: { report: GateReport }) {
-  const sections = buildGateReportSections(report);
-  return (
-    <div data-testid="验证报告" className="flex flex-col gap-2">
-      <p className={report.passed ? "text-sm font-medium text-emerald-700" : "text-sm font-medium text-red-700"}>
-        {report.passed ? "验证通过：可确认发布" : "验证未通过：请根据以下明细修改场景描述后重试"}
-      </p>
-      {sections.map((section) => (
-        <div key={section.title} className="rounded-lg border border-ink/10 px-3 py-2">
-          <p className="flex items-center gap-2 text-sm">
-            <span className="font-medium">{section.title}</span>
-            <span
-              className={
-                section.status === "通过"
-                  ? "text-emerald-700"
-                  : section.status === "失败"
-                    ? "text-red-700"
-                    : "text-muted"
-              }
-            >
-              {section.status}
-            </span>
-            <span className="text-xs text-muted">{section.detail}</span>
-          </p>
-          {section.issues.length > 0 && (
-            <ul className="mt-1 flex list-disc flex-col gap-0.5 pl-5 text-xs text-red-700">
-              {section.issues.map((issue, i) => (
-                <li key={i} data-testid={`验证报告问题-${i}`}>
-                  {issue.templateId !== undefined && <span className="font-mono">[{issue.templateId}] </span>}
-                  {issue.message}
-                </li>
-              ))}
-            </ul>
-          )}
-        </div>
-      ))}
-    </div>
-  );
-}
+import { GateReportView } from "@/components/domain-pack-gate-report-view";
 
 /** 生成区块局部状态机：idle → generating → report/published；错误态可从任意请求后进入 */
 type Phase =
@@ -89,33 +47,23 @@ export default function AdminDomainPackGenerator({ onPublished }: AdminDomainPac
     if (errors.length > 0) return;
     setFailure(null);
     setPhase({ kind: "generating" });
-    try {
-      const { token } = await getSessionAuth();
-      if (!token) {
-        setFailure({ phase: "error", message: "登录态已失效，请重新登录", retryable: true, needsKeyConfig: false });
-        setPhase({ kind: "idle" });
-        return;
-      }
-      const response = await fetch("/api/admin/domain-packs/generate", {
-        method: "POST",
-        headers: bearerHeaders(token, { "content-type": "application/json" }),
-        body: JSON.stringify({
-          description,
-          ...(sampleSql.trim() !== "" ? { sampleSql } : {}),
-          ...(tableCount.trim() !== "" ? { tableCount: Number(tableCount) } : {}),
-        }),
-      });
-      const body = (await response.json().catch(() => null)) as unknown;
-      const outcome = resolveGenerateOutcome(response.status, body);
-      if (outcome.phase === "error") {
-        setFailure(outcome);
-        setPhase({ kind: "idle" });
-      } else {
-        setPhase({ kind: "report", outcome });
-      }
-    } catch {
-      setFailure({ phase: "error", message: "生成请求失败，请稍后重试", retryable: true, needsKeyConfig: false });
+    // 共享请求骨架（admin-api-client.postAdminJson）：无会话/网络失败的文案兜底与归类函数共用
+    const result = await postAdminJson("/api/admin/domain-packs/generate", {
+      description,
+      ...(sampleSql.trim() !== "" ? { sampleSql } : {}),
+      ...(tableCount.trim() !== "" ? { tableCount: Number(tableCount) } : {}),
+    });
+    if (!result.ok) {
+      setFailure({ phase: "error", message: "登录态已失效，请重新登录", retryable: true, needsKeyConfig: false });
       setPhase({ kind: "idle" });
+      return;
+    }
+    const outcome = resolveGenerateOutcome(result.status, result.body);
+    if (outcome.phase === "error") {
+      setFailure(outcome);
+      setPhase({ kind: "idle" });
+    } else {
+      setPhase({ kind: "report", outcome });
     }
   };
 
@@ -124,31 +72,20 @@ export default function AdminDomainPackGenerator({ onPublished }: AdminDomainPac
     if (phase.kind !== "report") return;
     setFailure(null);
     setPhase({ kind: "publishing", outcome: phase.outcome });
-    try {
-      const { token } = await getSessionAuth();
-      if (!token) {
-        setFailure({ phase: "error", message: "登录态已失效，请重新登录", retryable: true, needsKeyConfig: false });
-        setPhase({ kind: "report", outcome: phase.outcome });
-        return;
-      }
-      const response = await fetch("/api/admin/domain-packs/publish", {
-        method: "POST",
-        headers: bearerHeaders(token, { "content-type": "application/json" }),
-        body: JSON.stringify({ pack: phase.outcome.draft }),
-      });
-      const body = (await response.json().catch(() => null)) as unknown;
-      const outcome = resolvePublishOutcome(response.status, body);
-      if (outcome.phase === "published") {
-        setPhase({ kind: "published", packId: outcome.packId });
-        onPublished?.();
-      } else if (outcome.phase === "gate-rejected") {
-        setPhase({ kind: "report", outcome: { phase: "report", draft: phase.outcome.draft, report: outcome.report, summary: phase.outcome.summary } });
-      } else {
-        setFailure(outcome);
-        setPhase({ kind: "report", outcome: phase.outcome });
-      }
-    } catch {
-      setFailure({ phase: "error", message: "发布请求失败，请稍后重试", retryable: true, needsKeyConfig: false });
+    const result = await postAdminJson("/api/admin/domain-packs/publish", { pack: phase.outcome.draft });
+    if (!result.ok) {
+      setFailure({ phase: "error", message: "登录态已失效，请重新登录", retryable: true, needsKeyConfig: false });
+      setPhase({ kind: "report", outcome: phase.outcome });
+      return;
+    }
+    const outcome = resolvePublishOutcome(result.status, result.body);
+    if (outcome.phase === "published") {
+      setPhase({ kind: "published", packId: outcome.packId });
+      onPublished?.();
+    } else if (outcome.phase === "gate-rejected") {
+      setPhase({ kind: "report", outcome: { phase: "report", draft: phase.outcome.draft, report: outcome.report, summary: phase.outcome.summary } });
+    } else {
+      setFailure(outcome);
       setPhase({ kind: "report", outcome: phase.outcome });
     }
   };

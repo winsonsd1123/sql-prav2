@@ -3,6 +3,7 @@
 // 与生成流同槽的错误语义：502/503 可重试（表单保留）；404/409 不可重试（提示后修正输入）。
 
 import { buildDraftSummary, type DomainPackDraftSummary } from "@/components/domain-pack-admin-view-model";
+import { errorMessageFromBody } from "@/lib/admin-api-client";
 import type { GateReport } from "@/kernel/domain-pack-gate";
 import type { DomainPackChangeClass } from "@/kernel/domain-pack-versioning";
 
@@ -60,13 +61,9 @@ export function resolveRefineOutcome(status: number, body: unknown): RefineOutco
       };
     }
   }
-  const message =
-    typeof body === "object" && body !== null && typeof (body as { error?: unknown }).error === "string"
-      ? (body as { error: string }).error
-      : "微调请求失败，请稍后重试";
   return {
     phase: "error",
-    message,
+    message: errorMessageFromBody(body, "微调请求失败，请稍后重试"),
     retryable: status !== 404,
     needsKeyConfig: (body as { code?: unknown } | null)?.code === "llm_not_configured",
   };
@@ -90,9 +87,5 @@ export function resolveApplyOutcome(status: number, body: unknown): ApplyRefineO
     const report = (body as { report?: GateReport }).report;
     if (report !== undefined) return { phase: "gate-rejected", report };
   }
-  const message =
-    typeof body === "object" && body !== null && typeof (body as { error?: unknown }).error === "string"
-      ? (body as { error: string }).error
-      : "确认生效失败，请稍后重试";
-  return { phase: "error", message, retryable: status !== 409 };
+  return { phase: "error", message: errorMessageFromBody(body, "确认生效失败，请稍后重试"), retryable: status !== 409 };
 }

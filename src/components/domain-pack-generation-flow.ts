@@ -5,6 +5,7 @@
 // publish → 200 {ok, packId} | 422 {ok:false, report}。
 
 import { buildDraftSummary, type DomainPackDraftSummary } from "@/components/domain-pack-admin-view-model";
+import { errorMessageFromBody } from "@/lib/admin-api-client";
 import type { GateReport } from "@/kernel/domain-pack-gate";
 
 /** 生成表单输入（字符串态便于受控输入） */
@@ -53,16 +54,12 @@ export function resolveGenerateOutcome(status: number, body: unknown): GenerateO
       return { phase: "report", draft, report, summary: buildDraftSummary(draft) };
     }
   }
-  if (typeof body === "object" && body !== null && typeof (body as { error?: unknown }).error === "string") {
-    const b = body as { error: string; code?: unknown };
-    return {
-      phase: "error",
-      message: b.error,
-      retryable: true,
-      needsKeyConfig: b.code === "llm_not_configured",
-    };
-  }
-  return { phase: "error", message: "生成请求失败，请稍后重试", retryable: true, needsKeyConfig: false };
+  return {
+    phase: "error",
+    message: errorMessageFromBody(body, "生成请求失败，请稍后重试"),
+    retryable: true,
+    needsKeyConfig: (body as { code?: unknown } | null)?.code === "llm_not_configured",
+  };
 }
 
 /** 发布请求返回后的阶段 */
@@ -81,9 +78,10 @@ export function resolvePublishOutcome(status: number, body: unknown): PublishOut
     const report = (body as { report?: GateReport }).report;
     if (report !== undefined) return { phase: "gate-rejected", report };
   }
-  const message =
-    typeof body === "object" && body !== null && typeof (body as { error?: unknown }).error === "string"
-      ? (body as { error: string }).error
-      : "发布失败，请稍后重试";
-  return { phase: "error", message, retryable: true, needsKeyConfig: false };
+  return {
+    phase: "error",
+    message: errorMessageFromBody(body, "发布失败，请稍后重试"),
+    retryable: true,
+    needsKeyConfig: false,
+  };
 }

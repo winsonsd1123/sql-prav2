@@ -5,30 +5,23 @@
 //   → 200 { draft, report, changeClass, currentVersionLabel, nextVersionLabel }
 //   | 400 | 401 | 403 | 404 | 502 { code, error, retryable } | 503（未配置 key）| 500
 import { refineDomainPackDraft } from "@/server/domain-pack-refine-service";
-import { resolveDeepSeekProvider } from "@/server/llm-provider";
 import { adminErrorResponse } from "@/server/admin-service";
+import { readJsonBody, requireDeepSeekProvider, runAdminRoute } from "@/server/admin-route-helper";
 
 export const maxDuration = 300;
 
 export async function POST(request: Request) {
-  let body: unknown;
-  try {
-    body = await request.json();
-  } catch {
-    return Response.json({ error: "请求体格式不正确" }, { status: 400 });
-  }
+  const parsed = await readJsonBody(request);
+  if (!parsed.ok) return parsed.response;
   // 请求体形状预检（packId 与意图非空必填；深校验在服务层，此处只为在鉴权前给出 400）
-  const raw = (body as { packId?: unknown; intent?: unknown } | null) ?? {};
+  const raw = (parsed.body as { packId?: unknown; intent?: unknown } | null) ?? {};
   if (typeof raw.packId !== "string" || raw.packId.trim() === "" || typeof raw.intent !== "string" || raw.intent.trim() === "") {
     return Response.json({ error: "目标域包与修改意图不能为空" }, { status: 400 });
   }
-  // key 未配置直接明确报错：不进入鉴权与 LLM 调用（503，非静默降级）
-  const provider = resolveDeepSeekProvider();
-  if (provider === null) {
-    return Response.json({ code: "llm_not_configured", error: "LLM 未配置：请在服务端设置 DEEPSEEK_API_KEY" }, { status: 503 });
-  }
-  try {
-    const result = await refineDomainPackDraft(body, request.headers.get("authorization"), { provider });
+  const llm = requireDeepSeekProvider();
+  if (!llm.ok) return llm.response;
+  return runAdminRoute(async () => {
+    const result = await refineDomainPackDraft(parsed.body, request.headers.get("authorization"), { provider: llm.provider });
     switch (result.status) {
       case "ok":
         return Response.json({
@@ -50,7 +43,5 @@ export async function POST(request: Request) {
       case "llm_invalid_json":
         return Response.json({ code: result.status, error: result.message, retryable: true }, { status: 502 });
     }
-  } catch {
-    return adminErrorResponse("error");
-  }
+  });
 }
