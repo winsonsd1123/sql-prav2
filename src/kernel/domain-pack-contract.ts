@@ -4,8 +4,12 @@
 // 序列化为纯 JSON（无函数、无代码执行），不引入新依赖。
 // 校验失败产出「字段路径 + 中文问题」的人类可读错误，供闸门与教师端展示。
 
-import type { DomainPack, TableDefinition, QuestionTemplate } from "./types";
+import type { DomainPack, TableDefinition, QuestionTemplate, PracticeConfiguration } from "./types";
 import { topologicalTableOrder } from "./generate";
+
+// 演练配置结构定义收口在 kernel types（票 #61 起 DomainPack 直接携带该字段供抽题消费），
+// 此处透出沿用同一类型，契约侧不再重复定义。
+export type { PracticeConfiguration } from "./types";
 
 /** 难度档位定义（GLOSSARY「难度档位」）：难度 1-5 各档的含义，不参与种子生成（A 类改动） */
 export interface DifficultyTierDefinition {
@@ -17,14 +21,6 @@ export interface DifficultyTierDefinition {
   description: string;
   /** 代表该档位的 SQL 样例（供教师起草时对齐口径） */
   sampleSql: string;
-}
-
-/** 演练配置（GLOSSARY「演练配置」）：会话总题数 + 各难度档位的数量分布，不参与种子生成（A 类改动） */
-export interface PracticeConfiguration {
-  /** 每次会话的题目总数 */
-  totalQuestions: number;
-  /** 各档位数量分布，键为档位数字的字符串形式（"1"-"5"，JSON 对象键必为字符串） */
-  tierDistribution: Record<string, number>;
 }
 
 /** 域包数据资产：一个业务场景的完整 JSON 定义（GLOSSARY「域包」） */
@@ -63,9 +59,11 @@ export function assetToKernelPack(asset: DomainPackAsset): DomainPack {
     name: asset.name,
     schemaSkeleton: asset.schemaSkeleton,
     templates: asset.templates,
-    // 知识点清单随包透传（票 #58 抽题按域包自带顺序推进）；难度档位定义与演练配置
-    // 为 A 类改动（ADR-0009），不进入种子生成路径，留在资产态供教师端展示
+    // 知识点清单随包透传（票 #58 抽题按域包自带顺序推进）；演练配置同为 A 类改动
+    // （ADR-0009：不进入种子生成路径），但抽题消费它（票 #61），故随包透传到内核域包；
+    // 难度档位定义仍留在资产态供教师端展示
     knowledgeAreas: asset.knowledgeAreas,
+    practiceConfig: asset.practiceConfig,
   };
 }
 

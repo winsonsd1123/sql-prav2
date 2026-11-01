@@ -11,14 +11,23 @@ export { builtinDomainPacks };
 
 /**
  * 合并注册表：内置在前、云端在后；packId 冲突时内置优先——
- * 内置迁移为云端资产（#58）完成前代码态为准，保证「同种子字节级复现」硬约束不被云端行意外覆盖。
+ * 保证「同种子字节级复现」硬约束不被云端行意外覆盖（库骨架/模板等种子生成路径以内置为准）。
+ * 唯一例外（票 #61，A 类改动）：云端同 id 资产携带的演练配置覆盖内置包——
+ * 演练配置不参与种子生成、即时生效不产生版本（ADR-0009），教师改配置后学生端
+ * 重新加载即按新配置抽题；无配置的云端同 id 行（旧数据/未配置）不覆盖，内置默认配置继续生效。
  */
 export function mergePackRegistries(
   builtin: readonly DomainPack[],
   cloud: readonly DomainPack[],
 ): DomainPack[] {
+  const cloudById = new Map(cloud.map((d) => [d.packId, d]));
+  const builtinMerged = builtin.map((d) => {
+    const same = cloudById.get(d.packId);
+    if (same === undefined || same.practiceConfig === undefined) return d;
+    return { ...d, practiceConfig: same.practiceConfig };
+  });
   const builtinIds = new Set(builtin.map((d) => d.packId));
-  return [...builtin, ...cloud.filter((d) => !builtinIds.has(d.packId))];
+  return [...builtinMerged, ...cloud.filter((d) => !builtinIds.has(d.packId))];
 }
 
 /**

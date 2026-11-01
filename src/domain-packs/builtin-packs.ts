@@ -31,4 +31,6 @@ export const builtinDomainPacks: DomainPack[] = builtinPackAssets.map((asset) =>
   schemaSkeleton: asset.schemaSkeleton,
   templates: asset.templates,
   knowledgeAreas: asset.knowledgeAreas,
+  // 演练配置随包透传（票 #61 抽题消费；A 类改动不进入种子生成路径，内置默认 10 题 1/3/3/2/1）
+  practiceConfig: asset.practiceConfig,
 }));

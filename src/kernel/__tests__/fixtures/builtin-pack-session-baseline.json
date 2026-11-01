@@ -619,59 +619,59 @@
         },
         "questions": [
           {
-            "templateId": "single-select-all",
+            "templateId": "single-alias-expr",
+            "knowledgeArea": "单表查询与投影",
+            "difficulty": 2,
+            "prompt": "查询每位学生的姓名与按 12 个月折算的年度奖学金（列别名「年度总额」）。",
+            "hints": [
+              "思路：投影列可以是表达式，乘法直接写在 SELECT 里并用 AS 起别名。",
+              "关键子句：SELECT 姓名, 奖学金 * 12 AS 年度总额"
+            ],
+            "referenceAnswer": "SELECT 姓名, 奖学金 * 12 AS 年度总额 FROM 学生",
+            "ordered": false,
+            "commonMistake": "SELECT 姓名, 奖学金 * 10 AS 年度总额 FROM 学生"
+          },
+          {
+            "templateId": "single-select-distinct-city",
             "knowledgeArea": "单表查询与投影",
             "difficulty": 1,
-            "prompt": "查询所有学生的姓名。",
+            "prompt": "查询学生来自哪些不同的城市（去除重复）。",
             "hints": [
-              "思路：只需要一个列，从学生表里全部取出。",
-              "关键子句：SELECT 姓名 FROM 学生"
+              "思路：城市有重复值，需要去重后再列出。",
+              "关键子句：SELECT DISTINCT 生源地 FROM 学生"
             ],
-            "referenceAnswer": "SELECT 姓名 FROM 学生",
+            "referenceAnswer": "SELECT DISTINCT 生源地 FROM 学生",
             "ordered": false,
-            "commonMistake": "SELECT 姓名, 生源地 FROM 学生"
+            "commonMistake": "SELECT 生源地 FROM 学生"
           },
           {
-            "templateId": "single-where-city",
+            "templateId": "single-limit-top",
             "knowledgeArea": "条件筛选与排序",
-            "difficulty": 2,
-            "prompt": "查询城市为「深圳」的学生姓名。",
+            "difficulty": 3,
+            "prompt": "查询前 7 名学生（按学号升序）的姓名。",
             "hints": [
-              "思路：字符串等值筛选用 WHERE 列名 = '关键词'，注意引号。",
-              "关键子句：WHERE 生源地 = '深圳'"
+              "思路：先按学号排序，再限制返回行数。",
+              "关键子句：ORDER BY 学生编号 LIMIT 7"
             ],
-            "referenceAnswer": "SELECT 姓名 FROM 学生 WHERE 生源地 = '深圳'",
-            "ordered": false,
-            "commonMistake": "SELECT 姓名 FROM 学生 WHERE 生源地 = '南京'"
+            "referenceAnswer": "SELECT 姓名 FROM 学生 ORDER BY 学生编号 LIMIT 7",
+            "ordered": true,
+            "commonMistake": "SELECT 姓名 FROM 学生 ORDER BY 学生编号 DESC LIMIT 7"
           },
           {
-            "templateId": "agg-count-all",
+            "templateId": "agg-count-distinct",
             "knowledgeArea": "聚合与分组",
-            "difficulty": 1,
-            "prompt": "查询成绩表的总记录数（列别名「总记录数」）。",
-            "hints": [
-              "思路：统计行数用 COUNT(*)。",
-              "关键子句：SELECT COUNT(*) AS 总记录数 FROM 考试记录"
-            ],
-            "referenceAnswer": "SELECT COUNT(*) AS 总记录数 FROM 考试记录",
-            "ordered": false,
-            "commonMistake": "SELECT COUNT(*) AS 总记录数 FROM 学生",
-            "semanticTrap": [
-              "SELECT COUNT(DISTINCT 课程号) AS 总记录数 FROM 考试记录"
-            ]
-          },
-          {
-            "templateId": "join-inner",
-            "knowledgeArea": "多表 JOIN",
             "difficulty": 2,
-            "prompt": "查询每条成绩对应的学生姓名与分数（内连接学生表与成绩表）。",
+            "prompt": "查询成绩表中出现过多少位不同的学生（列别名「学生数」）。",
             "hints": [
-              "思路：按学号相等把两张表连接起来，连接列要写全限定名。",
-              "关键子句：FROM 学生 JOIN 考试记录 ON 学生.学生编号 = 考试记录.学号"
+              "思路：去重计数要在聚合参数里加 DISTINCT。",
+              "关键子句：SELECT COUNT(DISTINCT 学号) AS 学生数"
             ],
-            "referenceAnswer": "SELECT 姓名, 分数 FROM 学生 JOIN 考试记录 ON 学生.学生编号 = 考试记录.学号",
+            "referenceAnswer": "SELECT COUNT(DISTINCT 学号) AS 学生数 FROM 考试记录",
             "ordered": false,
-            "commonMistake": "SELECT 姓名, 分数 FROM 学生 JOIN 考试记录 ON 考试记录.课程号 = 学生.学生编号"
+            "commonMistake": "SELECT COUNT(学号) AS 学生数 FROM 考试记录",
+            "semanticTrap": [
+              "SELECT COUNT(*) AS 学生数 FROM 考试记录"
+            ]
           },
           {
             "templateId": "join-filter",
@@ -687,17 +687,30 @@
             "commonMistake": "SELECT 课程名称, 分数 FROM 科目 JOIN 考试记录 ON 考试记录.学号 = 科目.课程编号 WHERE 分数 >= 85"
           },
           {
-            "templateId": "sub-in",
-            "knowledgeArea": "子查询",
-            "difficulty": 3,
-            "prompt": "查询至少有一门成绩不低于 70 分的学生姓名（用 IN 子查询）。",
+            "templateId": "join-left-null",
+            "knowledgeArea": "多表 JOIN",
+            "difficulty": 4,
+            "prompt": "查询没有任何成绩记录的学生姓名（左连接后筛右侧为空）。",
             "hints": [
-              "思路：先在内层子查询找出达标的学习学号，外层用 IN 匹配。",
-              "关键子句：WHERE 学生编号 IN (SELECT 学号 FROM 考试记录 WHERE 分数 >= 70)"
+              "思路：LEFT JOIN 保留全部学生，右表无匹配时其列为 NULL，用 IS NULL 找出。",
+              "关键子句：LEFT JOIN 考试记录 ON ... WHERE 考试记录.学号 IS NULL"
             ],
-            "referenceAnswer": "SELECT 姓名 FROM 学生 WHERE 学生编号 IN (SELECT 学号 FROM 考试记录 WHERE 分数 >= 70)",
+            "referenceAnswer": "SELECT 姓名 FROM 学生 LEFT JOIN 考试记录 ON 学生.学生编号 = 考试记录.学号 WHERE 考试记录.学号 IS NULL",
             "ordered": false,
-            "commonMistake": "SELECT 姓名 FROM 学生 WHERE 学生编号 NOT IN (SELECT 学号 FROM 考试记录 WHERE 分数 >= 70)"
+            "commonMistake": "SELECT 姓名 FROM 学生 JOIN 考试记录 ON 学生.学生编号 = 考试记录.学号 WHERE 考试记录.学号 IS NOT NULL"
+          },
+          {
+            "templateId": "sub-exists",
+            "knowledgeArea": "子查询",
+            "difficulty": 4,
+            "prompt": "查询没有任何成绩记录的学生姓名（用 NOT EXISTS 相关子查询）。",
+            "hints": [
+              "思路：相关子查询按同一学号关联内外两层，NOT EXISTS 表示一条匹配都没有。",
+              "关键子句：WHERE NOT EXISTS (SELECT 1 FROM 考试记录 WHERE 考试记录.学号 = 学生.学生编号)"
+            ],
+            "referenceAnswer": "SELECT 姓名 FROM 学生 WHERE NOT EXISTS (SELECT 1 FROM 考试记录 WHERE 考试记录.学号 = 学生.学生编号)",
+            "ordered": false,
+            "commonMistake": "SELECT 姓名 FROM 学生 WHERE EXISTS (SELECT 1 FROM 考试记录 WHERE 考试记录.学号 = 学生.学生编号)"
           },
           {
             "templateId": "sub-derived",
@@ -713,19 +726,6 @@
             "commonMistake": "SELECT 次数 FROM (SELECT 学号 AS 学号, COUNT(*) AS 次数 FROM 考试记录 GROUP BY 学号) AS t"
           },
           {
-            "templateId": "date-year-group",
-            "knowledgeArea": "日期函数",
-            "difficulty": 3,
-            "prompt": "按出生年份统计学生人数（列别名「出生年份」「人数」）。",
-            "hints": [
-              "思路：YEAR 函数从日期中取出年份，按它分组计数。",
-              "关键子句：GROUP BY YEAR(生日)"
-            ],
-            "referenceAnswer": "SELECT YEAR(生日) AS 出生年份, COUNT(*) AS 人数 FROM 学生 GROUP BY YEAR(生日)",
-            "ordered": false,
-            "commonMistake": "SELECT MONTH(生日) AS 出生年份, COUNT(*) AS 人数 FROM 学生 GROUP BY MONTH(生日)"
-          },
-          {
             "templateId": "date-compare",
             "knowledgeArea": "日期函数",
             "difficulty": 2,
@@ -739,17 +739,17 @@
             "commonMistake": "SELECT 学号, 分数 FROM 考试记录 WHERE 考试时间 < '2025-09-01'"
           },
           {
-            "templateId": "comp-join-agg-having",
+            "templateId": "comp-city-having",
             "knowledgeArea": "综合应用",
-            "difficulty": 5,
-            "prompt": "查询选课人次达到 2 次及以上的课程名与选课人次（列别名「选课人次」，连接课程表与成绩表）。",
+            "difficulty": 3,
+            "prompt": "按城市统计学生人数（城市为空的不计），只保留人数达到 2 人的城市（列别名「学生数」）。",
             "hints": [
-              "思路：三步走——按课程号连接、按课程分组计数、用 HAVING 过滤人次。",
-              "关键子句：JOIN ... GROUP BY 课程号, 课程名 HAVING COUNT(*) >= 2"
+              "思路：WHERE 先排除空城市，再 GROUP BY + HAVING 过滤人数。",
+              "关键子句：WHERE 城市 IS NOT NULL GROUP BY 城市 HAVING COUNT(*) >= 2"
             ],
-            "referenceAnswer": "SELECT 课程名称, COUNT(*) AS 选课人次 FROM 科目 JOIN 考试记录 ON 科目.课程编号 = 考试记录.课程号 GROUP BY 科目.课程编号, 课程名称 HAVING COUNT(*) >= 2",
+            "referenceAnswer": "SELECT 生源地, COUNT(*) AS 学生数 FROM 学生 WHERE 生源地 IS NOT NULL GROUP BY 生源地 HAVING COUNT(*) >= 2",
             "ordered": false,
-            "commonMistake": "SELECT 课程名称, MAX(分数) AS 选课人次 FROM 科目 JOIN 考试记录 ON 科目.课程编号 = 考试记录.课程号 GROUP BY 科目.课程编号, 课程名称 HAVING COUNT(*) >= 2"
+            "commonMistake": "SELECT 生源地 FROM 学生 WHERE 生源地 IS NOT NULL GROUP BY 生源地 HAVING COUNT(*) >= 2"
           }
         ]
       }
@@ -1386,43 +1386,59 @@
             "commonMistake": "SELECT 姓名, 奖学金 * 10 AS 年度总额 FROM 学生"
           },
           {
-            "templateId": "single-order-by-scholarship",
-            "knowledgeArea": "条件筛选与排序",
-            "difficulty": 2,
-            "prompt": "查询每位学生的姓名与奖学金，按奖学金从低到高排序（奖学金相同时按学号升序）。",
+            "templateId": "single-select-distinct-city",
+            "knowledgeArea": "单表查询与投影",
+            "difficulty": 1,
+            "prompt": "查询学生来自哪些不同的城市（去除重复）。",
             "hints": [
-              "思路：排序用 ORDER BY，方向由题面决定；并列时用学号作决胜列保证顺序确定。",
-              "关键子句：ORDER BY 奖学金 ASC, 学生编号"
+              "思路：城市有重复值，需要去重后再列出。",
+              "关键子句：SELECT DISTINCT 城市 FROM 学生"
             ],
-            "referenceAnswer": "SELECT 姓名, 奖学金 FROM 学生 ORDER BY 奖学金 ASC, 学生编号",
-            "ordered": true,
-            "commonMistake": "SELECT 姓名 FROM 学生 ORDER BY 奖学金 ASC, 学生编号"
-          },
-          {
-            "templateId": "single-between",
-            "knowledgeArea": "条件筛选与排序",
-            "difficulty": 2,
-            "prompt": "查询分数在 60 到 80 之间（含两端）的成绩记录，返回学号与分数。",
-            "hints": [
-              "思路：闭区间筛选用 BETWEEN ... AND ...，注意下界在前、上界在后。",
-              "关键子句：WHERE 分数 BETWEEN 60 AND 80"
-            ],
-            "referenceAnswer": "SELECT 学号, 分数 FROM 成绩 WHERE 分数 BETWEEN 60 AND 80",
+            "referenceAnswer": "SELECT DISTINCT 城市 FROM 学生",
             "ordered": false,
-            "commonMistake": "SELECT 学号, 分数 FROM 成绩 WHERE 分数 BETWEEN 80 AND 60"
+            "commonMistake": "SELECT 城市 FROM 学生"
           },
           {
-            "templateId": "agg-max-min",
+            "templateId": "single-limit-top",
+            "knowledgeArea": "条件筛选与排序",
+            "difficulty": 3,
+            "prompt": "查询前 7 名学生（按学号升序）的姓名。",
+            "hints": [
+              "思路：先按学号排序，再限制返回行数。",
+              "关键子句：ORDER BY 学生编号 LIMIT 7"
+            ],
+            "referenceAnswer": "SELECT 姓名 FROM 学生 ORDER BY 学生编号 LIMIT 7",
+            "ordered": true,
+            "commonMistake": "SELECT 姓名 FROM 学生 ORDER BY 学生编号 DESC LIMIT 7"
+          },
+          {
+            "templateId": "agg-count-distinct",
             "knowledgeArea": "聚合与分组",
             "difficulty": 2,
-            "prompt": "查询成绩表中的最高分与最低分（不含空值，列别名「最高分」「最低分」）。",
+            "prompt": "查询成绩表中出现过多少位不同的学生（列别名「学生数」）。",
             "hints": [
-              "思路：单行聚合直接用 MAX 与 MIN，空值会被聚合函数自动忽略。",
-              "关键子句：SELECT MAX(分数) AS 最高分, MIN(分数) AS 最低分"
+              "思路：去重计数要在聚合参数里加 DISTINCT。",
+              "关键子句：SELECT COUNT(DISTINCT 学号) AS 学生数"
             ],
-            "referenceAnswer": "SELECT MAX(分数) AS 最高分, MIN(分数) AS 最低分 FROM 成绩",
+            "referenceAnswer": "SELECT COUNT(DISTINCT 学号) AS 学生数 FROM 成绩",
             "ordered": false,
-            "commonMistake": "SELECT MAX(分数) AS 最高分 FROM 成绩"
+            "commonMistake": "SELECT COUNT(学号) AS 学生数 FROM 成绩",
+            "semanticTrap": [
+              "SELECT COUNT(*) AS 学生数 FROM 成绩"
+            ]
+          },
+          {
+            "templateId": "join-filter",
+            "knowledgeArea": "多表 JOIN",
+            "difficulty": 3,
+            "prompt": "查询分数不低于 90 分的记录对应的课程名与分数。",
+            "hints": [
+              "思路：连接课程与成绩后，在 WHERE 里对分数做阈值筛选。",
+              "关键子句：JOIN ... ON 课程号相等 WHERE 分数 >= 90"
+            ],
+            "referenceAnswer": "SELECT 课程名称, 分数 FROM 科目 JOIN 成绩 ON 科目.课程号 = 成绩.课程号 WHERE 分数 >= 90",
+            "ordered": false,
+            "commonMistake": "SELECT 课程名称, 分数 FROM 科目 JOIN 成绩 ON 成绩.学号 = 科目.课程号 WHERE 分数 >= 90"
           },
           {
             "templateId": "join-left-null",
@@ -1438,69 +1454,56 @@
             "commonMistake": "SELECT 姓名 FROM 学生 JOIN 成绩 ON 学生.学生编号 = 成绩.学号 WHERE 成绩.学号 IS NOT NULL"
           },
           {
-            "templateId": "join-inner",
-            "knowledgeArea": "多表 JOIN",
-            "difficulty": 2,
-            "prompt": "查询每条成绩对应的学生姓名与分数（内连接学生表与成绩表）。",
-            "hints": [
-              "思路：按学号相等把两张表连接起来，连接列要写全限定名。",
-              "关键子句：FROM 学生 JOIN 成绩 ON 学生.学生编号 = 成绩.学号"
-            ],
-            "referenceAnswer": "SELECT 姓名, 分数 FROM 学生 JOIN 成绩 ON 学生.学生编号 = 成绩.学号",
-            "ordered": false,
-            "commonMistake": "SELECT 姓名, 分数 FROM 学生 JOIN 成绩 ON 成绩.课程号 = 学生.学生编号"
-          },
-          {
-            "templateId": "sub-scalar-max",
+            "templateId": "sub-exists",
             "knowledgeArea": "子查询",
-            "difficulty": 3,
-            "prompt": "查询奖学金最高的学生姓名（用标量子查询取最大值）。",
-            "hints": [
-              "思路：内层 SELECT MAX(...) 只返回一个值，外层用它做等值比较。",
-              "关键子句：WHERE 奖学金 = (SELECT MAX(奖学金) FROM 学生)"
-            ],
-            "referenceAnswer": "SELECT 姓名 FROM 学生 WHERE 奖学金 = (SELECT MAX(奖学金) FROM 学生)",
-            "ordered": false,
-            "commonMistake": "SELECT 姓名 FROM 学生 WHERE 奖学金 = (SELECT MIN(奖学金) FROM 学生)"
-          },
-          {
-            "templateId": "date-format",
-            "knowledgeArea": "日期函数",
-            "difficulty": 3,
-            "prompt": "查询每位学生的姓名与格式化后的出生日期（格式为「年-月-日」（如 2004-02-29），列别名「生日」），按学号升序返回。",
-            "hints": [
-              "思路：DATE_FORMAT(日期, 格式串) 按给定格式输出文本，格式串由题面描述决定。",
-              "关键子句：DATE_FORMAT(生日, '%Y-%m-%d')"
-            ],
-            "referenceAnswer": "SELECT 姓名, DATE_FORMAT(生日, '%Y-%m-%d') AS 生日 FROM 学生 ORDER BY 学生编号",
-            "ordered": true,
-            "commonMistake": "SELECT 姓名, DATE_FORMAT(生日, '%Y') AS 生日 FROM 学生 ORDER BY 学生编号"
-          },
-          {
-            "templateId": "comp-case",
-            "knowledgeArea": "综合应用",
             "difficulty": 4,
-            "prompt": "查询每条成绩的学号与达标状态（列别名「状态」）：分数为空记「缺考」，不低于 60 分记「达标」，否则记「未达标」。",
+            "prompt": "查询没有任何成绩记录的学生姓名（用 NOT EXISTS 相关子查询）。",
             "hints": [
-              "思路：CASE 多分支先判 IS NULL 再判阈值，空值与比较要分开处理。",
-              "关键子句：CASE WHEN 分数 IS NULL THEN '缺考' WHEN 分数 >= 阈值 THEN '达标' ELSE '未达标' END"
+              "思路：相关子查询按同一学号关联内外两层，NOT EXISTS 表示一条匹配都没有。",
+              "关键子句：WHERE NOT EXISTS (SELECT 1 FROM 成绩 WHERE 成绩.学号 = 学生.学生编号)"
             ],
-            "referenceAnswer": "SELECT 学号, CASE WHEN 分数 IS NULL THEN '缺考' WHEN 分数 >= 60 THEN '达标' ELSE '未达标' END AS 状态 FROM 成绩",
+            "referenceAnswer": "SELECT 姓名 FROM 学生 WHERE NOT EXISTS (SELECT 1 FROM 成绩 WHERE 成绩.学号 = 学生.学生编号)",
             "ordered": false,
-            "commonMistake": "SELECT 学号, CASE WHEN 分数 IS NULL THEN '缺考' WHEN 分数 >= 60 THEN '合格' ELSE '未达标' END AS 状态 FROM 成绩"
+            "commonMistake": "SELECT 姓名 FROM 学生 WHERE EXISTS (SELECT 1 FROM 成绩 WHERE 成绩.学号 = 学生.学生编号)"
           },
           {
-            "templateId": "comp-join-agg-having",
-            "knowledgeArea": "综合应用",
+            "templateId": "sub-derived",
+            "knowledgeArea": "子查询",
             "difficulty": 5,
-            "prompt": "查询选课人次达到 2 次及以上的课程名与选课人次（列别名「选课人次」，连接课程表与成绩表）。",
+            "prompt": "查询参加考试达到 2 次及以上的学生各考了几次（从按学号分组的派生表中筛选，列别名「次数」）。",
             "hints": [
-              "思路：三步走——按课程号连接、按课程分组计数、用 HAVING 过滤人次。",
-              "关键子句：JOIN ... GROUP BY 课程号, 课程名 HAVING COUNT(*) >= 2"
+              "思路：把分组统计写成 FROM 里的派生表并起别名，外层对统计结果再筛选。",
+              "关键子句：FROM (SELECT ... GROUP BY 学号) AS t WHERE 次数 >= 2"
             ],
-            "referenceAnswer": "SELECT 课程名称, COUNT(*) AS 选课人次 FROM 科目 JOIN 成绩 ON 科目.课程号 = 成绩.课程号 GROUP BY 科目.课程号, 课程名称 HAVING COUNT(*) >= 2",
+            "referenceAnswer": "SELECT 次数 FROM (SELECT 学号 AS 学号, COUNT(*) AS 次数 FROM 成绩 GROUP BY 学号) AS t WHERE 次数 >= 2",
             "ordered": false,
-            "commonMistake": "SELECT 课程名称, MAX(分数) AS 选课人次 FROM 科目 JOIN 成绩 ON 科目.课程号 = 成绩.课程号 GROUP BY 科目.课程号, 课程名称 HAVING COUNT(*) >= 2"
+            "commonMistake": "SELECT 次数 FROM (SELECT 学号 AS 学号, COUNT(*) AS 次数 FROM 成绩 GROUP BY 学号) AS t"
+          },
+          {
+            "templateId": "date-year-filter",
+            "knowledgeArea": "日期函数",
+            "difficulty": 2,
+            "prompt": "查询 2025 年举行的考试成绩记录，返回学号。",
+            "hints": [
+              "思路：对日期列套 YEAR 再与 2025 比较。",
+              "关键子句：WHERE YEAR(考试日期) = 2025"
+            ],
+            "referenceAnswer": "SELECT 学号 FROM 成绩 WHERE YEAR(考试日期) = 2025",
+            "ordered": false,
+            "commonMistake": "SELECT 学号 FROM 成绩 WHERE YEAR(考试日期) = 2026"
+          },
+          {
+            "templateId": "comp-city-having",
+            "knowledgeArea": "综合应用",
+            "difficulty": 3,
+            "prompt": "按城市统计学生人数（城市为空的不计），只保留人数达到 2 人的城市（列别名「学生数」）。",
+            "hints": [
+              "思路：WHERE 先排除空城市，再 GROUP BY + HAVING 过滤人数。",
+              "关键子句：WHERE 城市 IS NOT NULL GROUP BY 城市 HAVING COUNT(*) >= 2"
+            ],
+            "referenceAnswer": "SELECT 城市, COUNT(*) AS 学生数 FROM 学生 WHERE 城市 IS NOT NULL GROUP BY 城市 HAVING COUNT(*) >= 2",
+            "ordered": false,
+            "commonMistake": "SELECT 城市 FROM 学生 WHERE 城市 IS NOT NULL GROUP BY 城市 HAVING COUNT(*) >= 2"
           }
         ]
       }
@@ -2124,69 +2127,72 @@
         },
         "questions": [
           {
-            "templateId": "single-select-distinct-city",
+            "templateId": "single-concat",
+            "knowledgeArea": "单表查询与投影",
+            "difficulty": 2,
+            "prompt": "查询每位学生的「姓名·城市」拼接结果（中间用·连接，列别名「来源」）。",
+            "hints": [
+              "思路：字符串拼接用 CONCAT 函数，参数依次为姓名、连接符、城市。",
+              "关键子句：SELECT CONCAT(姓名, '·', 生源地) AS 来源"
+            ],
+            "referenceAnswer": "SELECT CONCAT(姓名, '·', 生源地) AS 来源 FROM 学员",
+            "ordered": false,
+            "commonMistake": "SELECT CONCAT(姓名, 生源地) AS 来源 FROM 学员"
+          },
+          {
+            "templateId": "single-select-all",
             "knowledgeArea": "单表查询与投影",
             "difficulty": 1,
-            "prompt": "查询学生来自哪些不同的城市（去除重复）。",
+            "prompt": "查询所有学生的姓名。",
             "hints": [
-              "思路：城市有重复值，需要去重后再列出。",
-              "关键子句：SELECT DISTINCT 生源地 FROM 学员"
+              "思路：只需要一个列，从学生表里全部取出。",
+              "关键子句：SELECT 姓名 FROM 学员"
             ],
-            "referenceAnswer": "SELECT DISTINCT 生源地 FROM 学员",
+            "referenceAnswer": "SELECT 姓名 FROM 学员",
             "ordered": false,
-            "commonMistake": "SELECT 生源地 FROM 学员"
+            "commonMistake": "SELECT 姓名, 生源地 FROM 学员"
           },
           {
-            "templateId": "single-alias-expr",
-            "knowledgeArea": "单表查询与投影",
-            "difficulty": 2,
-            "prompt": "查询每位学生的姓名与按 12 个月折算的年度奖学金（列别名「年度总额」）。",
-            "hints": [
-              "思路：投影列可以是表达式，乘法直接写在 SELECT 里并用 AS 起别名。",
-              "关键子句：SELECT 姓名, 奖励金额 * 12 AS 年度总额"
-            ],
-            "referenceAnswer": "SELECT 姓名, 奖励金额 * 12 AS 年度总额 FROM 学员",
-            "ordered": false,
-            "commonMistake": "SELECT 姓名, 奖励金额 * 10 AS 年度总额 FROM 学员"
-          },
-          {
-            "templateId": "single-between",
+            "templateId": "single-limit-top",
             "knowledgeArea": "条件筛选与排序",
-            "difficulty": 2,
-            "prompt": "查询分数在 60 到 80 之间（含两端）的成绩记录，返回学号与分数。",
+            "difficulty": 3,
+            "prompt": "查询前 3 名学生（按学号升序）的姓名。",
             "hints": [
-              "思路：闭区间筛选用 BETWEEN ... AND ...，注意下界在前、上界在后。",
-              "关键子句：WHERE 得分 BETWEEN 60 AND 80"
+              "思路：先按学号排序，再限制返回行数。",
+              "关键子句：ORDER BY 学生编号 LIMIT 3"
             ],
-            "referenceAnswer": "SELECT 学号, 得分 FROM 成绩 WHERE 得分 BETWEEN 60 AND 80",
-            "ordered": false,
-            "commonMistake": "SELECT 学号, 得分 FROM 成绩 WHERE 得分 BETWEEN 80 AND 60"
+            "referenceAnswer": "SELECT 姓名 FROM 学员 ORDER BY 学生编号 LIMIT 3",
+            "ordered": true,
+            "commonMistake": "SELECT 姓名 FROM 学员 ORDER BY 学生编号 DESC LIMIT 3"
           },
           {
-            "templateId": "single-where-city",
-            "knowledgeArea": "条件筛选与排序",
-            "difficulty": 2,
-            "prompt": "查询城市为「广州」的学生姓名。",
-            "hints": [
-              "思路：字符串等值筛选用 WHERE 列名 = '关键词'，注意引号。",
-              "关键子句：WHERE 生源地 = '广州'"
-            ],
-            "referenceAnswer": "SELECT 姓名 FROM 学员 WHERE 生源地 = '广州'",
-            "ordered": false,
-            "commonMistake": "SELECT 姓名 FROM 学员 WHERE 生源地 = '南京'"
-          },
-          {
-            "templateId": "agg-max-min",
+            "templateId": "agg-count-distinct",
             "knowledgeArea": "聚合与分组",
             "difficulty": 2,
-            "prompt": "查询成绩表中的最高分与最低分（不含空值，列别名「最高分」「最低分」）。",
+            "prompt": "查询成绩表中出现过多少位不同的学生（列别名「学生数」）。",
             "hints": [
-              "思路：单行聚合直接用 MAX 与 MIN，空值会被聚合函数自动忽略。",
-              "关键子句：SELECT MAX(得分) AS 最高分, MIN(得分) AS 最低分"
+              "思路：去重计数要在聚合参数里加 DISTINCT。",
+              "关键子句：SELECT COUNT(DISTINCT 学号) AS 学生数"
             ],
-            "referenceAnswer": "SELECT MAX(得分) AS 最高分, MIN(得分) AS 最低分 FROM 成绩",
+            "referenceAnswer": "SELECT COUNT(DISTINCT 学号) AS 学生数 FROM 成绩",
             "ordered": false,
-            "commonMistake": "SELECT MAX(得分) AS 最高分 FROM 成绩"
+            "commonMistake": "SELECT COUNT(学号) AS 学生数 FROM 成绩",
+            "semanticTrap": [
+              "SELECT COUNT(*) AS 学生数 FROM 成绩"
+            ]
+          },
+          {
+            "templateId": "join-filter",
+            "knowledgeArea": "多表 JOIN",
+            "difficulty": 3,
+            "prompt": "查询分数不低于 90 分的记录对应的课程名与分数。",
+            "hints": [
+              "思路：连接课程与成绩后，在 WHERE 里对分数做阈值筛选。",
+              "关键子句：JOIN ... ON 课程号相等 WHERE 得分 >= 90"
+            ],
+            "referenceAnswer": "SELECT 课程名称, 得分 FROM 课程 JOIN 成绩 ON 课程.课程号 = 成绩.课程号 WHERE 得分 >= 90",
+            "ordered": false,
+            "commonMistake": "SELECT 课程名称, 得分 FROM 课程 JOIN 成绩 ON 成绩.学号 = 课程.课程号 WHERE 得分 >= 90"
           },
           {
             "templateId": "join-left-null",
@@ -2215,43 +2221,43 @@
             "commonMistake": "SELECT 姓名 FROM 学员 WHERE EXISTS (SELECT 1 FROM 成绩 WHERE 成绩.学号 = 学员.学生编号)"
           },
           {
-            "templateId": "date-format",
-            "knowledgeArea": "日期函数",
-            "difficulty": 3,
-            "prompt": "查询每位学生的姓名与格式化后的出生日期（格式为「月/日」（如 02/29），列别名「生日」），按学号升序返回。",
+            "templateId": "sub-derived",
+            "knowledgeArea": "子查询",
+            "difficulty": 5,
+            "prompt": "查询参加考试达到 2 次及以上的学生各考了几次（从按学号分组的派生表中筛选，列别名「次数」）。",
             "hints": [
-              "思路：DATE_FORMAT(日期, 格式串) 按给定格式输出文本，格式串由题面描述决定。",
-              "关键子句：DATE_FORMAT(出生日期, '%m/%d')"
+              "思路：把分组统计写成 FROM 里的派生表并起别名，外层对统计结果再筛选。",
+              "关键子句：FROM (SELECT ... GROUP BY 学号) AS t WHERE 次数 >= 2"
             ],
-            "referenceAnswer": "SELECT 姓名, DATE_FORMAT(出生日期, '%m/%d') AS 生日 FROM 学员 ORDER BY 学生编号",
-            "ordered": true,
-            "commonMistake": "SELECT 姓名, DATE_FORMAT(出生日期, '%Y') AS 生日 FROM 学员 ORDER BY 学生编号"
+            "referenceAnswer": "SELECT 次数 FROM (SELECT 学号 AS 学号, COUNT(*) AS 次数 FROM 成绩 GROUP BY 学号) AS t WHERE 次数 >= 2",
+            "ordered": false,
+            "commonMistake": "SELECT 次数 FROM (SELECT 学号 AS 学号, COUNT(*) AS 次数 FROM 成绩 GROUP BY 学号) AS t"
           },
           {
-            "templateId": "date-year-filter",
+            "templateId": "date-compare",
             "knowledgeArea": "日期函数",
             "difficulty": 2,
-            "prompt": "查询 2025 年举行的考试成绩记录，返回学号。",
+            "prompt": "查询考试日期在 2025-09-01 当天及之后的成绩记录，返回学号与分数（日期按文本比较即可）。",
             "hints": [
-              "思路：对日期列套 YEAR 再与 2025 比较。",
-              "关键子句：WHERE YEAR(考试日期) = 2025"
+              "思路：'YYYY-MM-DD' 格式的日期字符串可直接用 >= 比较。",
+              "关键子句：WHERE 考试日期 >= '2025-09-01'"
             ],
-            "referenceAnswer": "SELECT 学号 FROM 成绩 WHERE YEAR(考试日期) = 2025",
+            "referenceAnswer": "SELECT 学号, 得分 FROM 成绩 WHERE 考试日期 >= '2025-09-01'",
             "ordered": false,
-            "commonMistake": "SELECT 学号 FROM 成绩 WHERE YEAR(考试日期) = 2026"
+            "commonMistake": "SELECT 学号, 得分 FROM 成绩 WHERE 考试日期 < '2025-09-01'"
           },
           {
-            "templateId": "comp-case",
+            "templateId": "comp-city-having",
             "knowledgeArea": "综合应用",
-            "difficulty": 4,
-            "prompt": "查询每条成绩的学号与达标状态（列别名「状态」）：分数为空记「缺考」，不低于 70 分记「达标」，否则记「未达标」。",
+            "difficulty": 3,
+            "prompt": "按城市统计学生人数（城市为空的不计），只保留人数达到 2 人的城市（列别名「学生数」）。",
             "hints": [
-              "思路：CASE 多分支先判 IS NULL 再判阈值，空值与比较要分开处理。",
-              "关键子句：CASE WHEN 分数 IS NULL THEN '缺考' WHEN 分数 >= 阈值 THEN '达标' ELSE '未达标' END"
+              "思路：WHERE 先排除空城市，再 GROUP BY + HAVING 过滤人数。",
+              "关键子句：WHERE 城市 IS NOT NULL GROUP BY 城市 HAVING COUNT(*) >= 2"
             ],
-            "referenceAnswer": "SELECT 学号, CASE WHEN 得分 IS NULL THEN '缺考' WHEN 得分 >= 70 THEN '达标' ELSE '未达标' END AS 状态 FROM 成绩",
+            "referenceAnswer": "SELECT 生源地, COUNT(*) AS 学生数 FROM 学员 WHERE 生源地 IS NOT NULL GROUP BY 生源地 HAVING COUNT(*) >= 2",
             "ordered": false,
-            "commonMistake": "SELECT 学号, CASE WHEN 得分 IS NULL THEN '缺考' WHEN 得分 >= 70 THEN '合格' ELSE '未达标' END AS 状态 FROM 成绩"
+            "commonMistake": "SELECT 生源地 FROM 学员 WHERE 生源地 IS NOT NULL GROUP BY 生源地 HAVING COUNT(*) >= 2"
           }
         ]
       }
@@ -2950,59 +2956,59 @@
         },
         "questions": [
           {
-            "templateId": "emp-select-all",
+            "templateId": "emp-alias-expr",
+            "knowledgeArea": "单表查询与投影",
+            "difficulty": 2,
+            "prompt": "查询每位员工的姓名与按 12 个月折算的年度薪资（列别名「年度薪资」）。",
+            "hints": [
+              "思路：投影列可以是表达式，乘法直接写在 SELECT 里并用 AS 起别名。",
+              "关键子句：SELECT 姓名, 月薪 * 12 AS 年度薪资"
+            ],
+            "referenceAnswer": "SELECT 姓名, 月薪 * 12 AS 年度薪资 FROM 职员",
+            "ordered": false,
+            "commonMistake": "SELECT 姓名, 月薪 * 10 AS 年度薪资 FROM 职员"
+          },
+          {
+            "templateId": "emp-select-distinct-position",
             "knowledgeArea": "单表查询与投影",
             "difficulty": 1,
-            "prompt": "查询所有员工的姓名。",
+            "prompt": "查询公司里出现过的不同职位（去除重复，不含空值）。",
             "hints": [
-              "思路：只需要一个列，从员工表里全部取出。",
-              "关键子句：SELECT 姓名 FROM 职员"
+              "思路：职位有重复值，需要去重后再列出。",
+              "关键子句：SELECT DISTINCT 岗位 FROM 职员 WHERE 岗位 IS NOT NULL"
             ],
-            "referenceAnswer": "SELECT 姓名 FROM 职员",
+            "referenceAnswer": "SELECT DISTINCT 岗位 FROM 职员 WHERE 岗位 IS NOT NULL",
             "ordered": false,
-            "commonMistake": "SELECT 姓名, 岗位 FROM 职员"
+            "commonMistake": "SELECT 岗位 FROM 职员 WHERE 岗位 IS NOT NULL"
           },
           {
-            "templateId": "emp-where-position",
+            "templateId": "emp-limit-top",
             "knowledgeArea": "条件筛选与排序",
-            "difficulty": 2,
-            "prompt": "查询职位为「设计师」的员工姓名。",
+            "difficulty": 3,
+            "prompt": "查询工号最靠前的 5 名员工的姓名（按员工号升序）。",
             "hints": [
-              "思路：字符串等值筛选用 WHERE 列名 = '关键词'，注意引号。",
-              "关键子句：WHERE 岗位 = '设计师'"
+              "思路：先按员工号排序，再限制返回行数。",
+              "关键子句：ORDER BY 员工编号 LIMIT 5"
             ],
-            "referenceAnswer": "SELECT 姓名 FROM 职员 WHERE 岗位 = '设计师'",
-            "ordered": false,
-            "commonMistake": "SELECT 姓名 FROM 职员 WHERE 岗位 = '实习生'"
+            "referenceAnswer": "SELECT 姓名 FROM 职员 ORDER BY 员工编号 LIMIT 5",
+            "ordered": true,
+            "commonMistake": "SELECT 姓名 FROM 职员 ORDER BY 员工编号 DESC LIMIT 5"
           },
           {
-            "templateId": "pay-count-all",
+            "templateId": "pay-count-distinct",
             "knowledgeArea": "聚合与分组",
-            "difficulty": 1,
-            "prompt": "查询薪资发放表的总记录数（列别名「总记录数」）。",
-            "hints": [
-              "思路：统计行数用 COUNT(*)。",
-              "关键子句：SELECT COUNT(*) AS 总记录数 FROM 薪资发放"
-            ],
-            "referenceAnswer": "SELECT COUNT(*) AS 总记录数 FROM 薪资发放",
-            "ordered": false,
-            "commonMistake": "SELECT COUNT(*) AS 总记录数 FROM 职员",
-            "semanticTrap": [
-              "SELECT COUNT(DISTINCT 员工号) AS 总记录数 FROM 薪资发放"
-            ]
-          },
-          {
-            "templateId": "join-emp-pay",
-            "knowledgeArea": "多表 JOIN",
             "difficulty": 2,
-            "prompt": "查询每条薪资发放记录对应的员工姓名与发放金额（内连接员工表与薪资发放表）。",
+            "prompt": "查询薪资发放表中涉及多少位不同的员工（列别名「员工数」）。",
             "hints": [
-              "思路：按员工号相等把两张表连接起来，连接列要写全限定名。",
-              "关键子句：FROM 职员 JOIN 薪资发放 ON 职员.员工编号 = 薪资发放.员工号"
+              "思路：去重计数要在聚合参数里加 DISTINCT。",
+              "关键子句：SELECT COUNT(DISTINCT 员工号) AS 员工数"
             ],
-            "referenceAnswer": "SELECT 姓名, 实发金额 FROM 职员 JOIN 薪资发放 ON 职员.员工编号 = 薪资发放.员工号",
+            "referenceAnswer": "SELECT COUNT(DISTINCT 员工号) AS 员工数 FROM 薪资发放",
             "ordered": false,
-            "commonMistake": "SELECT 姓名, 实发金额 FROM 职员 JOIN 薪资发放 ON 职员.部门号 = 薪资发放.员工号"
+            "commonMistake": "SELECT COUNT(员工号) AS 员工数 FROM 薪资发放",
+            "semanticTrap": [
+              "SELECT COUNT(*) AS 员工数 FROM 薪资发放"
+            ]
           },
           {
             "templateId": "join-filter",
@@ -3018,17 +3024,30 @@
             "commonMistake": "SELECT 姓名, 实发金额 FROM 职员 JOIN 薪资发放 ON 职员.员工编号 = 薪资发放.员工号 WHERE 实发金额 < 20000"
           },
           {
-            "templateId": "sub-in",
-            "knowledgeArea": "子查询",
-            "difficulty": 3,
-            "prompt": "查询至少有一次发放金额不低于 15000 元的员工姓名（用 IN 子查询）。",
+            "templateId": "join-left-null",
+            "knowledgeArea": "多表 JOIN",
+            "difficulty": 4,
+            "prompt": "查询没有任何薪资发放记录的员工姓名（左连接后筛右侧为空）。",
             "hints": [
-              "思路：先在内层子查询找出达标的员工号，外层用 IN 匹配。",
-              "关键子句：WHERE 员工编号 IN (SELECT 员工号 FROM 薪资发放 WHERE 实发金额 >= 15000)"
+              "思路：LEFT JOIN 保留全部员工，右表无匹配时其列为 NULL，用 IS NULL 找出。",
+              "关键子句：LEFT JOIN 薪资发放 ON ... WHERE 薪资发放.员工号 IS NULL"
             ],
-            "referenceAnswer": "SELECT 姓名 FROM 职员 WHERE 员工编号 IN (SELECT 员工号 FROM 薪资发放 WHERE 实发金额 >= 15000)",
+            "referenceAnswer": "SELECT 姓名 FROM 职员 LEFT JOIN 薪资发放 ON 职员.员工编号 = 薪资发放.员工号 WHERE 薪资发放.员工号 IS NULL",
             "ordered": false,
-            "commonMistake": "SELECT 姓名 FROM 职员 WHERE 员工编号 NOT IN (SELECT 员工号 FROM 薪资发放 WHERE 实发金额 >= 15000)"
+            "commonMistake": "SELECT 姓名 FROM 职员 JOIN 薪资发放 ON 职员.员工编号 = 薪资发放.员工号 WHERE 薪资发放.员工号 IS NOT NULL"
+          },
+          {
+            "templateId": "sub-exists",
+            "knowledgeArea": "子查询",
+            "difficulty": 4,
+            "prompt": "查询没有任何薪资发放记录的员工姓名（用 NOT EXISTS 相关子查询）。",
+            "hints": [
+              "思路：相关子查询按同一员工号关联内外两层，NOT EXISTS 表示一条匹配都没有。",
+              "关键子句：WHERE NOT EXISTS (SELECT 1 FROM 薪资发放 WHERE 薪资发放.员工号 = 职员.员工编号)"
+            ],
+            "referenceAnswer": "SELECT 姓名 FROM 职员 WHERE NOT EXISTS (SELECT 1 FROM 薪资发放 WHERE 薪资发放.员工号 = 职员.员工编号)",
+            "ordered": false,
+            "commonMistake": "SELECT 姓名 FROM 职员 WHERE EXISTS (SELECT 1 FROM 薪资发放 WHERE 薪资发放.员工号 = 职员.员工编号)"
           },
           {
             "templateId": "sub-derived",
@@ -3044,30 +3063,17 @@
             "commonMistake": "SELECT 次数 FROM (SELECT 员工号 AS 员工号, COUNT(*) AS 次数 FROM 薪资发放 GROUP BY 员工号) AS t"
           },
           {
-            "templateId": "date-year-group",
+            "templateId": "date-year-filter",
             "knowledgeArea": "日期函数",
-            "difficulty": 3,
-            "prompt": "按入职年份统计员工人数（列别名「入职年份」「人数」）。",
+            "difficulty": 2,
+            "prompt": "查询 2025 年发放的薪资记录，返回员工号。",
             "hints": [
-              "思路：YEAR 函数从日期中取出年份，按它分组计数。",
-              "关键子句：GROUP BY YEAR(入职时间)"
+              "思路：对日期列套 YEAR 再与 2025 比较。",
+              "关键子句：WHERE YEAR(发放时间) = 2025"
             ],
-            "referenceAnswer": "SELECT YEAR(入职时间) AS 入职年份, COUNT(*) AS 人数 FROM 职员 GROUP BY YEAR(入职时间)",
+            "referenceAnswer": "SELECT 员工号 FROM 薪资发放 WHERE YEAR(发放时间) = 2025",
             "ordered": false,
-            "commonMistake": "SELECT MONTH(入职时间) AS 入职年份, COUNT(*) AS 人数 FROM 职员 GROUP BY MONTH(入职时间)"
-          },
-          {
-            "templateId": "date-datediff",
-            "knowledgeArea": "日期函数",
-            "difficulty": 4,
-            "prompt": "查询薪资发放表中最早发放日期与最晚发放日期相差多少天（列别名「跨度天数」）。",
-            "hints": [
-              "思路：DATEDIFF(a, b) 求 a 减 b 的天数，先聚合出两个端点日期再作差。",
-              "关键子句：SELECT DATEDIFF(MAX(发放时间), MIN(发放时间))"
-            ],
-            "referenceAnswer": "SELECT DATEDIFF(MAX(发放时间), MIN(发放时间)) AS 跨度天数 FROM 薪资发放",
-            "ordered": false,
-            "commonMistake": "SELECT DATEDIFF(MIN(发放时间), MAX(发放时间)) AS 跨度天数 FROM 薪资发放"
+            "commonMistake": "SELECT 员工号 FROM 薪资发放 WHERE YEAR(发放时间) = 2026"
           },
           {
             "templateId": "comp-city-having",
@@ -3790,46 +3796,59 @@
             "commonMistake": "SELECT 姓名, 月薪 * 10 AS 年度薪资 FROM 职员"
           },
           {
-            "templateId": "emp-order-by-salary",
-            "knowledgeArea": "条件筛选与排序",
-            "difficulty": 2,
-            "prompt": "查询每位员工的姓名与月薪，按月薪从高到低排序（月薪相同时按员工号升序）。",
+            "templateId": "emp-select-distinct-position",
+            "knowledgeArea": "单表查询与投影",
+            "difficulty": 1,
+            "prompt": "查询公司里出现过的不同职位（去除重复，不含空值）。",
             "hints": [
-              "思路：排序用 ORDER BY，方向由题面决定；并列时用员工号作决胜列保证顺序确定。",
-              "关键子句：ORDER BY 月薪 DESC, 员工编号"
+              "思路：职位有重复值，需要去重后再列出。",
+              "关键子句：SELECT DISTINCT 岗位 FROM 职员 WHERE 岗位 IS NOT NULL"
             ],
-            "referenceAnswer": "SELECT 姓名, 月薪 FROM 职员 ORDER BY 月薪 DESC, 员工编号",
-            "ordered": true,
-            "commonMistake": "SELECT 姓名 FROM 职员 ORDER BY 月薪 DESC, 员工编号"
-          },
-          {
-            "templateId": "pay-between",
-            "knowledgeArea": "条件筛选与排序",
-            "difficulty": 2,
-            "prompt": "查询发放金额在 8000 到 20000 元之间（含两端）的记录，返回员工号与发放金额。",
-            "hints": [
-              "思路：闭区间筛选用 BETWEEN ... AND ...，注意下界在前、上界在后。",
-              "关键子句：WHERE 发放金额 BETWEEN 8000 AND 20000"
-            ],
-            "referenceAnswer": "SELECT 员工号, 发放金额 FROM 工资发放 WHERE 发放金额 BETWEEN 8000 AND 20000",
+            "referenceAnswer": "SELECT DISTINCT 岗位 FROM 职员 WHERE 岗位 IS NOT NULL",
             "ordered": false,
-            "commonMistake": "SELECT 员工号, 发放金额 FROM 工资发放 WHERE 发放金额 BETWEEN 20000 AND 8000"
+            "commonMistake": "SELECT 岗位 FROM 职员 WHERE 岗位 IS NOT NULL"
           },
           {
-            "templateId": "pay-avg-group",
-            "knowledgeArea": "聚合与分组",
+            "templateId": "emp-limit-top",
+            "knowledgeArea": "条件筛选与排序",
             "difficulty": 3,
-            "prompt": "查询每位员工的员工号与平均发放金额（列别名「平均发放」）。",
+            "prompt": "查询工号最靠前的 3 名员工的姓名（按员工号升序）。",
             "hints": [
-              "思路：按员工号分组后对金额求 AVG，空值不计入平均。",
-              "关键子句：GROUP BY 员工号 配合 AVG(发放金额)"
+              "思路：先按员工号排序，再限制返回行数。",
+              "关键子句：ORDER BY 员工编号 LIMIT 3"
             ],
-            "referenceAnswer": "SELECT 员工号, AVG(发放金额) AS 平均发放 FROM 工资发放 GROUP BY 员工号",
+            "referenceAnswer": "SELECT 姓名 FROM 职员 ORDER BY 员工编号 LIMIT 3",
+            "ordered": true,
+            "commonMistake": "SELECT 姓名 FROM 职员 ORDER BY 员工编号 DESC LIMIT 3"
+          },
+          {
+            "templateId": "pay-count-distinct",
+            "knowledgeArea": "聚合与分组",
+            "difficulty": 2,
+            "prompt": "查询薪资发放表中涉及多少位不同的员工（列别名「员工数」）。",
+            "hints": [
+              "思路：去重计数要在聚合参数里加 DISTINCT。",
+              "关键子句：SELECT COUNT(DISTINCT 员工号) AS 员工数"
+            ],
+            "referenceAnswer": "SELECT COUNT(DISTINCT 员工号) AS 员工数 FROM 工资发放",
             "ordered": false,
-            "commonMistake": "SELECT 员工号, SUM(发放金额) AS 平均发放 FROM 工资发放 GROUP BY 员工号",
+            "commonMistake": "SELECT COUNT(员工号) AS 员工数 FROM 工资发放",
             "semanticTrap": [
-              "SELECT 发放序号, AVG(发放金额) AS 平均发放 FROM 工资发放 GROUP BY 发放序号"
+              "SELECT COUNT(*) AS 员工数 FROM 工资发放"
             ]
+          },
+          {
+            "templateId": "join-filter",
+            "knowledgeArea": "多表 JOIN",
+            "difficulty": 3,
+            "prompt": "查询发放金额不低于 20000 元的记录对应的员工姓名与发放金额。",
+            "hints": [
+              "思路：连接员工与薪资发放后，在 WHERE 里对金额做阈值筛选。",
+              "关键子句：JOIN ... ON 员工号相等 WHERE 发放金额 >= 20000"
+            ],
+            "referenceAnswer": "SELECT 姓名, 发放金额 FROM 职员 JOIN 工资发放 ON 职员.员工编号 = 工资发放.员工号 WHERE 发放金额 >= 20000",
+            "ordered": false,
+            "commonMistake": "SELECT 姓名, 发放金额 FROM 职员 JOIN 工资发放 ON 职员.员工编号 = 工资发放.员工号 WHERE 发放金额 < 20000"
           },
           {
             "templateId": "join-left-null",
@@ -3845,69 +3864,56 @@
             "commonMistake": "SELECT 姓名 FROM 职员 JOIN 工资发放 ON 职员.员工编号 = 工资发放.员工号 WHERE 工资发放.员工号 IS NOT NULL"
           },
           {
-            "templateId": "join-emp-pay",
-            "knowledgeArea": "多表 JOIN",
-            "difficulty": 2,
-            "prompt": "查询每条薪资发放记录对应的员工姓名与发放金额（内连接员工表与薪资发放表）。",
-            "hints": [
-              "思路：按员工号相等把两张表连接起来，连接列要写全限定名。",
-              "关键子句：FROM 职员 JOIN 工资发放 ON 职员.员工编号 = 工资发放.员工号"
-            ],
-            "referenceAnswer": "SELECT 姓名, 发放金额 FROM 职员 JOIN 工资发放 ON 职员.员工编号 = 工资发放.员工号",
-            "ordered": false,
-            "commonMistake": "SELECT 姓名, 发放金额 FROM 职员 JOIN 工资发放 ON 职员.部门号 = 工资发放.员工号"
-          },
-          {
-            "templateId": "sub-scalar-max",
+            "templateId": "sub-exists",
             "knowledgeArea": "子查询",
-            "difficulty": 3,
-            "prompt": "查询月薪最高的员工姓名（用标量子查询取最大值）。",
+            "difficulty": 4,
+            "prompt": "查询没有任何薪资发放记录的员工姓名（用 NOT EXISTS 相关子查询）。",
             "hints": [
-              "思路：内层 SELECT MAX(...) 只返回一个值，外层用它做等值比较。",
-              "关键子句：WHERE 月薪 = (SELECT MAX(月薪) FROM 职员)"
+              "思路：相关子查询按同一员工号关联内外两层，NOT EXISTS 表示一条匹配都没有。",
+              "关键子句：WHERE NOT EXISTS (SELECT 1 FROM 工资发放 WHERE 工资发放.员工号 = 职员.员工编号)"
             ],
-            "referenceAnswer": "SELECT 姓名 FROM 职员 WHERE 月薪 = (SELECT MAX(月薪) FROM 职员)",
+            "referenceAnswer": "SELECT 姓名 FROM 职员 WHERE NOT EXISTS (SELECT 1 FROM 工资发放 WHERE 工资发放.员工号 = 职员.员工编号)",
             "ordered": false,
-            "commonMistake": "SELECT 姓名 FROM 职员 WHERE 月薪 = (SELECT MIN(月薪) FROM 职员)"
+            "commonMistake": "SELECT 姓名 FROM 职员 WHERE EXISTS (SELECT 1 FROM 工资发放 WHERE 工资发放.员工号 = 职员.员工编号)"
           },
           {
-            "templateId": "date-format",
+            "templateId": "sub-derived",
+            "knowledgeArea": "子查询",
+            "difficulty": 5,
+            "prompt": "查询发薪达到 3 次及以上的员工各发了几次薪（从按员工号分组的派生表中筛选，列别名「次数」）。",
+            "hints": [
+              "思路：把分组统计写成 FROM 里的派生表并起别名，外层对统计结果再筛选。",
+              "关键子句：FROM (SELECT ... GROUP BY 员工号) AS t WHERE 次数 >= 3"
+            ],
+            "referenceAnswer": "SELECT 次数 FROM (SELECT 员工号 AS 员工号, COUNT(*) AS 次数 FROM 工资发放 GROUP BY 员工号) AS t WHERE 次数 >= 3",
+            "ordered": false,
+            "commonMistake": "SELECT 次数 FROM (SELECT 员工号 AS 员工号, COUNT(*) AS 次数 FROM 工资发放 GROUP BY 员工号) AS t"
+          },
+          {
+            "templateId": "date-year-filter",
             "knowledgeArea": "日期函数",
-            "difficulty": 3,
-            "prompt": "查询每位员工的姓名与格式化后的入职日期（格式为「年-月-日」（如 2020-02-29），列别名「入职日」），按员工号升序返回。",
+            "difficulty": 2,
+            "prompt": "查询 2025 年发放的薪资记录，返回员工号。",
             "hints": [
-              "思路：DATE_FORMAT(日期, 格式串) 按给定格式输出文本，格式串由题面描述决定。",
-              "关键子句：DATE_FORMAT(入职时间, '%Y-%m-%d')"
+              "思路：对日期列套 YEAR 再与 2025 比较。",
+              "关键子句：WHERE YEAR(发放日期) = 2025"
             ],
-            "referenceAnswer": "SELECT 姓名, DATE_FORMAT(入职时间, '%Y-%m-%d') AS 入职日 FROM 职员 ORDER BY 员工编号",
-            "ordered": true,
-            "commonMistake": "SELECT 姓名, DATE_FORMAT(入职时间, '%Y') AS 入职日 FROM 职员 ORDER BY 员工编号"
-          },
-          {
-            "templateId": "comp-case",
-            "knowledgeArea": "综合应用",
-            "difficulty": 4,
-            "prompt": "查询每条发放记录的员工号与发放状态（列别名「状态」）：发放金额为空记「未发放」，不低于 12000 元记「高额」，否则记「普通」。",
-            "hints": [
-              "思路：CASE 多分支先判 IS NULL 再判阈值，空值与比较要分开处理。",
-              "关键子句：CASE WHEN 金额 IS NULL THEN '未发放' WHEN 金额 >= 阈值 THEN '高额' ELSE '普通' END"
-            ],
-            "referenceAnswer": "SELECT 员工号, CASE WHEN 发放金额 IS NULL THEN '未发放' WHEN 发放金额 >= 12000 THEN '高额' ELSE '普通' END AS 状态 FROM 工资发放",
+            "referenceAnswer": "SELECT 员工号 FROM 工资发放 WHERE YEAR(发放日期) = 2025",
             "ordered": false,
-            "commonMistake": "SELECT 员工号, CASE WHEN 发放金额 IS NULL THEN '未发放' WHEN 发放金额 >= 12000 THEN '大额' ELSE '普通' END AS 状态 FROM 工资发放"
+            "commonMistake": "SELECT 员工号 FROM 工资发放 WHERE YEAR(发放日期) = 2026"
           },
           {
-            "templateId": "comp-order-limit",
+            "templateId": "comp-city-having",
             "knowledgeArea": "综合应用",
-            "difficulty": 4,
-            "prompt": "查询发放金额最高的前 5 条记录的员工姓名与发放金额（同额按员工号升序）。",
+            "difficulty": 3,
+            "prompt": "按部门所在城市统计部门个数（城市为空的不计），只保留部门数达到 2 个的城市（列别名「部门数」）。",
             "hints": [
-              "思路：连接员工与薪资发放后，按金额降序、员工号升序排序，再 LIMIT。",
-              "关键子句：ORDER BY 发放金额 DESC, 职员.员工编号 LIMIT 5"
+              "思路：WHERE 先排除空城市，再 GROUP BY + HAVING 过滤数量。",
+              "关键子句：WHERE 城市 IS NOT NULL GROUP BY 城市 HAVING COUNT(*) >= 2"
             ],
-            "referenceAnswer": "SELECT 姓名, 发放金额 FROM 职员 JOIN 工资发放 ON 职员.员工编号 = 工资发放.员工号 ORDER BY 发放金额 DESC, 职员.员工编号 LIMIT 5",
-            "ordered": true,
-            "commonMistake": "SELECT 姓名, 发放金额 FROM 职员 JOIN 工资发放 ON 职员.员工编号 = 工资发放.员工号 ORDER BY 发放金额 ASC, 职员.员工编号 LIMIT 5"
+            "referenceAnswer": "SELECT 所在地, COUNT(*) AS 部门数 FROM 部门 WHERE 所在地 IS NOT NULL GROUP BY 所在地 HAVING COUNT(*) >= 2",
+            "ordered": false,
+            "commonMistake": "SELECT 所在地 FROM 部门 WHERE 所在地 IS NOT NULL GROUP BY 所在地 HAVING COUNT(*) >= 2"
           }
         ]
       }
@@ -4604,56 +4610,43 @@
         },
         "questions": [
           {
-            "templateId": "emp-select-distinct-position",
+            "templateId": "emp-concat",
+            "knowledgeArea": "单表查询与投影",
+            "difficulty": 2,
+            "prompt": "查询每位部门的「部门名·城市」拼接结果（中间用·连接，列别名「驻地」）。",
+            "hints": [
+              "思路：字符串拼接用 CONCAT 函数，参数依次为部门名、连接符、城市。",
+              "关键子句：SELECT CONCAT(部门名, '·', 城市) AS 驻地"
+            ],
+            "referenceAnswer": "SELECT CONCAT(部门名, '·', 城市) AS 驻地 FROM 部门表",
+            "ordered": false,
+            "commonMistake": "SELECT CONCAT(部门名, 城市) AS 驻地 FROM 部门表"
+          },
+          {
+            "templateId": "emp-select-all",
             "knowledgeArea": "单表查询与投影",
             "difficulty": 1,
-            "prompt": "查询公司里出现过的不同职位（去除重复，不含空值）。",
+            "prompt": "查询所有员工的姓名。",
             "hints": [
-              "思路：职位有重复值，需要去重后再列出。",
-              "关键子句：SELECT DISTINCT 岗位 FROM 职员 WHERE 岗位 IS NOT NULL"
+              "思路：只需要一个列，从员工表里全部取出。",
+              "关键子句：SELECT 名字 FROM 职员"
             ],
-            "referenceAnswer": "SELECT DISTINCT 岗位 FROM 职员 WHERE 岗位 IS NOT NULL",
+            "referenceAnswer": "SELECT 名字 FROM 职员",
             "ordered": false,
-            "commonMistake": "SELECT 岗位 FROM 职员 WHERE 岗位 IS NOT NULL"
+            "commonMistake": "SELECT 名字, 岗位 FROM 职员"
           },
           {
-            "templateId": "emp-alias-expr",
-            "knowledgeArea": "单表查询与投影",
-            "difficulty": 2,
-            "prompt": "查询每位员工的姓名与按 12 个月折算的年度薪资（列别名「年度薪资」）。",
-            "hints": [
-              "思路：投影列可以是表达式，乘法直接写在 SELECT 里并用 AS 起别名。",
-              "关键子句：SELECT 名字, 月薪 * 12 AS 年度薪资"
-            ],
-            "referenceAnswer": "SELECT 名字, 月薪 * 12 AS 年度薪资 FROM 职员",
-            "ordered": false,
-            "commonMistake": "SELECT 名字, 月薪 * 10 AS 年度薪资 FROM 职员"
-          },
-          {
-            "templateId": "pay-between",
+            "templateId": "emp-limit-top",
             "knowledgeArea": "条件筛选与排序",
-            "difficulty": 2,
-            "prompt": "查询发放金额在 6000 到 12000 元之间（含两端）的记录，返回员工号与发放金额。",
+            "difficulty": 3,
+            "prompt": "查询工号最靠前的 3 名员工的姓名（按员工号升序）。",
             "hints": [
-              "思路：闭区间筛选用 BETWEEN ... AND ...，注意下界在前、上界在后。",
-              "关键子句：WHERE 发放金额 BETWEEN 6000 AND 12000"
+              "思路：先按员工号排序，再限制返回行数。",
+              "关键子句：ORDER BY 员工号 LIMIT 3"
             ],
-            "referenceAnswer": "SELECT 员工号, 发放金额 FROM 工资发放 WHERE 发放金额 BETWEEN 6000 AND 12000",
-            "ordered": false,
-            "commonMistake": "SELECT 员工号, 发放金额 FROM 工资发放 WHERE 发放金额 BETWEEN 12000 AND 6000"
-          },
-          {
-            "templateId": "emp-where-position",
-            "knowledgeArea": "条件筛选与排序",
-            "difficulty": 2,
-            "prompt": "查询职位为「经理」的员工姓名。",
-            "hints": [
-              "思路：字符串等值筛选用 WHERE 列名 = '关键词'，注意引号。",
-              "关键子句：WHERE 岗位 = '经理'"
-            ],
-            "referenceAnswer": "SELECT 名字 FROM 职员 WHERE 岗位 = '经理'",
-            "ordered": false,
-            "commonMistake": "SELECT 名字 FROM 职员 WHERE 岗位 = '实习生'"
+            "referenceAnswer": "SELECT 名字 FROM 职员 ORDER BY 员工号 LIMIT 3",
+            "ordered": true,
+            "commonMistake": "SELECT 名字 FROM 职员 ORDER BY 员工号 DESC LIMIT 3"
           },
           {
             "templateId": "pay-count-distinct",
@@ -4670,6 +4663,19 @@
             "semanticTrap": [
               "SELECT COUNT(*) AS 员工数 FROM 工资发放"
             ]
+          },
+          {
+            "templateId": "join-filter",
+            "knowledgeArea": "多表 JOIN",
+            "difficulty": 3,
+            "prompt": "查询发放金额不低于 12000 元的记录对应的员工姓名与发放金额。",
+            "hints": [
+              "思路：连接员工与薪资发放后，在 WHERE 里对金额做阈值筛选。",
+              "关键子句：JOIN ... ON 员工号相等 WHERE 发放金额 >= 12000"
+            ],
+            "referenceAnswer": "SELECT 名字, 发放金额 FROM 职员 JOIN 工资发放 ON 职员.员工号 = 工资发放.员工号 WHERE 发放金额 >= 12000",
+            "ordered": false,
+            "commonMistake": "SELECT 名字, 发放金额 FROM 职员 JOIN 工资发放 ON 职员.员工号 = 工资发放.员工号 WHERE 发放金额 < 12000"
           },
           {
             "templateId": "join-left-null",
@@ -4698,6 +4704,19 @@
             "commonMistake": "SELECT 名字 FROM 职员 WHERE EXISTS (SELECT 1 FROM 工资发放 WHERE 工资发放.员工号 = 职员.员工号)"
           },
           {
+            "templateId": "sub-derived",
+            "knowledgeArea": "子查询",
+            "difficulty": 5,
+            "prompt": "查询发薪达到 3 次及以上的员工各发了几次薪（从按员工号分组的派生表中筛选，列别名「次数」）。",
+            "hints": [
+              "思路：把分组统计写成 FROM 里的派生表并起别名，外层对统计结果再筛选。",
+              "关键子句：FROM (SELECT ... GROUP BY 员工号) AS t WHERE 次数 >= 3"
+            ],
+            "referenceAnswer": "SELECT 次数 FROM (SELECT 员工号 AS 员工号, COUNT(*) AS 次数 FROM 工资发放 GROUP BY 员工号) AS t WHERE 次数 >= 3",
+            "ordered": false,
+            "commonMistake": "SELECT 次数 FROM (SELECT 员工号 AS 员工号, COUNT(*) AS 次数 FROM 工资发放 GROUP BY 员工号) AS t"
+          },
+          {
             "templateId": "date-year-filter",
             "knowledgeArea": "日期函数",
             "difficulty": 2,
@@ -4711,30 +4730,17 @@
             "commonMistake": "SELECT 员工号 FROM 工资发放 WHERE YEAR(发放日期) = 2026"
           },
           {
-            "templateId": "date-format",
-            "knowledgeArea": "日期函数",
-            "difficulty": 3,
-            "prompt": "查询每位员工的姓名与格式化后的入职日期（格式为「月/日」（如 02/29），列别名「入职日」），按员工号升序返回。",
-            "hints": [
-              "思路：DATE_FORMAT(日期, 格式串) 按给定格式输出文本，格式串由题面描述决定。",
-              "关键子句：DATE_FORMAT(入职日期, '%m/%d')"
-            ],
-            "referenceAnswer": "SELECT 名字, DATE_FORMAT(入职日期, '%m/%d') AS 入职日 FROM 职员 ORDER BY 员工号",
-            "ordered": true,
-            "commonMistake": "SELECT 名字, DATE_FORMAT(入职日期, '%Y') AS 入职日 FROM 职员 ORDER BY 员工号"
-          },
-          {
-            "templateId": "comp-case",
+            "templateId": "comp-city-having",
             "knowledgeArea": "综合应用",
-            "difficulty": 4,
-            "prompt": "查询每条发放记录的员工号与发放状态（列别名「状态」）：发放金额为空记「未发放」，不低于 15000 元记「高额」，否则记「普通」。",
+            "difficulty": 3,
+            "prompt": "按部门所在城市统计部门个数（城市为空的不计），只保留部门数达到 2 个的城市（列别名「部门数」）。",
             "hints": [
-              "思路：CASE 多分支先判 IS NULL 再判阈值，空值与比较要分开处理。",
-              "关键子句：CASE WHEN 金额 IS NULL THEN '未发放' WHEN 金额 >= 阈值 THEN '高额' ELSE '普通' END"
+              "思路：WHERE 先排除空城市，再 GROUP BY + HAVING 过滤数量。",
+              "关键子句：WHERE 城市 IS NOT NULL GROUP BY 城市 HAVING COUNT(*) >= 2"
             ],
-            "referenceAnswer": "SELECT 员工号, CASE WHEN 发放金额 IS NULL THEN '未发放' WHEN 发放金额 >= 15000 THEN '高额' ELSE '普通' END AS 状态 FROM 工资发放",
+            "referenceAnswer": "SELECT 城市, COUNT(*) AS 部门数 FROM 部门表 WHERE 城市 IS NOT NULL GROUP BY 城市 HAVING COUNT(*) >= 2",
             "ordered": false,
-            "commonMistake": "SELECT 员工号, CASE WHEN 发放金额 IS NULL THEN '未发放' WHEN 发放金额 >= 15000 THEN '大额' ELSE '普通' END AS 状态 FROM 工资发放"
+            "commonMistake": "SELECT 城市 FROM 部门表 WHERE 城市 IS NOT NULL GROUP BY 城市 HAVING COUNT(*) >= 2"
           }
         ]
       }
