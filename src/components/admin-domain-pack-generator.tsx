@@ -7,6 +7,11 @@
 // 鉴权在 API 层（ADR-0007）；本组件经 admin-api-client 带 Bearer token。
 
 import { useState } from "react";
+
+/** 发布成功回调（页面注入：强制重拉云端清单，列表与放出管理即时纳入新包） */
+export interface AdminDomainPackGeneratorProps {
+  onPublished?: () => void;
+}
 import { bearerHeaders, getSessionAuth } from "@/lib/admin-api-client";
 import {
   resolveGenerateOutcome,
@@ -66,7 +71,7 @@ type Phase =
   | { kind: "publishing"; outcome: GenerateOutcome & { phase: "report" } }
   | { kind: "published"; packId: string };
 
-export default function AdminDomainPackGenerator() {
+export default function AdminDomainPackGenerator({ onPublished }: AdminDomainPackGeneratorProps) {
   const [description, setDescription] = useState("");
   const [sampleSql, setSampleSql] = useState("");
   const [tableCount, setTableCount] = useState("");
@@ -135,6 +140,7 @@ export default function AdminDomainPackGenerator() {
       const outcome = resolvePublishOutcome(response.status, body);
       if (outcome.phase === "published") {
         setPhase({ kind: "published", packId: outcome.packId });
+        onPublished?.();
       } else if (outcome.phase === "gate-rejected") {
         setPhase({ kind: "report", outcome: { phase: "report", draft: phase.outcome.draft, report: outcome.report, summary: phase.outcome.summary } });
       } else {

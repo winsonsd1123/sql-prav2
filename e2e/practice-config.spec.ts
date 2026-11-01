@@ -94,6 +94,16 @@ async function mockPracticeConfigAdminApi(page: Page) {
   return { calls, state };
 }
 
+/** #60 起管理页挂域包列表（pack-exposure GET + cloudPackStore 拉云端资产表）：离线桩保 console 卫生 */
+async function mockAdminPageSiblingBlocks(page: Page) {
+  await page.route("**/api/admin/pack-exposure", async (route) => {
+    await route.fulfill({ status: 200, contentType: "application/json", body: JSON.stringify({ packIds: [] }) });
+  });
+  await page.route("**/rest/v1/domain_pack_asset*", async (route) => {
+    await route.fulfill({ status: 200, contentType: "application/json", body: "[]" });
+  });
+}
+
 /** 学生端 domain_pack_asset 桩：回放含 7 题配置的内置包A 资产行（云端同 id 覆盖演练配置） */
 async function mockDomainPackAssetRows(page: Page, rows: unknown[]) {
   await page.route("**/rest/v1/domain_pack_asset*", async (route) => {
@@ -105,6 +115,7 @@ test("教师把内置包A 配置改为 7 题：学生端开练题数变为 7，�
   // —— 教师端：/admin/packs 把「学生-课程-成绩」总题数改 7（1/2/2/1/1）并保存 ——
   await mockTeacherPermissions(page);
   const { calls } = await mockPracticeConfigAdminApi(page);
+  await mockAdminPageSiblingBlocks(page);
   await page.goto("/admin/packs");
   await expect(page.getByTestId("演练配置管理")).toBeVisible();
   await expect(page.getByTestId("演练配置总题数")).toHaveValue("10");
@@ -141,6 +152,7 @@ test("教师把内置包A 配置改为 7 题：学生端开练题数变为 7，�
 test("非法配置（各档总和不等于总题数）前端即拦：按钮禁用、不出 PUT 请求", async ({ page }) => {
   await mockTeacherPermissions(page);
   const { calls } = await mockPracticeConfigAdminApi(page);
+  await mockAdminPageSiblingBlocks(page);
   await page.goto("/admin/packs");
   await expect(page.getByTestId("演练配置管理")).toBeVisible();
   await page.getByTestId("演练配置总题数").fill("7"); // 各档合计仍为 10

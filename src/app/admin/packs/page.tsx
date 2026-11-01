@@ -24,7 +24,7 @@ export default function AdminPacksPage() {
 
   return (
     <div className="flex flex-col gap-6">
-      <AdminDomainPackGenerator />
+      <AdminDomainPackGenerator onPublished={() => cloudPackStore.forceReload()} />
       <AdminDomainPackList builtin={builtinDomainPacks} cloud={cloud.packs} cloudLoaded={cloud.loaded} />
       <AdminPackExposureManager
         packs={packs.map((d) => ({ packId: d.packId, name: d.name }))}
