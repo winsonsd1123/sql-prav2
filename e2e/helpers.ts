@@ -102,3 +102,20 @@ export function createDomainPackAssetStub() {
   };
   return { rows, attach };
 }
+
+// 版本历史表桩（票 #62）：加载层会随资产表一并拉 /rest/v1/domain_pack_version_history，
+// 学生端离线 e2e 回放内存行集（默认空 = 无历史版本，进行中会话无需钉旧版）。
+// 已有 spec 只桩资产表时会漏出这张表的真实请求（anon 401 打进 console 卫生），故单列。
+export function createDomainPackVersionHistoryStub() {
+  const rows: DomainPackAssetRow[] = [];
+  const attach = async (page: Page) => {
+    await page.route("**/rest/v1/domain_pack_version_history*", async (route) => {
+      await route.fulfill({
+        status: 200,
+        contentType: "application/json",
+        body: JSON.stringify(rows),
+      });
+    });
+  };
+  return { rows, attach };
+}

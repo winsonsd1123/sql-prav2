@@ -68,6 +68,9 @@ export function pickLatestVersionPerBase(packs: readonly DomainPack[]): DomainPa
 /**
  * 会话域包解析（票 #62：进行中会话钉旧版本）：按学生当前 packId 在
  * 内置静态资产 → 云端当前版本 → 云端历史版本 中查表。
+ * 内置与云端当前先经 mergePackRegistries 合并——保留 #61 口径：
+ * 云端同 id 资产携带的演练配置覆盖内置包（A 类改动即时生效），
+ * 否则微调前对内置包改配置会因内置优先而失效。
  * 旧 packId（v1）落到历史版本内容——题目序列与进度/草稿键（含 packId 文本）
  * 与新版本天然隔离，零迁移（ADR-0009）；查无此包返回 null（会话暂不生成，#57 策略）。
  */
@@ -77,9 +80,9 @@ export function findSessionPack(
   history: readonly DomainPack[],
   packId: string,
 ): DomainPack | null {
+  const registry = mergePackRegistries(builtin, cloud);
   return (
-    builtin.find((d) => d.packId === packId) ??
-    cloud.find((d) => d.packId === packId) ??
+    registry.find((d) => d.packId === packId) ??
     history.find((d) => d.packId === packId) ??
     null
   );

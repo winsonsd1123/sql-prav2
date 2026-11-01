@@ -1,5 +1,5 @@
 import { test, expect, type Page } from "@playwright/test";
-import { presetLoginState, collectConsoleProblems, createDomainPackAssetStub } from "./helpers";
+import { presetLoginState, collectConsoleProblems, createDomainPackAssetStub, createDomainPackVersionHistoryStub } from "./helpers";
 import { mkCloudPackJson } from "../src/kernel/__tests__/fixtures/cloud-domain-pack";
 
 // 云端域包合并加载（票 #57 / spec #53 目标②）：云端表里的合法 JSON 域包过收录检查后
@@ -28,6 +28,8 @@ async function mockStudentSide(page: Page) {
   await page.route("**/rest/v1/pack_exposure*", async (route) => {
     await route.fulfill({ status: 200, contentType: "application/json", body: "[]" });
   });
+  // 版本历史表（票 #62 加载层随资产表一并拉取）：空桩避免漏出真实请求（anon 401 打进 console 卫生）
+  await createDomainPackVersionHistoryStub().attach(page);
 }
 
 test("云端合法域包出现在学生端列表，可切换开练出题", async ({ page }) => {

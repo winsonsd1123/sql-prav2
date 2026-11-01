@@ -1,5 +1,5 @@
 import { test, expect, type Page, type Route } from "@playwright/test";
-import { presetLoginState, collectConsoleProblems } from "./helpers";
+import { presetLoginState, collectConsoleProblems, createDomainPackVersionHistoryStub } from "./helpers";
 import packAJson from "../src/domain-packs/student-course-grades/pack-a.json";
 
 // 难度配额抽题与演练配置（票 #61 / spec #53 目标②）：教师改配置 → 学生开练题数随之变化；
@@ -55,6 +55,8 @@ async function mockStudentSide(page: Page) {
   await page.route("**/rest/v1/pack_exposure*", async (route) => {
     await route.fulfill({ status: 200, contentType: "application/json", body: "[]" });
   });
+  // 版本历史表（票 #62 加载层随资产表一并拉取）：空桩避免漏出真实请求（anon 401 打进 console 卫生）
+  await createDomainPackVersionHistoryStub().attach(page);
 }
 
 /** /api/admin/domain-packs/practice-config 有状态桩：GET 回放内存状态；PUT 记录并更新（保存后刷新可见） */
@@ -102,6 +104,8 @@ async function mockAdminPageSiblingBlocks(page: Page) {
   await page.route("**/rest/v1/domain_pack_asset*", async (route) => {
     await route.fulfill({ status: 200, contentType: "application/json", body: "[]" });
   });
+  // 票 #62：管理页复用 cloudPackStore，随资产表一并拉版本历史表，离线空桩保 console 卫生
+  await createDomainPackVersionHistoryStub().attach(page);
 }
 
 /** 学生端 domain_pack_asset 桩：回放含 7 题配置的内置包A 资产行（云端同 id 覆盖演练配置） */

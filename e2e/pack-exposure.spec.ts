@@ -1,5 +1,5 @@
 import { test, expect, type Page, type Route } from "@playwright/test";
-import { presetLoginState, collectConsoleProblems } from "./helpers";
+import { presetLoginState, collectConsoleProblems, createDomainPackVersionHistoryStub } from "./helpers";
 
 // 域包放出（issue #55 / spec #53 目标③）：教师后台勾选放出 → 学生端只见表中的域包；
 // 未配置（清单空）默认全部放出。鉴权 401/403 行为在服务层单测断言，不在此重复。
@@ -86,6 +86,8 @@ async function mockDomainPackAssetRows(page: Page, rows: unknown[]) {
       body: JSON.stringify(rows),
     });
   });
+  // 票 #62：加载层随资产表一并拉版本历史表（domain_pack_version_history），离线空桩保 console 卫生
+  await createDomainPackVersionHistoryStub().attach(page);
 }
 
 test("未配置（清单空）默认全部放出：学生端两个域包胶囊均可见", async ({ page }) => {
