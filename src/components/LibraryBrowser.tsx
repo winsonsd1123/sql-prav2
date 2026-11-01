@@ -5,6 +5,7 @@
 // 每张表仍为 <details>，默认展开，展示表名、列（名+类型）与数据预览。
 
 import type { TableInstance } from "@/kernel/types";
+import { buildColumnAnnotations } from "@/components/library-annotations";
 
 export default function LibraryBrowser({
   tables,
@@ -50,12 +51,30 @@ export default function LibraryBrowser({
             </summary>
             <div className="space-y-2 px-3 pb-3 text-xs text-ink">
               <ul className="space-y-0.5">
-                {tableInstance.columnNames.map((column, i) => (
-                  <li key={column} className="flex items-baseline justify-between gap-3 font-mono">
-                    <span className="text-ink">{column}</span>
-                    <span className="text-muted">{tableInstance.types[i]}</span>
-                  </li>
-                ))}
+                {tableInstance.columnNames.map((column, i) => {
+                  // 结构语义徽章（票 #54）：主键列 PK、外键列标注 FK → 被引用表.列
+                  const annotation = buildColumnAnnotations(tableInstance)[column];
+                  return (
+                    <li key={column} className="flex items-baseline justify-between gap-3 font-mono">
+                      <span className="text-ink">
+                        {column}
+                        {annotation?.kind === "主键" && (
+                          <span className="ml-1.5 rounded-sm bg-accent/15 px-1 py-px text-[10px] font-semibold tracking-wide text-accent">
+                            PK
+                          </span>
+                        )}
+                      </span>
+                      <span className="text-muted">
+                        {annotation?.kind === "外键" && (
+                          <span className="mr-1.5 text-[10px] text-muted/90" title={`外键 → ${annotation.target}`}>
+                            FK → {annotation.target}
+                          </span>
+                        )}
+                        {tableInstance.types[i]}
+                      </span>
+                    </li>
+                  );
+                })}
               </ul>
               <div className="overflow-x-auto rounded-lg border border-border-strong">
                 <table className="w-full font-mono">

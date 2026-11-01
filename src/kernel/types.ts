@@ -74,12 +74,25 @@ export interface ResultSet {
   rows: DisplayValue[][];
 }
 
+/** 外键指向（实例化后的实际列名）：本表列 → 被引用表.被引用列 */
+export interface ForeignKeyMarker {
+  column: string;
+  referencesTable: string;
+  referencesColumn: string;
+}
+
 export interface TableInstance {
   tableName: string;
   columnNames: string[];
   types: string[];
   DDL: string;
   rows: (string | number | null)[][];
+  /** 主键列（serialKey 实例化后的实际列名）；未声明 serialKey 的表缺省 */
+  primaryKeyColumn?: string;
+  /** 外键列清单（结构语义，供 DDL 子句、完整性断言与列清单徽章共用） */
+  foreignKeys?: ForeignKeyMarker[];
+  /** DDL 中声明 NOT NULL 的列实际名（含主键列） */
+  notNullColumns?: string[];
 }
 
 /** 题目实例：模板结合会话库实例化出的可作答题目 */
