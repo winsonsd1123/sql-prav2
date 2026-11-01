@@ -49,7 +49,7 @@ export function collectIntegrityViolations(tables: TableInstance[]): IntegrityVi
     if (table.primaryKeyColumn !== undefined) {
       const idx = columnIndex.get(table.primaryKeyColumn);
       if (idx !== undefined) {
-        const seen = new Set<string | number>();
+        const seen = new Set<string | number | null>();
         for (const row of table.rows) {
           const value = row[idx];
           if (value !== null && seen.has(value)) {
