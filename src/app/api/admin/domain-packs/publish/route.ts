@@ -4,19 +4,16 @@
 //   → 200 { ok: true, packId } | 400 | 401 | 403 | 422 { ok: false, report }（闸门拒绝）| 500
 import { publishDomainPack } from "@/server/domain-pack-generation-service";
 import { adminErrorResponse } from "@/server/admin-service";
+import { readJsonBody, runAdminRoute } from "@/server/admin-route-helper";
 
 export async function POST(request: Request) {
-  let body: unknown;
-  try {
-    body = await request.json();
-  } catch {
-    return Response.json({ error: "请求体格式不正确" }, { status: 400 });
-  }
-  const pack = (body as { pack?: unknown } | null)?.pack;
+  const parsed = await readJsonBody(request);
+  if (!parsed.ok) return parsed.response;
+  const pack = (parsed.body as { pack?: unknown } | null)?.pack;
   if (typeof pack !== "object" || pack === null) {
     return Response.json({ error: "请求体格式不正确" }, { status: 400 });
   }
-  try {
+  return runAdminRoute(async () => {
     const result = await publishDomainPack({ pack }, request.headers.get("authorization"));
     switch (result.status) {
       case "ok":
@@ -33,7 +30,5 @@ export async function POST(request: Request) {
       case "error":
         return adminErrorResponse("error");
     }
-  } catch {
-    return adminErrorResponse("error");
-  }
+  });
 }

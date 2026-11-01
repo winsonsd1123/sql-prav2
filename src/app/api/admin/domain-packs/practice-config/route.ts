@@ -8,9 +8,10 @@ import {
   savePracticeConfig,
 } from "@/server/practice-config-service";
 import { adminErrorResponse } from "@/server/admin-service";
+import { readJsonBody, runAdminRoute } from "@/server/admin-route-helper";
 
 export async function GET(request: Request) {
-  try {
+  return runAdminRoute(async () => {
     const result = await getPracticeConfigView(request.headers.get("authorization"));
     switch (result.status) {
       case "ok":
@@ -22,20 +23,14 @@ export async function GET(request: Request) {
       case "error":
         return adminErrorResponse("error");
     }
-  } catch {
-    return adminErrorResponse("error");
-  }
+  });
 }
 
 export async function PUT(request: Request) {
-  let body: unknown;
-  try {
-    body = await request.json();
-  } catch {
-    return Response.json({ error: "请求体格式不正确" }, { status: 400 });
-  }
-  try {
-    const result = await savePracticeConfig(body, request.headers.get("authorization"));
+  const parsed = await readJsonBody(request);
+  if (!parsed.ok) return parsed.response;
+  return runAdminRoute(async () => {
+    const result = await savePracticeConfig(parsed.body, request.headers.get("authorization"));
     switch (result.status) {
       case "ok":
         return Response.json({ ok: true, packId: result.packId, practiceConfig: result.practiceConfig });
@@ -53,7 +48,5 @@ export async function PUT(request: Request) {
       case "error":
         return adminErrorResponse("error");
     }
-  } catch {
-    return adminErrorResponse("error");
-  }
+  });
 }

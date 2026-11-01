@@ -4,9 +4,10 @@
 // GET /api/admin/pack-exposure → 200 { packIds } | 401 | 403 | 500
 // PUT /api/admin/pack-exposure { packIds: string[] } → 200 | 400 | 401 | 403 | 500
 import { getAdminPackExposure, saveAdminPackExposure, adminErrorResponse } from "@/server/admin-service";
+import { readJsonBody, runAdminRoute } from "@/server/admin-route-helper";
 
 export async function GET(request: Request) {
-  try {
+  return runAdminRoute(async () => {
     const result = await getAdminPackExposure(request.headers.get("authorization"));
     switch (result.status) {
       case "ok":
@@ -18,22 +19,16 @@ export async function GET(request: Request) {
       case "error":
         return adminErrorResponse("error");
     }
-  } catch {
-    return adminErrorResponse("error");
-  }
+  });
 }
 
 export async function PUT(request: Request) {
-  let body: unknown;
-  try {
-    body = await request.json();
-  } catch {
-    return Response.json({ error: "请求体格式不正确" }, { status: 400 });
-  }
+  const parsed = await readJsonBody(request);
+  if (!parsed.ok) return parsed.response;
   // 请求体形状校验：packIds 必须为字符串数组（逐项合法性交业务层归一）
-  const packIds = (body as { packIds?: unknown } | null)?.packIds;
+  const packIds = (parsed.body as { packIds?: unknown } | null)?.packIds;
   if (!Array.isArray(packIds)) return Response.json({ error: "请求体格式不正确" }, { status: 400 });
-  try {
+  return runAdminRoute(async () => {
     const result = await saveAdminPackExposure(packIds, request.headers.get("authorization"));
     switch (result.status) {
       case "ok":
@@ -47,7 +42,5 @@ export async function PUT(request: Request) {
       case "error":
         return adminErrorResponse("error");
     }
-  } catch {
-    return adminErrorResponse("error");
-  }
+  });
 }

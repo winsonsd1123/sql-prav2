@@ -3,13 +3,14 @@
 //   → 200 { versions: [{ packId, versionLabel, name, createdAt, isCurrent }] } | 400 | 401 | 403 | 500
 import { getDomainPackVersionHistory } from "@/server/domain-pack-refine-service";
 import { adminErrorResponse } from "@/server/admin-service";
+import { runAdminRoute } from "@/server/admin-route-helper";
 
 export async function GET(request: Request) {
   const packId = new URL(request.url).searchParams.get("packId");
   if (packId === null || packId.trim() === "") {
     return Response.json({ error: "缺少 packId 查询参数" }, { status: 400 });
   }
-  try {
+  return runAdminRoute(async () => {
     const result = await getDomainPackVersionHistory(packId, request.headers.get("authorization"));
     switch (result.status) {
       case "ok":
@@ -21,7 +22,5 @@ export async function GET(request: Request) {
       case "error":
         return adminErrorResponse("error");
     }
-  } catch {
-    return adminErrorResponse("error");
-  }
+  });
 }

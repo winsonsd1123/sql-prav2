@@ -5,22 +5,19 @@
 //   | 409 { code: base_name_changed | no_change } | 422 { ok:false, report }（闸门拒绝）| 500
 import { applyDomainPackRefinement } from "@/server/domain-pack-refine-service";
 import { adminErrorResponse } from "@/server/admin-service";
+import { readJsonBody, runAdminRoute } from "@/server/admin-route-helper";
 
 export const maxDuration = 300;
 
 export async function POST(request: Request) {
-  let body: unknown;
-  try {
-    body = await request.json();
-  } catch {
-    return Response.json({ error: "请求体格式不正确" }, { status: 400 });
-  }
-  const raw = (body as { packId?: unknown; pack?: unknown } | null) ?? {};
+  const parsed = await readJsonBody(request);
+  if (!parsed.ok) return parsed.response;
+  const raw = (parsed.body as { packId?: unknown; pack?: unknown } | null) ?? {};
   if (typeof raw.packId !== "string" || raw.packId.trim() === "" || typeof raw.pack !== "object" || raw.pack === null) {
     return Response.json({ error: "请求体格式不正确" }, { status: 400 });
   }
-  try {
-    const result = await applyDomainPackRefinement(body, request.headers.get("authorization"));
+  return runAdminRoute(async () => {
+    const result = await applyDomainPackRefinement(parsed.body, request.headers.get("authorization"));
     switch (result.status) {
       case "ok":
         return Response.json({ ok: true, packId: result.packId, changeClass: result.changeClass, versionLabel: result.versionLabel });
@@ -43,7 +40,5 @@ export async function POST(request: Request) {
       case "error":
         return adminErrorResponse("error");
     }
-  } catch {
-    return adminErrorResponse("error");
-  }
+  });
 }
