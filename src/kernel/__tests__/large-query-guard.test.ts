@@ -3,7 +3,7 @@ import { generatePracticeSession } from "@/kernel/question-picking";
 import { judge } from "@/kernel/judge";
 import { executeQuery } from "@/kernel/execute";
 import { RESULT_ROW_LIMIT, GuardLimitError, ROW_LIMIT_MESSAGE } from "@/kernel/guard";
-import { loadPackA } from "@/domain-packs/student-course-grades/pack-a";
+import { builtinDomainPacks } from "@/domain-packs/builtin-packs";
 import type { DomainPack } from "@/kernel/types";
 
 /**
@@ -13,7 +13,7 @@ import type { DomainPack } from "@/kernel/types";
  * 不进入 MySQL 错误三要素映射）。
  */
 
-const packA: DomainPack = loadPackA();
+const packA: DomainPack = builtinDomainPacks[0];
 const session = generatePracticeSession(42, packA);
 const question = session.questions[0];
 

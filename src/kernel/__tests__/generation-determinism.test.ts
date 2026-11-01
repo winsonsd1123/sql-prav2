@@ -1,9 +1,9 @@
 import { describe, expect, it } from "vitest";
 import { generateSession } from "@/kernel/generate";
-import { loadPackA } from "@/domain-packs/student-course-grades/pack-a";
+import { builtinDomainPacks } from "@/domain-packs/builtin-packs";
 
 describe("会话生成的确定性（seed → packA → session）", () => {
-  const pack = loadPackA();
+  const pack = builtinDomainPacks[0];
 
   it("同一种子多次生成，会话的字节级序列化完全一致", () => {
     const a = JSON.stringify(generateSession(20260101, pack));

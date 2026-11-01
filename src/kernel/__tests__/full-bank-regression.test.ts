@@ -1,8 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { generateSession } from "@/kernel/generate";
 import { judge } from "@/kernel/judge";
-import { loadPackA } from "@/domain-packs/student-course-grades/pack-a";
-import { loadPackB } from "@/domain-packs/employee-department-salary/pack-b";
+import { builtinDomainPacks } from "@/domain-packs/builtin-packs";
 import type { DomainPack } from "@/kernel/types";
 
 /**
@@ -13,7 +12,7 @@ import type { DomainPack } from "@/kernel/types";
  * 3. 模板声明的典型错误写法判不通过（防止判题过松）。
  * 典型错误写法随模板以 YAML 静态资源声明，与参考答案同占位符实例化。
  */
-const packs: DomainPack[] = [loadPackA(), loadPackB()];
+const packs: DomainPack[] = [builtinDomainPacks[0], builtinDomainPacks[1]];
 const seeds = [42, 43, 44];
 
 const SEVEN_AREAS = [
