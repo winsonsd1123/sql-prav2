@@ -70,7 +70,22 @@ export type AdminWhitelistSaveResult =
   | { status: "invalid"; error: string }
   | { status: "error" };
 
-/** 可注入依赖（测试接缝）：token 验证 / 权限并集 / profiles 分页 / 全量角色 / 封禁集合 / 角色读写 / 认证封禁写入 / 白名单读写 */
+/** 域包放出清单读取（#55，spec #53 目标③）：packIds 为当前放出的域包 id 全量列表 */
+export type AdminPackExposureResult =
+  | { status: "ok"; packIds: string[] }
+  | { status: "unauthorized" }
+  | { status: "forbidden" }
+  | { status: "error" };
+
+/** 域包放出清单全量保存（幂等；空清单合法 = 全不放） */
+export type AdminSavePackExposureResult =
+  | { status: "ok" }
+  | { status: "unauthorized" }
+  | { status: "forbidden" }
+  | { status: "invalid" }
+  | { status: "error" };
+
+/** 可注入依赖（测试接缝）：token 验证 / 权限并集 / profiles 分页 / 全量角色 / 封禁集合 / 角色读写 / 认证封禁写入 / 白名单读写 / 域包放出清单读写 */
 export interface AdminDeps {
   verifyAccessToken(token: string): Promise<{ userId: string } | null>;
   fetchUserPermissions(userId: string): Promise<string[]>;
@@ -85,6 +100,8 @@ export interface AdminDeps {
   fetchAllowlistView(): Promise<AdminWhitelistView>;
   replaceAllowlistDomains(domains: AdminWhitelistDomain[]): Promise<void>;
   updateAllowAnyDomain(allowAnyDomain: boolean): Promise<void>;
+  fetchExposedPackIds(): Promise<string[]>;
+  replaceExposedPackIds(packIds: string[]): Promise<void>;
 }
 
 /** 从 Authorization 头提取 Bearer token；非 Bearer 方案或空 token 返回 null */
@@ -229,6 +246,22 @@ export const defaultAdminDeps: AdminDeps = {
       .upsert({ singleton: true, allow_any_domain: allowAnyDomain });
     if (error) throw new Error(error.message);
   },
+
+  // 域包放出清单读取（#55，service_role 读，pack_id 稳定排序展示）
+  fetchExposedPackIds: async () => {
+    const { data } = await serverPrivilegedClient().from("pack_exposure").select("pack_id").order("pack_id");
+    return ((data ?? []) as { pack_id: string }[]).map((row) => row.pack_id);
+  },
+
+  // 域包放出清单全量替换（幂等）：先清空再写入（照域名清单模式；PostgREST 无事务，失败抛错由编排层兜底 500）
+  replaceExposedPackIds: async (packIds) => {
+    const client = serverPrivilegedClient();
+    const { error: deleteError } = await client.from("pack_exposure").delete().neq("pack_id", "");
+    if (deleteError) throw new Error(deleteError.message);
+    if (packIds.length === 0) return;
+    const { error: insertError } = await client.from("pack_exposure").insert(packIds.map((packId) => ({ pack_id: packId })));
+    if (insertError) throw new Error(insertError.message);
+  },
 };
 
 /** 共享状态 → HTTP 响应映射（全部 /api/admin/* route 复用）：401 / 403 / 500 及固定中文文案只此一处；
@@ -244,10 +277,12 @@ export function adminErrorResponse(status: "unauthorized" | "forbidden" | "error
   }
 }
 
-/** 鉴权链（共享收口，全部管理 API 复用）：Bearer → 验明身份 → 权限并集 → 持「访问后台」放行 */
+/** 鉴权链（共享收口，全部管理 API 复用）：Bearer → 验明身份 → 权限并集 → 持「访问后台」放行；
+ *  additionalPermission 供在后台入口之上还需专属权限点的路由复用（如域包放出管理需「域包管理」） */
 export async function authorizeAdminRequest(
   authorization: string | null,
   deps: AdminDeps = defaultAdminDeps,
+  additionalPermission?: string,
 ): Promise<AdminAuthResult> {
   const token = extractBearerToken(authorization);
   if (!token) return { status: "unauthorized" };
@@ -255,7 +290,11 @@ export async function authorizeAdminRequest(
   if (!identity) return { status: "unauthorized" };
   try {
     const permissions = await deps.fetchUserPermissions(identity.userId);
+    // 判定只认权限点（ADR-0005）：入口点 + 附加点（如有）须同时持有
     if (!hasPermission(permissions, PERMISSIONS.adminConsole)) return { status: "forbidden" };
+    if (additionalPermission !== undefined && !hasPermission(permissions, additionalPermission)) {
+      return { status: "forbidden" };
+    }
   } catch {
     // 权限查询失败：按无权限处理（安全默认），不区分 500 与 403 以免泄露服务状态
     return { status: "forbidden" };
@@ -414,6 +453,48 @@ export async function updateAdminWhitelistConfig(
   if (auth.status !== "ok") return auth;
   try {
     await deps.updateAllowAnyDomain(allowAnyDomain);
+    return { status: "ok" };
+  } catch {
+    return { status: "error" };
+  }
+}
+
+/** 域包放出清单读取（#55，spec #53 目标③）：鉴权前置（访问后台 + 域包管理）→ 回读清单全量 */
+export async function getAdminPackExposure(
+  authorization: string | null,
+  deps: AdminDeps = defaultAdminDeps,
+): Promise<AdminPackExposureResult> {
+  const auth = await authorizeAdminRequest(authorization, deps, PERMISSIONS.packExposure);
+  if (auth.status !== "ok") return auth;
+  try {
+    const packIds = await deps.fetchExposedPackIds();
+    return { status: "ok", packIds };
+  } catch {
+    return { status: "error" };
+  }
+}
+
+/** 域包放出清单全量保存（幂等）：鉴权前置 → 载荷归一（trim、去重，保持首见顺序）→ 全量替换；
+ *  空清单合法：清空全部行 = 回到「未配置」状态，学生端默认全部放出（教师端界面在该情形明示语义）；
+ *  归一后逐项须为非空字符串，否则 invalid。 */
+export async function saveAdminPackExposure(
+  rawPackIds: unknown,
+  authorization: string | null,
+  deps: AdminDeps = defaultAdminDeps,
+): Promise<AdminSavePackExposureResult> {
+  const auth = await authorizeAdminRequest(authorization, deps, PERMISSIONS.packExposure);
+  if (auth.status !== "ok") return auth;
+
+  if (!Array.isArray(rawPackIds)) return { status: "invalid" };
+  const normalized = new Set<string>();
+  for (const item of rawPackIds) {
+    if (typeof item !== "string") return { status: "invalid" };
+    const packId = item.trim();
+    if (packId === "") return { status: "invalid" };
+    normalized.add(packId);
+  }
+  try {
+    await deps.replaceExposedPackIds([...normalized]);
     return { status: "ok" };
   } catch {
     return { status: "error" };

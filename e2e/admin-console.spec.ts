@@ -73,6 +73,10 @@ test.describe("已登录", () => {
         body: JSON.stringify({ allowAnyDomain: false, domains: [] }),
       });
     });
+    // #55：演练场页会拉系统级域包放出清单（rest/v1/pack_exposure），console 卫生断言需离线桩（空=未配置）
+    await page.route("**/rest/v1/pack_exposure*", async (route) => {
+      await route.fulfill({ status: 200, contentType: "application/json", body: "[]" });
+    });
   }
 
   test("持「访问后台」：入口可见，进入 /admin 重定向至用户管理页", async ({ page }) => {
