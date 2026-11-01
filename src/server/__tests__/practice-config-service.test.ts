@@ -177,3 +177,56 @@ describe("savePracticeConfig：保存（A 类改动，服务端重校验）", ()
     if (result.status === "error") expect(result.message).toBe("写库失败");
   });
 });
+
+// ── 内置包云端行底本纪律（票 #62 收口 #61 遗留）：内置基础包的云端行只承载内置资产的同源快照
+//    + 演练配置覆盖；保存底稿恒取服务端内置 JSON，杜绝「前端发布新内置 JSON 后云端旧行漂移顶替」──
+
+describe("savePracticeConfig × 内置包底本纪律（票 #62）", () => {
+  it("内置包云端行内容与内置 JSON 漂移时：底稿仍取内置资产（云端行只允许覆盖配置，不允许顶替种子内容）", async () => {
+    const { builtinPackAssets } = await import("@/domain-packs/builtin-packs");
+    // 云端行：模板被篡改的旧快照（模拟历史保存写入的漂移行）
+    const drifted = {
+      ...builtinPackAssets[0],
+      templates: builtinPackAssets[0].templates.slice(0, 25), // 数量漂移
+      practiceConfig: { totalQuestions: 7, tierDistribution: { "1": 1, "2": 2, "3": 2, "4": 1, "5": 1 } },
+    };
+    const upsertMock = vi.fn().mockResolvedValue({ error: null });
+    const result = await savePracticeConfig(
+      {
+        packId: builtinPackId,
+        practiceConfig: { totalQuestions: 8, tierDistribution: { "1": 2, "2": 2, "3": 2, "4": 1, "5": 1 } },
+      },
+      auth,
+      {
+        adminDeps: mkAdminDeps(),
+        readClient: mkReadClient([{ pack_id: builtinPackId, asset: drifted }]),
+        writeClient: { from: () => ({ upsert: upsertMock }) },
+      },
+    );
+    expect(result.status).toBe("ok");
+    const written = upsertMock.mock.calls[0][0] as { pack_id: string; asset: { templates: unknown[]; practiceConfig: { totalQuestions: number } } };
+    // 落库资产 = 内置 JSON 底稿 + 新配置（模板数与内置一致，不随漂移行）
+    expect(written.asset.templates).toHaveLength(builtinPackAssets[0].templates.length);
+    expect(written.asset.practiceConfig.totalQuestions).toBe(8);
+  });
+
+  it("版本化的内置包（packId 带后缀，如 student-course-grade@v2）保存配置：底稿仍取云端当前行（非内置 JSON）", async () => {
+    const v2 = mkCloudPackJson({ packId: "student-course-grade@v2" }) as unknown as import("@/kernel/domain-pack-contract").DomainPackAsset;
+    const upsertMock = vi.fn().mockResolvedValue({ error: null });
+    const result = await savePracticeConfig(
+      {
+        packId: "student-course-grade@v2",
+        practiceConfig: { totalQuestions: 8, tierDistribution: { "1": 2, "2": 2, "3": 2, "4": 1, "5": 1 } },
+      },
+      auth,
+      {
+        adminDeps: mkAdminDeps(),
+        readClient: mkReadClient([{ pack_id: "student-course-grade", asset: v2 }]),
+        writeClient: { from: () => ({ upsert: upsertMock }) },
+      },
+    );
+    expect(result.status).toBe("ok");
+    const written = upsertMock.mock.calls[0][0] as { asset: { templates: unknown[] } };
+    expect(written.asset.templates).toHaveLength(v2.templates.length);
+  });
+});

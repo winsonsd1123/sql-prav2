@@ -18,7 +18,13 @@ import {
   instanceLabel,
   createDraftSaver,
 } from "@/components/session-store";
-import { builtinDomainPacks, mergePackRegistries } from "@/components/domain-pack-registry";
+import {
+  builtinDomainPacks,
+  mergePackRegistries,
+  pickLatestVersionPerBase,
+  findSessionPack,
+} from "@/components/domain-pack-registry";
+import { parsePackIdVersion } from "@/kernel/domain-pack-versioning";
 import { cloudPackStore } from "@/components/cloud-domain-pack-store";
 import { packExposureStore } from "@/components/pack-exposure-store";
 import { filterExposedPacks } from "@/lib/pack-exposure";
@@ -72,13 +78,17 @@ export default function Playground() {
     cloudPackStore.getSnapshot,
     cloudPackStore.getServerSnapshot,
   );
+  // 展示注册表（票 #62）：合并后按基础名收敛为最新版——B 类微调出新版本后，
+  // 切换胶囊只显示当前最新版本；被取代的旧版本不进展示清单。
   const registry = useMemo(
-    () => mergePackRegistries(builtinDomainPacks, cloudPacks.packs),
+    () => pickLatestVersionPerBase(mergePackRegistries(builtinDomainPacks, cloudPacks.packs)),
     [cloudPacks],
   );
+  // 会话域包解析（票 #62：进行中会话钉旧版本）：旧 packId 在 内置 → 云端当前 → 云端历史
+  // 中查表解析旧内容；查不到（云端未就绪/脏数据）会话暂不生成，不回退包A 顶替（#57 策略）。
   const pack = useMemo(
-    () => registry.find((d) => d.packId === packId) ?? null,
-    [registry, packId],
+    () => findSessionPack(builtinDomainPacks, cloudPacks.packs, cloudPacks.historyPacks, packId),
+    [cloudPacks, packId],
   );
   // 域包放出（#55）：可演练列表 = 注册表 ∩ 系统级放出清单；清单异步就绪前为 null（未配置=全放），
   // 首屏按全放渲染、就绪后过滤，不闪错。放出与否不影响进行中会话：当前选中的域包即使不再放出，
@@ -368,7 +378,9 @@ export default function Playground() {
                 key={d.packId}
                 onClick={() => onSwitchPack(d.packId)}
                 className={`rounded-full px-3 py-1 text-xs ${
-                  pack !== null && d.packId === pack.packId
+                  // 高亮按基础名匹配：旧会话钉在旧版本时，同基础名的最新版本胶囊即其归处
+                  pack !== null &&
+                  parsePackIdVersion(d.packId).base === parsePackIdVersion(pack.packId).base
                     ? "bg-panel font-medium text-ink shadow-sm"
                     : "text-muted hover:text-ink"
                 }`}

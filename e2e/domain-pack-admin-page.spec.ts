@@ -1,5 +1,5 @@
 import { test, expect, type Page, type Route } from "@playwright/test";
-import { presetLoginState, collectConsoleProblems, createDomainPackAssetStub } from "./helpers";
+import { presetLoginState, collectConsoleProblems, createDomainPackAssetStub, createDomainPackVersionHistoryStub } from "./helpers";
 import { mkCloudPackJson } from "../src/kernel/__tests__/fixtures/cloud-domain-pack";
 import type { GateReport } from "../src/kernel/domain-pack-gate";
 
@@ -54,6 +54,8 @@ async function mockSiblingBlocks(page: Page) {
   await page.route("**/api/admin/domain-packs/practice-config", async (route) => {
     await route.fulfill({ status: 200, contentType: "application/json", body: JSON.stringify({ packs: [] }) });
   });
+  // 票 #62：管理页复用 cloudPackStore，随资产表一并拉版本历史表，离线空桩保 console 卫生
+  await createDomainPackVersionHistoryStub().attach(page);
 }
 
 /** 通过态闸门报告夹具（三段全过，口径与 #56 GateReport 一致） */

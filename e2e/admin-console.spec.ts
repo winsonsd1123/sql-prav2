@@ -81,6 +81,10 @@ test.describe("已登录", () => {
     await page.route("**/rest/v1/domain_pack_asset*", async (route) => {
       await route.fulfill({ status: 200, contentType: "application/json", body: "[]" });
     });
+    // 票 #62：加载层随资产表一并拉版本历史表（domain_pack_version_history），同样离线空桩
+    await page.route("**/rest/v1/domain_pack_version_history*", async (route) => {
+      await route.fulfill({ status: 200, contentType: "application/json", body: "[]" });
+    });
   }
 
   test("持「访问后台」：入口可见，进入 /admin 重定向至用户管理页", async ({ page }) => {

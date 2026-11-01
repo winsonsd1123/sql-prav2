@@ -37,3 +37,23 @@ describe("域包放出过滤（filterExposedPacks）", () => {
     expect(filterExposedPacks(registry, lookup)).toEqual(registry);
   });
 });
+
+describe("域包放出过滤 × 版本化 packId（票 #62 / ADR-0009）", () => {
+  it("B 类微调产生带 @vN 后缀的新版本后，按基础名放出的包对新会话仍放出", () => {
+    const versioned = [packOf("library-loan@v2", "图书馆借阅")];
+    const lookup: ExposedPackLookup = new Set(["library-loan"]);
+    expect(filterExposedPacks(versioned, lookup).map((d) => d.packId)).toEqual(["library-loan@v2"]);
+  });
+
+  it("清单直接登记带后缀的完整 id 也生效（两条登记口径等价）", () => {
+    const versioned = [packOf("library-loan@v2", "图书馆借阅")];
+    const lookup: ExposedPackLookup = new Set(["library-loan@v2"]);
+    expect(filterExposedPacks(versioned, lookup).map((d) => d.packId)).toEqual(["library-loan@v2"]);
+  });
+
+  it("基础名未放出的包，新版本同样不放出", () => {
+    const versioned = [packOf("library-loan@v2", "图书馆借阅")];
+    const lookup: ExposedPackLookup = new Set(["student-course-grade"]);
+    expect(filterExposedPacks(versioned, lookup)).toEqual([]);
+  });
+});

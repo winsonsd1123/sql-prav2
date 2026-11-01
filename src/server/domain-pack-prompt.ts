@@ -56,3 +56,45 @@ export function buildDomainPackPrompt(input: DomainPackGenerationInput): { syste
   }
   return { system: SYSTEM_PROMPT, user: lines.join("\n") };
 }
+
+// ── 域包微调提示词（票 #62 / ADR-0009「微调与新建共用同一闸门与契约」）──
+// 微调 = 现有资产 + 修改意图 → 修改后的完整域包 JSON（不是增量补丁），
+// 系统提示词复用生成契约全文（同一契约口径），追加微调专属约束。
+
+import type { DomainPackAsset } from "@/kernel/domain-pack-contract";
+
+/** 教师微调输入（与微调 API 请求体同形；currentPack 由服务端取当前资产注入，不信任前端） */
+export interface DomainPackRefineInput {
+  /** 目标域包基础名（版本后缀由服务端管理） */
+  packId: string;
+  /** 修改意图描述（必填） */
+  intent: string;
+  /** 可选：期望对齐的 SQL 样例 */
+  sampleSql?: string;
+  /** 当前域包资产全文（服务端取，微调的底稿） */
+  currentPack: DomainPackAsset;
+}
+
+/** 微调专属约束：完整输出、packId 基础名不变、只按意图修改 */
+const REFINE_ADDENDUM = `
+
+本次是微调已有域包：以用户提供的当前域包 json 为底稿，按修改意图输出修改后的完整域包 json（同样只输出这一个 json）。额外约束：
+1. packId 字段必须与当前域包完全一致，禁止改名、禁止自行添加版本后缀（版本号由系统管理）。
+2. 只修改与意图相关的部分，其余字段（含题面措辞、提示、参考答案）逐字保留，禁止顺手重写。
+3. 修改库骨架、表/列名称池、题目模板、知识点清单属于会产生新版本的改动；仅改难度档位定义或演练配置即时生效——请在意图明确要求时才改动对应部分。`;
+
+export function buildRefinePrompt(input: DomainPackRefineInput): { system: string; user: string } {
+  const lines = [
+    "请微调以下 SQL 教学域包（按系统说明输出修改后的完整 json）：",
+    "",
+    "【当前域包 json】",
+    JSON.stringify(input.currentPack),
+    "",
+    "【修改意图】",
+    input.intent.trim(),
+  ];
+  if (input.sampleSql !== undefined && input.sampleSql.trim() !== "") {
+    lines.push("", "目标难度可参考这条 SQL 样例的口味：", input.sampleSql.trim());
+  }
+  return { system: SYSTEM_PROMPT + REFINE_ADDENDUM, user: lines.join("\n") };
+}
