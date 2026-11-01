@@ -38,7 +38,7 @@ describe("buildDraftSummary：草稿关键信息摘要（确认发布前核对�
 
   it("难度分布按五档齐全补零（缺档模板数为 0 也占位）", () => {
     const summary = buildDraftSummary(mkDraft({ templates: [{ templateId: "t", difficulty: 3 }] }));
-    expect(summary.tierCounts).toEqual({ "1": 0, "2": 0, "3": 1, "4": 0, "5": 0 });
+    expect(summary?.tierCounts).toEqual({ "1": 0, "2": 0, "3": 1, "4": 0, "5": 0 });
   });
 
   it("结构不完整的草稿返回 null（调用方提示草稿无法摘要，不白屏）", () => {
