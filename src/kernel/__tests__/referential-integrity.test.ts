@@ -2,8 +2,7 @@ import { describe, expect, it } from "vitest";
 import { collectIntegrityViolations, assertDataIntegrity } from "@/kernel/integrity";
 import { generateSession } from "@/kernel/generate";
 import { openInMemoryDb } from "@/kernel/execute";
-import { loadPackA } from "@/domain-packs/student-course-grades/pack-a";
-import { loadPackB } from "@/domain-packs/employee-department-salary/pack-b";
+import { builtinDomainPacks } from "@/domain-packs/builtin-packs";
 import type { TableInstance } from "@/kernel/types";
 
 /** 构造带结构语义的最小表实例（外键指向 部门.部门号） */
@@ -78,8 +77,8 @@ const seeds = [20260101, 1, 42, 999983, 7];
 
 describe("生成的会话满足完整性（两内置域包 × seeds）", () => {
   const packs = [
-    { name: "域包A 学生-课程-成绩", load: loadPackA },
-    { name: "域包B emp-部门-薪资", load: loadPackB },
+    { name: "域包A 学生-课程-成绩", load: () => builtinDomainPacks[0] },
+    { name: "域包B emp-部门-薪资", load: () => builtinDomainPacks[1] },
   ];
   for (const { name, load } of packs) {
     for (const seed of seeds) {
@@ -91,7 +90,7 @@ describe("生成的会话满足完整性（两内置域包 × seeds）", () => {
   }
 
   it("表实例携带结构语义：主键列、外键指向、非空列清单", () => {
-    const session = generateSession(20260101, loadPackA());
+    const session = generateSession(20260101, builtinDomainPacks[0]);
     const gradesTable = session.database.tables.find((t) => t.foreignKeys?.length === 2)!;
     expect(gradesTable.primaryKeyColumn).toBeUndefined(); // 成绩表未声明 serialKey
     const studentsTable = session.database.tables.find((t) => t.foreignKeys === undefined)!;
@@ -105,7 +104,7 @@ describe("生成的会话满足完整性（两内置域包 × seeds）", () => {
 });
 
 describe("建表语句自带完整性语义（DDL 层）", () => {
-  const session = generateSession(20260101, loadPackA());
+  const session = generateSession(20260101, builtinDomainPacks[0]);
 
   it("serialKey 表的 DDL 声明 PRIMARY KEY", () => {
     for (const table of session.database.tables) {
@@ -141,8 +140,8 @@ describe("建表语句自带完整性语义（DDL 层）", () => {
 
 describe("DDL 在浏览器端引擎可执行（含数据装载）", () => {
   const packs = [
-    { name: "域包A", load: loadPackA },
-    { name: "域包B", load: loadPackB },
+    { name: "域包A", load: () => builtinDomainPacks[0] },
+    { name: "域包B", load: () => builtinDomainPacks[1] },
   ];
   for (const { name, load } of packs) {
     for (const seed of seeds) {

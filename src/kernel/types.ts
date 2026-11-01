@@ -64,6 +64,12 @@ export interface DomainPack {
   name: string;
   schemaSkeleton: TableDefinition[];
   templates: QuestionTemplate[];
+  /**
+   * 有序知识点清单（票 #58 下放域包字段）：会话抽题按此顺序推进。
+   * 数据资产域包（契约校验必填）恒有值；缺省回退 question-picking 的内置七类
+   * （兼容无清单的历史调用方，如自造模板的单测）。
+   */
+  knowledgeAreas?: string[];
 }
 
 /** 规范化显示值：NULL 与空串严格区分、数值与字符串严格区分 */

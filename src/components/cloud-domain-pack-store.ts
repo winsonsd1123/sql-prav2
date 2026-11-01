@@ -12,7 +12,6 @@
 
 import { browserClient } from "@/lib/supabase/browser-client";
 import { parseDomainPackJson, assetToKernelPack } from "@/kernel/domain-pack-contract";
-import { knowledgeAreaOrder } from "@/kernel/question-picking";
 import type { DomainPack } from "@/kernel/types";
 
 /** 云端域包清单快照：loaded 区分「未就绪」与「就绪但云端没有可收录域包」 */
@@ -30,15 +29,16 @@ function notify(): void {
 }
 
 /**
- * 收录检查（读取路径）：契约快校验通过，且模板覆盖当前抽题顺序的全部知识点——
- * 知识点不全的域包一开练就会在抽题处抛错（question-picking 每知识点保底 1 题），
-// 过渡防线：#61 知识点清单下放域包字段后此检查随之解除。
+ * 收录检查（读取路径）：契约快校验通过，且模板覆盖域包自带知识点清单的全部条目——
+ * 清单里有条目而无模板的域包一开练就会在抽题处抛错（question-picking 每知识点保底 1 题）。
+ * 票 #58 知识点顺序下放域包字段后，原「覆盖全局七类」过渡防线随之解除：
+ * 各包只需覆盖自己的清单即可开练。
  */
 function toLoadablePack(json: unknown): DomainPack | null {
   const parsed = parseDomainPackJson(json);
   if (!parsed.ok) return null;
   const covered = new Set(parsed.pack.templates.map((t) => t.knowledgeArea));
-  for (const area of knowledgeAreaOrder) {
+  for (const area of parsed.pack.knowledgeAreas) {
     if (!covered.has(area)) return null;
   }
   return assetToKernelPack(parsed.pack);

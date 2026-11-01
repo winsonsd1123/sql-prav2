@@ -1,7 +1,8 @@
 import { describe, expect, it } from "vitest";
 import { generateSession } from "@/kernel/generate";
 import { judge } from "@/kernel/judge";
-import { loadPackA } from "@/domain-packs/student-course-grades/pack-a";
+import { builtinDomainPacks } from "@/domain-packs/builtin-packs";
+import type { DomainPack } from "@/kernel/types";
 
 /**
  * T5 · 四层随机化与结构性防抄袭。
@@ -10,7 +11,7 @@ import { loadPackA } from "@/domain-packs/student-course-grades/pack-a";
  */
 
 /** 在一批种子中找到与基准会话"学生"表实际表名不同的种子（确定性：种子遍历顺序固定） */
-function findRenamedSeed(baseSession: ReturnType<typeof generateSession>, pack: ReturnType<typeof loadPackA>): number {
+function findRenamedSeed(baseSession: ReturnType<typeof generateSession>, pack: DomainPack): number {
   const baseTableName = baseSession.database.tables[0].tableName;
   for (let seed = 1; seed <= 200; seed++) {
     if (generateSession(seed, pack).database.tables[0].tableName !== baseTableName) return seed;
@@ -19,7 +20,7 @@ function findRenamedSeed(baseSession: ReturnType<typeof generateSession>, pack: 
 }
 
 describe("四层随机化", () => {
-  const pack = loadPackA();
+  const pack = builtinDomainPacks[0];
 
   it("同种子字节级一致（T1 既有红线，覆盖新随机层后仍成立）", () => {
     expect(JSON.stringify(generateSession(20260101, pack))).toBe(JSON.stringify(generateSession(20260101, pack)));
@@ -73,7 +74,7 @@ describe("四层随机化", () => {
 });
 
 /** T6：题库含仅引用课程表/成绩表的模板，防抄袭对撞会话需三张表实际名全部相异 */
-function findAllRenamedSeed(baseSession: ReturnType<typeof generateSession>, pack: ReturnType<typeof loadPackA>): number {
+function findAllRenamedSeed(baseSession: ReturnType<typeof generateSession>, pack: DomainPack): number {
   const baseTableNames = baseSession.database.tables.map((t) => t.tableName);
   for (let seed = 1; seed <= 500; seed++) {
     const tableNames = generateSession(seed, pack).database.tables.map((t) => t.tableName);
@@ -83,7 +84,7 @@ function findAllRenamedSeed(baseSession: ReturnType<typeof generateSession>, pac
 }
 
 describe("结构性防抄袭", () => {
-  const pack = loadPackA();
+  const pack = builtinDomainPacks[0];
   const sessionA = generateSession(20260101, pack);
   const sessionB = generateSession(findAllRenamedSeed(sessionA, pack), pack);
 
