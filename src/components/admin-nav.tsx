@@ -1,6 +1,6 @@
 "use client";
 
-// 后台侧边导航（#50，spec #49）：用户管理 / 邮箱白名单 两项，当前项高亮。
+// 后台侧边导航（#50，spec #49）：用户管理 / 邮箱白名单 / 域包放出 三项，当前项高亮。
 // 宽屏纵向排列、当前项左侧竖条；窄屏退化为横滑胶囊条（同演练场题目导航）。容器卡片由侧栏提供。
 import Link from "next/link";
 import { usePathname } from "next/navigation";
@@ -8,6 +8,7 @@ import { usePathname } from "next/navigation";
 const items = [
   { href: "/admin/users", label: "用户管理" },
   { href: "/admin/whitelist", label: "邮箱白名单" },
+  { href: "/admin/packs", label: "域包放出" },
 ] as const;
 
 export default function AdminNav() {
