@@ -55,17 +55,31 @@ describe("学生端云端域包存储（cloudPackStore）", () => {
     expect(cloudPackStore.getSnapshot().packs.map((d) => d.packId)).toEqual(["cloud-fixture-pack"]);
   });
 
-  it("知识点不覆盖当前抽题顺序的域包不收录（收录即开练抛错的过渡防线，#61 后解除）", async () => {
+  it("知识点清单含无模板条目的域包不收录（收录即开练抛错）", async () => {
     const templates = mkCloudPackJson().templates as Record<string, unknown>[];
-    const incompatible = mkCloudPackJson({
-      knowledgeAreas: ["自定义知识点"],
+    const hasGap = mkCloudPackJson({
+      knowledgeAreas: ["自定义知识点", "空缺知识点"],
       templates: templates.map((t) => ({ ...t, knowledgeArea: "自定义知识点" })),
     });
-    rowsOf([{ pack_id: "incompatible-pack", asset: incompatible }]);
+    rowsOf([{ pack_id: "has-gap-pack", asset: hasGap }]);
     const unsubscribe = cloudPackStore.subscribe(() => {});
     await vi.waitFor(() => expect(cloudPackStore.getSnapshot().loaded).toBe(true));
     unsubscribe();
     expect(cloudPackStore.getSnapshot().packs).toEqual([]);
+  });
+
+  it("自带知识点清单（非全局七类）模板全覆盖即可收录（#58 知识点顺序下放域包字段）", async () => {
+    const templates = mkCloudPackJson().templates as Record<string, unknown>[];
+    const selfContained = mkCloudPackJson({
+      packId: "self-contained-pack",
+      knowledgeAreas: ["自定义知识点"],
+      templates: templates.map((t) => ({ ...t, knowledgeArea: "自定义知识点" })),
+    });
+    rowsOf([{ pack_id: "self-contained-pack", asset: selfContained }]);
+    const unsubscribe = cloudPackStore.subscribe(() => {});
+    await vi.waitFor(() => expect(cloudPackStore.getSnapshot().loaded).toBe(true));
+    unsubscribe();
+    expect(cloudPackStore.getSnapshot().packs.map((d) => d.packId)).toEqual(["self-contained-pack"]);
   });
 
   it("云端报错/网络异常 → 降级空清单 + loaded 置真（学生端只见内置两包，不白屏不闪错）", async () => {

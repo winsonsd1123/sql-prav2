@@ -1,9 +1,9 @@
 import { describe, expect, it } from "vitest";
 import { generateSession } from "@/kernel/generate";
 import { judge } from "@/kernel/judge";
-import { loadPackA } from "@/domain-packs/student-course-grades/pack-a";
+import { builtinDomainPacks } from "@/domain-packs/builtin-packs";
 
-const session = generateSession(20260101, loadPackA());
+const session = generateSession(20260101, builtinDomainPacks[0]);
 
 /** 列序颠倒的正确变体：把参考答案 SELECT 后的列清单反转（括号内的逗号不属于列分隔） */
 function reverseColumnOrder(sql: string): string {

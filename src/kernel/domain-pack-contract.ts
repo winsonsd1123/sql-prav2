@@ -63,6 +63,9 @@ export function assetToKernelPack(asset: DomainPackAsset): DomainPack {
     name: asset.name,
     schemaSkeleton: asset.schemaSkeleton,
     templates: asset.templates,
+    // 知识点清单随包透传（票 #58 抽题按域包自带顺序推进）；难度档位定义与演练配置
+    // 为 A 类改动（ADR-0009），不进入种子生成路径，留在资产态供教师端展示
+    knowledgeAreas: asset.knowledgeAreas,
   };
 }
 

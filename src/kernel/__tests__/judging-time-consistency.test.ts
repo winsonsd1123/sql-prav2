@@ -2,7 +2,7 @@ import { describe, expect, it } from "vitest";
 import { generateSession } from "@/kernel/generate";
 import { judge } from "@/kernel/judge";
 import { executeQuery } from "@/kernel/execute";
-import { loadPackA } from "@/domain-packs/student-course-grades/pack-a";
+import { builtinDomainPacks } from "@/domain-packs/builtin-packs";
 import type { QuestionInstance } from "@/kernel/types";
 
 /**
@@ -11,7 +11,7 @@ import type { QuestionInstance } from "@/kernel/types";
  * 否则毫秒/秒边界抖动可致"学生逐字照抄参考答案仍误判不通过"。
  */
 
-const session = generateSession(20260101, loadPackA());
+const session = generateSession(20260101, builtinDomainPacks[0]);
 
 /** 本地时区固定时刻：2020-01-01 12:00:00（垫片 NOW 用本地时间字段拼接） */
 const fixedTime = new Date(2020, 0, 1, 12, 34, 56);

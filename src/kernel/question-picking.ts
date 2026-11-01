@@ -29,7 +29,10 @@ export function generatePracticeSession(seed: number, pack: DomainPack): Session
   const questionCount = 10;
   const session = generateSession(seed, pack);
 
-  const partitions = knowledgeAreaOrder.map((knowledgeArea) => {
+  // 知识点顺序（票 #58 下放域包字段）：优先读域包自带清单，缺省回退内置七类
+  // （兼容自造模板的历史调用方；数据资产域包经契约校验必带清单）
+  const areas = pack.knowledgeAreas ?? [...knowledgeAreaOrder];
+  const partitions = areas.map((knowledgeArea) => {
     const candidates = session.questions.filter((q) => q.knowledgeArea === knowledgeArea);
     if (candidates.length === 0 && session.questions.length > 0) {
       throw new Error(`域包 ${pack.packId} 的知识点「${knowledgeArea}」没有任何题目模板`);
