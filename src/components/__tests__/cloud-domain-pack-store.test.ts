@@ -56,9 +56,10 @@ describe("学生端云端域包存储（cloudPackStore）", () => {
   });
 
   it("知识点不覆盖当前抽题顺序的域包不收录（收录即开练抛错的过渡防线，#61 后解除）", async () => {
+    const templates = mkCloudPackJson().templates as Record<string, unknown>[];
     const incompatible = mkCloudPackJson({
       knowledgeAreas: ["自定义知识点"],
-      templates: mkCloudPackJson().templates.map((t) => ({ ...t, knowledgeArea: "自定义知识点" })),
+      templates: templates.map((t) => ({ ...t, knowledgeArea: "自定义知识点" })),
     });
     rowsOf([{ pack_id: "incompatible-pack", asset: incompatible }]);
     const unsubscribe = cloudPackStore.subscribe(() => {});

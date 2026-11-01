@@ -3,7 +3,7 @@
 // 断言口径复用全量回归测试（复用 #54 的 integrity.ts 与 generate.ts，不重写）。
 // 报告结构化（供教师端 #60 渲染）且可格式化为人类可读中文文本。
 
-import { parseDomainPackJson, assetToKernelPack } from "./domain-pack-contract";
+import { parseDomainPackJson, assetToKernelPack, type DomainPackAsset } from "./domain-pack-contract";
 import { generateSession } from "./generate";
 import { collectIntegrityViolations } from "./integrity";
 import { openInMemoryDb, executeQuery } from "./execute";

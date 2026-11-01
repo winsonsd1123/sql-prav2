@@ -17,12 +17,14 @@ describe("云端域包写入路径 upsertDomainPackAsset", () => {
   it("闸门拒绝的域包不落库，返回结构化闸门报告", async () => {
     const { client, upsertMock } = mkClient();
     // 模板数不足 25：契约（结构检查）即拒
-    const bad = mkCloudPackJson({ templates: mkCloudPackJson().templates.slice(0, 10) });
-    const result = await upsertDomainPackAsset(client, bad);
+    const templates = mkCloudPackJson().templates as unknown[];
+    const result = await upsertDomainPackAsset(client, mkCloudPackJson({ templates: templates.slice(0, 10) }));
     expect(result.ok).toBe(false);
-    if (result.ok) return;
-    expect(result.kind).toBe("gate");
-    expect(result.report.passed).toBe(false);
+    if (!result.ok && result.kind === "gate") {
+      expect(result.report.passed).toBe(false);
+    } else {
+      throw new Error("应返回闸门拒绝结果");
+    }
     expect(upsertMock).not.toHaveBeenCalled();
   });
 
@@ -39,8 +41,10 @@ describe("云端域包写入路径 upsertDomainPackAsset", () => {
     const { client } = mkClient({ error: { message: "rls denied" } });
     const result = await upsertDomainPackAsset(client, mkCloudPackJson());
     expect(result.ok).toBe(false);
-    if (result.ok) return;
-    expect(result.kind).toBe("storage");
-    expect(result.message).toContain("rls denied");
+    if (!result.ok && result.kind === "storage") {
+      expect(result.message).toContain("rls denied");
+    } else {
+      throw new Error("应返回落库失败结果");
+    }
   });
 });

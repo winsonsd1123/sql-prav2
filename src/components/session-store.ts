@@ -10,12 +10,7 @@
 
 import { createLocalStorage } from "@/components/local-storage";
 import { emptyProgress, progressKey, parseProgress, type ProgressRecord } from "@/components/progress";
-import { loadPackA } from "@/domain-packs/student-course-grades/pack-a";
-import { loadPackB } from "@/domain-packs/employee-department-salary/pack-b";
-import type { DomainPack } from "@/kernel/types";
-
-// 域包注册表：学生可在两个业务域之间切换练习（issue #8）
-export const domainPackRegistry: DomainPack[] = [loadPackA(), loadPackB()];
+import { builtinDomainPacks, pickInitialPackId } from "@/components/domain-pack-registry";
 
 const SEED_KEY = "sql-playground:seed";
 const PACK_KEY = "sql-playground:pack";
@@ -48,13 +43,13 @@ export const seedStore = createLocalStorage<number | null>({
   subscribers,
 });
 
-/** 当前域包ID外部存储：非法值回退到域包A */
+/** 当前域包ID外部存储：非空字符串原样保留（延迟校验——云端域包 id 在云端就绪前也保住，
+ * 不被压回内置包A 造成会话/进度键短暂错位），缺失/空白回退内置包A；见 domain-pack-registry */
 export const packStore = createLocalStorage<string>({
   getKey: () => PACK_KEY,
-  init: (raw) =>
-    domainPackRegistry.some((d) => d.packId === raw) ? raw! : domainPackRegistry[0].packId,
+  init: (raw) => pickInitialPackId(raw, builtinDomainPacks),
   serialize: (v) => v,
-  notReadySnapshot: domainPackRegistry[0].packId,
+  notReadySnapshot: builtinDomainPacks[0].packId,
   subscribers,
 });
 
