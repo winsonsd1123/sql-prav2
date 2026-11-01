@@ -7,7 +7,6 @@ import { parseDomainPackJson, assetToKernelPack } from "./domain-pack-contract";
 import { generateSession } from "./generate";
 import { collectIntegrityViolations } from "./integrity";
 import { openInMemoryDb, executeQuery } from "./execute";
-import type { DomainPack } from "./types";
 
 /** 生成/自判检查使用的固定测试种子（不取当前时间、不随机，保证闸门结论可复现） */
 export const GATE_TEST_SEEDS = [20260101, 42] as const;
