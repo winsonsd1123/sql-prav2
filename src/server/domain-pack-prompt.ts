@@ -35,16 +35,28 @@ const SYSTEM_PROMPT = `你是 SQL 教学域包设计器。请根据用户描述�
    - knowledgeArea：知识点，必须取自本包 knowledgeAreas 清单；
    - difficulty：难度 1-5 的整数，各档都要有覆盖；
    - prompt：中文题面。题面、提示与参考答案中引用表/列一律用语义角色占位符，禁止写具体表名列名：
-     {{table.表角色}} 表占位符、{{col.表角色.列角色}} 列占位符、{{param.参数名}} 参数占位符（同时在该模板 paramPool 提供非空候选数组）；
+     {{table.表角色}} 表占位符、{{col.表角色.列角色}} 列占位符、{{param.参数名}} 参数占位符；
+     题面用了 {{param.参数名}} 的模板必须提供 paramPool 字段，形如 {"参数名": ["候选值1", "候选值2", "候选值3"]}——
+     键为参数名、值为非空候选数组（2-5 个候选、类型一致；禁止空数组、禁止省略用到的参数）；
    - hints：恰好两条中文提示（第一条讲思路，第二条讲关键子句）；
-   - referenceAnswer：参考答案 SQL（SELECT 语句，用同样占位符书写；执行后结果必须非空）；
+   - referenceAnswer：参考答案 SQL（SELECT 语句，用同样占位符书写；执行后结果必须非空）。非空保证技法（数据是随机生成的，禁止硬编码常量筛选）：
+     按值筛选一律写成 {{param.参数名}} 参数化，paramPool 候选值必须取自该列 valuePool（值必然存在于数据中）；
+     占位符引号规则：字符串参数的占位符整体套单引号，如 ='{{param.城市}}'（数字参数不套引号，如 >={{param.及格线}}）——缺引号会被当作列名报错；
+     并保证密度——被筛选列所在表 rowCount ≥ 候选值个数 × 3，多表 JOIN 沿途每张表行数充足，确保任一候选值筛选后仍有行；
+   - 模板样例（格式与占位符写法照此，业务内容自行设计）：
+     { "templateId": "student-city-filter", "knowledgeArea": "条件筛选与排序", "difficulty": 2,
+       "prompt": "查询城市为 {{param.城市}} 的学生姓名与学号", "hints": ["先筛选城市再取需要的列", "字符串值要加单引号"],
+       "referenceAnswer": "SELECT {{col.学生.姓名}}, {{col.学生.学号}} FROM {{table.学生}} WHERE {{col.学生.城市}} = '{{param.城市}}'",
+       "commonMistake": "SELECT 姓名 FROM 学生 WHERE 城市 = {{param.城市}}", "ordered": false,
+       "paramPool": { "城市": ["北京", "上海", "广州"] } }
    - commonMistake：典型错误写法（合法 SELECT 但结果不等价）；
    - ordered：布尔，结果是否依赖行序（依赖行序的题参考答案必须有明确 ORDER BY 与唯一决胜列）。
 5. knowledgeAreas：有序中文知识点清单（建议 5-8 个，由易到难），每道模板恰好归属一项。
 6. difficultyTiers：难度 1-5 五档定义，每档 { level, name, description, sampleSql }，五档齐全不可缺。
 7. practiceConfig：演练配置 { totalQuestions（正整数，建议 10）, tierDistribution }，tierDistribution 键为 "1"-"5"、值为非负整数配额，各档配额之和必须等于 totalQuestions，且每档配额不得超过该档模板数量。
 
-出题规避已知判题陷阱：不用无序 GROUP_CONCAT；不在派生表内写无效 ORDER BY；不用中文文本列排序；日期用 'YYYY-MM-DD' 文本语料。`;
+出题规避已知判题陷阱：不用无序 GROUP_CONCAT；不在派生表内写无效 ORDER BY；不用中文文本列排序；日期用 'YYYY-MM-DD' 文本语料。
+生成后自查（历史最常犯错误）：逐个模板检查 paramPool——凡题面用了 {{param.X}} 而 paramPool 缺 X 键、或该键数组为空/仅一个候选，都会被整包拒绝；输出前务必补全 2-5 个类型一致的候选值。`;
 
 export function buildDomainPackPrompt(input: DomainPackGenerationInput): { system: string; user: string } {
   const lines = [`请为以下场景设计 SQL 教学域包（按系统说明输出 json）：`, "", input.description.trim()];

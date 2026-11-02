@@ -20,6 +20,26 @@ describe("buildDomainPackPrompt", () => {
     expect(system).toContain("hints");
   });
 
+  it("paramPool 契约给出形状正例：键为参数名、值为非空候选数组（真实冒烟暴露过空数组缺陷）", () => {
+    const { system } = buildDomainPackPrompt({ description: "图书馆借阅场景" });
+    expect(system).toContain("paramPool");
+    expect(system).toContain('{"参数名": ["候选值1", "候选值2"');
+    expect(system).toContain("非空候选数组");
+  });
+
+  it("参考答案非空保证技法：值筛选参数化（候选取自 valuePool）+ 数据密度要求（真实冒烟暴露过硬编码常量空结果）", () => {
+    const { system } = buildDomainPackPrompt({ description: "图书馆借阅场景" });
+    expect(system).toContain("禁止硬编码常量");
+    expect(system).toContain("候选值必须取自该列 valuePool");
+    expect(system).toContain("密度");
+  });
+
+  it("占位符引号规则与完整模板样例（真实冒烟暴露过字符串参数缺引号致 no such column）", () => {
+    const { system } = buildDomainPackPrompt({ description: "图书馆借阅场景" });
+    expect(system).toContain("'{{param.城市}}'");
+    expect(system).toContain("模板样例");
+  });
+
   it("满足 DeepSeek JSON 输出模式前提：含「json」字样且给出输出格式说明", () => {
     const { system } = buildDomainPackPrompt({ description: "图书馆借阅场景" });
     expect(/json/i.test(system)).toBe(true);
