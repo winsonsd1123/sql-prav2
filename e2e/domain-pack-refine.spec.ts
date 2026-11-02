@@ -3,12 +3,10 @@ import { presetLoginState, collectConsoleProblems, createDomainPackAssetStub } f
 import { mkCloudPackJson } from "../src/kernel/__tests__/fixtures/cloud-domain-pack";
 import type { GateReport } from "../src/kernel/domain-pack-gate";
 
-// 域包微调端到端（票 #62 / ADR-0009）：教师发起微调 → 验证报告 + B 类改动明示（将产生
-// library-loan@v2）→ 确认生效 → 版本历史区块渲染 → 学生端进行中会话（旧 packId）仍加载
-// 旧版本题面、切换胶囊（展示注册表只留最新版）进入新版本。LLM 打桩沿用 #60 管理页 spec
-// 的浏览器层 page.route 设计（页面自身 fetch 可拦截，服务端出站与生产零改动）。
-// B 类改动的服务端落库（历史表写入/当前行改写）不在浏览器层发生，用内存行集模拟
-// 「确认生效后云端的新状态」：apply 桩原子地改写资产行 + 追加历史行。
+// 域包微调端到端（票 #67 / spec #64：微调独立路由页 /admin/packs/refine）：?packId= 预选
+// 目标域包（列表行内入口的跳转契约），参数缺失或无效回退页内选择器。流程行为（B 类产生
+// 新版本、进行中会话钉旧版；失败保留表单可重试）沿用票 #62 口径，迁移到新路由复验。
+// LLM 打桩沿用 #60 管理页 spec 的浏览器层 page.route 设计（服务端出站与生产零改动）。
 
 // console 卫生：同 domain-pack-admin-page.spec（打桩失败响应的资源错误按用例事实过滤）。
 const STUBBED_FAILURE_RESOURCE = /Failed to load resource: the server responded with a status of (502|503)/;
@@ -41,16 +39,6 @@ async function mockTeacherPermissions(page: Page) {
   });
 }
 
-/** 管理页同页其余区块的 API 桩（与 domain-pack-admin-page.spec 同款） */
-async function mockSiblingBlocks(page: Page) {
-  await page.route("**/api/admin/pack-exposure", async (route) => {
-    await route.fulfill({ status: 200, contentType: "application/json", body: JSON.stringify({ packIds: [] }) });
-  });
-  await page.route("**/api/admin/domain-packs/practice-config", async (route) => {
-    await route.fulfill({ status: 200, contentType: "application/json", body: JSON.stringify({ packs: [] }) });
-  });
-}
-
 const passedReport: GateReport = {
   passed: true,
   structural: { status: "通过", issues: [], checkedTables: 3, checkedTemplates: 28 },
@@ -68,9 +56,8 @@ function mkRefinedPackJson(basePackId: string) {
   return { v1, draft };
 }
 
-test("B 类微调→确认产生 v2：学生旧会话钉旧版题面，切换胶囊进入新版", async ({ page }) => {
+test("packId 预选：B 类微调→确认产生 v2，学生旧会话钉旧版题面，切换胶囊进入新版", async ({ page }) => {
   await mockTeacherPermissions(page);
-  await mockSiblingBlocks(page);
   const BASE = "library-loan";
   const { v1, draft } = mkRefinedPackJson(BASE);
   const assetStub = createDomainPackAssetStub();
@@ -122,9 +109,14 @@ test("B 类微调→确认产生 v2：学生旧会话钉旧版题面，切换胶
     });
   });
 
-  // —— 教师端：发起微调 → 报告 + B 类明示 → 确认生效 ——
-  await page.goto("/admin/packs");
-  await page.getByTestId("微调目标域包").selectOption(BASE);
+  // 列表页放出清单桩（终态回跳落地 /admin/packs 后列表拉取，离线桩保 console 卫生）
+  await page.route("**/api/admin/pack-exposure*", async (route) => {
+    await route.fulfill({ status: 200, contentType: "application/json", body: JSON.stringify({ packIds: [] }) });
+  });
+
+  // —— 带目标直达微调页：packId 已预选，无需手动选择 ——
+  await page.goto(`/admin/packs/refine?packId=${BASE}`);
+  await expect(page.getByTestId("微调目标域包")).toHaveValue(BASE);
   await page.getByTestId("修改意图").fill("把题目模板的题面写得更贴合借阅业务");
   await page.getByTestId("微调SQL样例").fill("SELECT 姓名 FROM 读者 JOIN 借阅 ON …");
   await page.getByTestId("发起微调").click();
@@ -133,10 +125,15 @@ test("B 类微调→确认产生 v2：学生旧会话钉旧版题面，切换胶
   await expect(page.getByTestId("改动分类提示")).toContainText("v2");
   await expect(page.getByTestId("微调报告")).toContainText("验证通过");
   await page.getByTestId("确认生效").click();
-  await expect(page.getByTestId("微调生效反馈")).toContainText("library-loan@v2");
 
-  // —— 版本历史区块：v2 置顶标「当前」，v1 标历史 ——
-  await page.getByTestId("版本历史目标域包").selectOption(BASE);
+  // —— 终态回跳（spec #64 决策 6）：生效成功后回域包列表，行内 packId 即新版本可核对 ——
+  // （「再微调一轮」按钮随回跳失去宿主属预期——旧单页交互残留，由列表行内「微调」入口承接）
+  await expect(page).toHaveURL(/\/admin\/packs$/);
+  await expect(page.getByTestId("域包行-云端夹具域包")).toContainText("library-loan@v2");
+
+  // —— 版本历史核对：跳独立版本历史页（#70 拆分后 /admin/packs 为纯列表页），v2 置顶标「当前」 ——
+  await page.goto(`/admin/packs/versions?packId=${BASE}`);
+  await expect(page.getByTestId("版本历史目标域包")).toHaveValue(BASE);
   await expect(page.getByTestId("版本历史列表")).toContainText("当前（新会话使用）");
   await expect(page.getByTestId("版本历史列表")).toContainText("历史（旧会话钉住）");
 
@@ -161,7 +158,6 @@ test("B 类微调→确认产生 v2：学生旧会话钉旧版题面，切换胶
 
 test("微调失败（502）：明确错误，表单与意图保留可重试", async ({ page }) => {
   await mockTeacherPermissions(page);
-  await mockSiblingBlocks(page);
   const assetStub = createDomainPackAssetStub();
   assetStub.rows.push({ pack_id: "library-loan", asset: mkCloudPackJson({ packId: "library-loan" }) });
   await assetStub.attach(page);
@@ -194,8 +190,8 @@ test("微调失败（502）：明确错误，表单与意图保留可重试", as
     });
   });
 
-  await page.goto("/admin/packs");
-  await page.getByTestId("微调目标域包").selectOption("library-loan");
+  await page.goto("/admin/packs/refine?packId=library-loan");
+  await expect(page.getByTestId("微调目标域包")).toHaveValue("library-loan");
   await page.getByTestId("修改意图").fill("给难度档位补充样例");
   await page.getByTestId("发起微调").click();
   await expect(page.getByTestId("微调失败提示")).toContainText("LLM 网络请求失败");
@@ -204,4 +200,29 @@ test("微调失败（502）：明确错误，表单与意图保留可重试", as
   await page.getByTestId("发起微调").click();
   await expect(page.getByTestId("改动分类提示")).toContainText("A 类改动");
   await expect(page.getByTestId("改动分类提示")).toContainText("packId 不变");
+});
+
+test("不带参数直达微调页：页内选择器兜底可用", async ({ page }) => {
+  await mockTeacherPermissions(page);
+  const assetStub = createDomainPackAssetStub();
+  assetStub.rows.push({ pack_id: "library-loan", asset: mkCloudPackJson({ packId: "library-loan" }) });
+  await assetStub.attach(page);
+
+  await page.goto("/admin/packs/refine");
+  // 未携带目标：选择器落在占位项，可自行选择域包
+  await expect(page.getByTestId("微调目标域包")).toHaveValue("");
+  await page.getByTestId("微调目标域包").selectOption("library-loan");
+  await expect(page.getByTestId("微调目标域包")).toHaveValue("library-loan");
+});
+
+test("packId 参数无效：回退页内选择器兜底，不落在不存在的选项上", async ({ page }) => {
+  await mockTeacherPermissions(page);
+  const assetStub = createDomainPackAssetStub();
+  assetStub.rows.push({ pack_id: "library-loan", asset: mkCloudPackJson({ packId: "library-loan" }) });
+  await assetStub.attach(page);
+
+  await page.goto("/admin/packs/refine?packId=不存在的域包");
+  await expect(page.getByTestId("微调目标域包")).toHaveValue("");
+  await page.getByTestId("微调目标域包").selectOption("library-loan");
+  await expect(page.getByTestId("微调目标域包")).toHaveValue("library-loan");
 });

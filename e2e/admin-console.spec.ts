@@ -184,6 +184,9 @@ test.describe("已登录", () => {
     expect(whitelist.y).toBe(users.y);
     expect(whitelist.x).toBeGreaterThan(users.x);
     expect(navBox.y + navBox.height).toBeLessThanOrEqual(content.y);
+    // 两层导航口径与宽屏一致：分组标题呈现为可见但不可点的分隔（#65 窄屏验收补全）
+    await expect(nav.getByTestId("导航分组-域包管理")).toBeVisible();
+    await expect(nav.getByRole("link", { name: "域包管理" })).toHaveCount(0);
     // 账户区在窄屏仍可访问
     await expect(page.getByTestId("当前账户邮箱")).toHaveText("e2e@cuc.edu.cn");
     await expect(page.getByTestId("登出按钮")).toBeVisible();

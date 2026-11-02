@@ -23,14 +23,16 @@ interface VersionEntry {
 export interface AdminDomainPackVersionHistoryProps {
   /** 展示清单（页面收敛：每基础名一行最新版）；选择器选项基础名派生 */
   packs: readonly DomainPack[];
+  /** 预选基础名（票 #68 跨页 ?packId= 契约）：作为选择器初始值立即自动查询；缺省回退占位项由页内选择 */
+  initialBasePackId?: string;
 }
 
-export default function AdminDomainPackVersionHistory({ packs }: AdminDomainPackVersionHistoryProps) {
+export default function AdminDomainPackVersionHistory({ packs, initialBasePackId }: AdminDomainPackVersionHistoryProps) {
   const options = packs.map((d) => {
     const { base } = parsePackIdVersion(d.packId);
     return { base, name: d.name };
   });
-  const [selectedBase, setSelectedBase] = useState("");
+  const [selectedBase, setSelectedBase] = useState(initialBasePackId ?? "");
   const [versions, setVersions] = useState<VersionEntry[] | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
