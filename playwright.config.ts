@@ -16,5 +16,13 @@ export default defineConfig({
     port,
     reuseExistingServer: true,
     timeout: 300_000,
+    // e2e 全程在浏览器层拦截 Supabase REST（e2e/helpers.ts 打桩），服务端不真连；
+    // 占位值只为 next build/start 的模块初始化不因缺 env 抛错——worktree 没有 .env.local 也能直接跑 e2e。
+    // 显式 env 优先于 .env.local（Next 不覆盖已存在的进程变量），测试与本地真实配置天然隔离。
+    env: {
+      NEXT_PUBLIC_SUPABASE_URL: "https://e2e-placeholder.supabase.co",
+      NEXT_PUBLIC_SUPABASE_ANON_KEY: "e2e-placeholder-anon-key",
+      SUPABASE_SERVICE_ROLE_KEY: "e2e-placeholder-service-role-key",
+    },
   },
 });

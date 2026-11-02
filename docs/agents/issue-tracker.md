@@ -10,7 +10,7 @@
 - **将 issue 设为父 issue 的子 issue**：`gh issue create --parent <parent> ...`，或事后 `gh issue edit <parent> --add-sub-issue <child>`（`gh` 2.94+）。旧版 `gh`：`gh api --method POST repos/<owner>/<repo>/issues/<parent>/sub_issues -F sub_issue_id=<child-db-id>`（数据库 id，见下方 **Blocking**）。无 sub-issues 时，在子 issue body 顶部写 `Part of #<parent>`。
 - **评论**：`gh issue comment <number> --body "..."`
 - **添加 / 移除标签**：`gh issue edit <number> --add-label "..."` / `--remove-label "..."`
-- **关闭**：`gh issue close <number> --comment "..."`
+- **关闭**：`gh issue close <number> --comment "..."`。注意：PR body 的 `Closes #N` 对挂着原生依赖边的票可能不生效或延迟显示——合并后必须终验 `gh issue list --state open`，漏关的票确认交付后手动收口。
 
 从 `git remote -v` 推断仓库；在 clone 内运行时 `gh` 会自动完成。
 

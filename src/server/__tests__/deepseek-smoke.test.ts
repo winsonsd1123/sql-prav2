@@ -1,5 +1,6 @@
 // 真实 DeepSeek 冒烟（票 #59 AC）：有 DEEPSEEK_API_KEY 才跑，缺 key 整文件跳过（不伪造结果、不静默）。
-// 跑法：DEEPSEEK_API_KEY=sk-xxx pnpm vitest run src/server/__tests__/deepseek-smoke.test.ts
+// 跑法：DEEPSEEK_API_KEY=sk-xxx pnpm vitest run --silent=false src/server/__tests__/deepseek-smoke.test.ts
+// （--silent=false 必须：vitest 默认吞 console，闸门结论与草稿 packId 都在 [冒烟] 日志里，缺了它等于白跑一次真实调用）
 // 结论记录在票 #59 与施工记录（issues/2026-11-01-*.md）。
 import { describe, expect, it } from "vitest";
 import { resolveDeepSeekProvider } from "@/server/llm-provider";
