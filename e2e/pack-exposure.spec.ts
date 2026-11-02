@@ -110,7 +110,7 @@ test("教师勾选放出单个域包并保存：PUT 全量清单，学生端只�
   });
   // #60 起管理页挂域包列表区块（cloudPackStore 拉云端资产表），离线回放空行集保 console 卫生
   await mockDomainPackAssetRows(page, []);
-  await page.goto("/admin/packs");
+  await page.goto("/admin/packs/exposure");
   await expect(page.getByTestId("域包放出管理")).toBeVisible();
   // 未配置时从「全放」出发编辑：取消勾选「员工-部门-薪资」
   await page.getByTestId("放出勾选-员工-部门-薪资").click();
