@@ -1,21 +1,24 @@
 "use client";
 
-// 知识点词表管理区块（issue #79 / spec #75，ADR 0010，GLOSSARY「知识点词表」）：
+// 知识点词表管理区块（issue #79 / spec #75，ADR 0010，GLOSSARY「知识点词表」；#83 演进被引用视图与禁删）：
 // 接入 /api/admin/knowledge-areas*（列表 GET / 创建 POST / 编辑 PUT / 启停 PATCH / 删除 DELETE）；
 // 请求带浏览器会话的 Bearer token（ADR-0007：安全边界在服务端——本组件与所在页面均只做展示与交互，
 // 双权限点「访问后台 + 知识点词表管理」在 API 层裁决，无权限者页面明示服务端文案）。
-// 删除本票即物理删除——被引用禁删与被引用视图属 #83（引用形态尚不存在），不做不预留；
+// #83：条目携带被引用域包列表（引用形态域包的引用现状）；被引用条目删除按钮禁用（服务端为权威，
+// 亦拒绝并返回中文原因——界面禁用是第一道防线，避免必然被拒的请求）；
 // 停用条目仍可被既有包引用、只是不能再被新圈选（ADR 0010）。
 // 每次写操作成功后回读全量（写路径逐条化，无全量保存草稿态，回读保证与服务端一致）。
 import { useCallback, useEffect, useState } from "react";
 import { getSessionAuth, readErrorMessage } from "@/lib/admin-api-client";
 
-/** 词表条目（管理视图：名称 + 描述 + 启停态） */
+/** 词表条目（管理视图：名称 + 描述 + 启停态 + 被引用域包列表） */
 interface KnowledgeAreaEntry {
   id: string;
   name: string;
   description: string;
   active: boolean;
+  /** 引用该条目的域包名称列表（未被引用为空数组） */
+  referencedBy: string[];
 }
 
 /** 编辑态草稿：一次只有一个条目处于编辑中 */
@@ -161,7 +164,7 @@ export default function AdminKnowledgeAreaManager() {
     >
       <h2 className="标题 mb-1 text-lg">知识点词表</h2>
       <p className="mb-4 text-xs text-muted">
-        跨域包的知识点唯一来源：条目含名称与描述，可停用（停用后不能再被新圈选，既有引用不受影响）。
+        跨域包的知识点唯一来源：条目含名称与描述，可停用（停用后不能再被新圈选，既有引用不受影响）；被域包引用的条目不能删除，只能停用。
       </p>
       {error && (
         <p role="alert" data-testid="词表提示" className="mb-3 rounded-lg bg-red-50 px-3 py-2 text-xs text-red-700">
@@ -239,6 +242,16 @@ export default function AdminKnowledgeAreaManager() {
                   >
                     {entry.active ? "启用中" : "已停用"}
                   </span>
+                  {/* 被引用视图（#83）：删除/停用前评估影响；未被引用不渲染，降噪 */}
+                  {entry.referencedBy.length > 0 && (
+                    <span
+                      data-testid={`词表引用-${entry.name}`}
+                      className="rounded-full bg-amber-50 px-2 py-0.5 text-[10px] text-amber-700"
+                      title={`被以下域包引用：${entry.referencedBy.join("、")}`}
+                    >
+                      被 {entry.referencedBy.length} 个域包引用
+                    </span>
+                  )}
                   <button
                     onClick={() => setEditing({ id: entry.id, name: entry.name, description: entry.description })}
                     disabled={busy}
@@ -255,7 +268,8 @@ export default function AdminKnowledgeAreaManager() {
                   </button>
                   <button
                     onClick={() => remove(entry)}
-                    disabled={busy}
+                    disabled={busy || entry.referencedBy.length > 0}
+                    title={entry.referencedBy.length > 0 ? "已被域包引用，不能删除（只能停用）" : undefined}
                     className="次按钮 px-3 py-1 text-xs text-red-700 disabled:opacity-50"
                   >
                     删除

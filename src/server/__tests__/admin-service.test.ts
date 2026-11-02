@@ -35,6 +35,7 @@ function makeDeps(overrides: Partial<AdminDeps> = {}): AdminDeps {
     updateKnowledgeArea: async () => "updated",
     deleteKnowledgeArea: async () => "deleted",
     setKnowledgeAreaActive: async () => "updated",
+    fetchKnowledgeAreaReferences: async () => [],
     ...overrides,
   };
 }

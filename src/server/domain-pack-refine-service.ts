@@ -25,13 +25,16 @@ import {
 } from "@/kernel/domain-pack-versioning";
 import { builtinPackAssets } from "@/domain-packs/builtin-packs";
 import { serverPrivilegedClient } from "@/lib/supabase/server-client";
+import { checkKnowledgeAreaReferences, defaultVocabSeam, type KnowledgeAreaVocabSeam } from "@/server/domain-pack-asset-service";
 
-/** 可注入依赖（测试接缝）：LLM provider（apply 不需要）/ 鉴权链 / 云端读写客户端 */
+/** 可注入依赖（测试接缝）：LLM provider（apply 不需要）/ 鉴权链 / 云端读写客户端 / 知识点词表接缝 */
 export interface RefineServiceDeps {
   provider?: LlmProvider;
   adminDeps?: AdminDeps;
   readClient?: RefineReadClient;
   writeClient?: DomainPackWriteClient;
+  /** 词表语义校验接缝（#83 引用形态；缺省用 service_role 客户端拼装） */
+  vocabSeam?: KnowledgeAreaVocabSeam;
 }
 
 /** 结构化最小读客户端（service_role Supabase 客户端满足此形状；单测传桩） */
@@ -82,6 +85,8 @@ export type ApplyRefinementResult =
   | { status: "not_found" }
   | { status: "base_name_changed"; actualBasePackId: string }
   | { status: "no_change" }
+  /** 引用形态草稿词表语义校验不通过（#83）：引用不存在 / 名称不对齐 / 新圈选停用条目 */
+  | { status: "vocabulary"; message: string }
   | { status: "error"; message: string };
 
 /** 版本历史条目（管理页「版本历史」区块渲染口径） */
@@ -230,6 +235,15 @@ export async function applyDomainPackRefinement(
     }
     const changeClass = classifyDomainPackChange(current.asset, parsedDraft.pack);
     if (changeClass === "unchanged") return { status: "no_change" };
+
+    // 引用形态草稿（LLM 回显引用数组等场景）过词表语义校验（#83）：拒绝不落库，防悬挂引用。
+    // 既有引用取当前资产（已在内存）而非回查数据库——写入路径的「既有」即本次微调的底本。
+    const vocab = deps.vocabSeam ?? {
+      fetchKnowledgeAreaEntries: defaultVocabSeam().fetchKnowledgeAreaEntries,
+      fetchCurrentRefIds: async () => current.asset.knowledgeAreaRefIds ?? null,
+    };
+    const vocabMessage = await checkKnowledgeAreaReferences(parsedDraft.pack, vocab);
+    if (vocabMessage !== null) return { status: "vocabulary", message: vocabMessage };
 
     const writeClient = deps.writeClient ?? serverPrivilegedClient();
     if (changeClass === "A") {

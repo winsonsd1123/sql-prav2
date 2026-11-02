@@ -37,6 +37,9 @@ export async function POST(request: Request) {
         return Response.json({ code: "base_name_changed", error: `packId 基础名不可修改（草稿为 ${result.actualBasePackId}）` }, { status: 409 });
       case "no_change":
         return Response.json({ code: "no_change", error: "草稿与当前域包没有差异，无需确认生效" }, { status: 409 });
+      case "vocabulary":
+        // 400 = 引用形态草稿的词表语义校验不通过（#83）：中文原因透传（前端走通用错误态展示）
+        return Response.json({ error: result.message }, { status: 400 });
       case "error":
         return adminErrorResponse("error");
     }

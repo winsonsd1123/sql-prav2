@@ -1,24 +1,29 @@
 import { test, expect, type Page, type Route } from "@playwright/test";
 import { presetLoginState, collectConsoleProblems } from "./helpers";
 
-// 知识点词表管理页（issue #79 / spec #75，ADR 0010）：离线 route-mock 覆盖列表展示、创建、
-// 编辑、启停与删除交互；权限两跳照 admin-whitelist.spec.ts 的 mock 模式（教师 + 双权限点），
-// /api/admin/knowledge-areas* 用内存状态回放（写操作改状态后重读可见）。
+// 知识点词表管理页（issue #79 / spec #75，ADR 0010；#83 补被引用视图与禁删）：离线 route-mock
+// 覆盖列表展示、创建、编辑、启停与删除交互；权限两跳照 admin-whitelist.spec.ts 的 mock 模式
+// （教师 + 双权限点），/api/admin/knowledge-areas* 用内存状态回放（写操作改状态后重读可见）。
 // 鉴权 401 / 403（无双权限点被拦）与归一校验在服务层单测断言（knowledge-area-admin-service.test.ts），
-// 不在此重复（预期 4xx 响应会触发浏览器 console error，与 console 卫生断言冲突，照 admin-whitelist 口径）。
+// 不在此重复（预期 4xx 响应会触发浏览器 console error，与 console 卫生断言冲突，照 admin-whitelist 口径）；
+// #83 禁删同理：服务层拒绝路径（in_use → 400）在服务层单测断言，e2e 断言界面第一道防线
+// （被引用条目删除按钮禁用 + 被引用域包列表可见）。
 
 interface KnowledgeAreaEntry {
   id: string;
   name: string;
   description: string;
   active: boolean;
+  /** #83：引用该条目的域包名称列表（服务端 listKnowledgeAreas 合并被引用视图） */
+  referencedBy: string[];
 }
 
 /** /api/admin/knowledge-areas* 离线桩：GET 回放内存状态；POST/PUT/PATCH/DELETE 记录载荷并更新状态 */
 async function mockKnowledgeAreaApi(page: Page) {
   const state = { entries: [
-    { id: "ka-1", name: "单表查询与投影", description: "SELECT 列投影", active: true },
-    { id: "ka-2", name: "子查询", description: "", active: false },
+    // ka-1 被两个引用形态域包引用（#83 被引用视图素材）；ka-2 未被引用（删除/编辑路径素材）
+    { id: "ka-1", name: "单表查询与投影", description: "SELECT 列投影", active: true, referencedBy: ["员工薪酬", "图书馆借阅"] },
+    { id: "ka-2", name: "子查询", description: "", active: false, referencedBy: [] },
   ] as KnowledgeAreaEntry[] };
   const calls = { post: [] as unknown[], put: [] as unknown[], patch: [] as unknown[] };
   let nextId = 100;
@@ -40,7 +45,7 @@ async function mockKnowledgeAreaApi(page: Page) {
     if (method === "POST") {
       const body = route.request().postDataJSON() as { name: string; description: string };
       calls.post.push(body);
-      const entry = { id: `ka-${nextId++}`, name: body.name, description: body.description, active: true };
+      const entry = { id: `ka-${nextId++}`, name: body.name, description: body.description, active: true, referencedBy: [] };
       state.entries = [...state.entries, entry].sort((a, b) => a.name.localeCompare(b.name));
       await route.fulfill({ status: 200, contentType: "application/json", body: JSON.stringify({ id: entry.id }) });
       return;
@@ -111,6 +116,29 @@ test("列表展示：全量条目含停用态与描述，导航归属域包管�
   await expect(page.getByTestId("词表行-单表查询与投影")).toContainText("SELECT 列投影");
   await expect(page.getByTestId("词表统计")).toContainText("共 2 个知识点");
   await expect(page.getByTestId("后台侧边导航").getByRole("link", { name: "知识点词表" })).toHaveAttribute("aria-current", "page");
+});
+
+test("被引用视图（#83）：条目显示被引用域包数量与名单，未被引用条目无被引用徽标", async ({ page }) => {
+  await mockKnowledgeAreaApi(page);
+  await page.goto("/admin/packs/vocab");
+
+  const badge = page.getByTestId("词表引用-单表查询与投影");
+  await expect(badge).toContainText("被 2 个域包引用");
+  await expect(badge).toHaveAttribute("title", "被以下域包引用：员工薪酬、图书馆借阅");
+  // 未被引用条目不渲染被引用徽标（降噪）
+  await expect(page.getByTestId("词表引用-子查询")).toHaveCount(0);
+});
+
+test("被引用条目禁删（#83）：删除按钮禁用且提示只能停用，未被引用条目删除可用", async ({ page }) => {
+  await mockKnowledgeAreaApi(page);
+  await page.goto("/admin/packs/vocab");
+
+  const referencedDelete = page.getByTestId("词表行-单表查询与投影").getByRole("button", { name: "删除" });
+  await expect(referencedDelete).toBeDisabled();
+  await expect(referencedDelete).toHaveAttribute("title", "已被域包引用，不能删除（只能停用）");
+  // 停用入口对被引用条目仍开放（ADR 0010：停用不阻断既有引用）
+  await expect(page.getByTestId("词表行-单表查询与投影").getByRole("button", { name: "停用" })).toBeEnabled();
+  await expect(page.getByTestId("词表行-子查询").getByRole("button", { name: "删除" })).toBeEnabled();
 });
 
 test("创建条目：填名称与描述后 POST，成功后列表出现新条目", async ({ page }) => {

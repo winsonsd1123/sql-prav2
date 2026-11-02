@@ -12,14 +12,16 @@ import { buildDomainPackPrompt, type DomainPackGenerationInput } from "@/server/
 import type { LlmProvider } from "@/server/llm-provider";
 import { LlmProviderError } from "@/server/llm-provider";
 import { validateDomainPack, type GateReport } from "@/kernel/domain-pack-gate";
-import { upsertDomainPackAsset, type DomainPackWriteClient } from "@/server/domain-pack-asset-service";
+import { upsertDomainPackAsset, type DomainPackWriteClient, type KnowledgeAreaVocabSeam } from "@/server/domain-pack-asset-service";
 import { serverPrivilegedClient } from "@/lib/supabase/server-client";
 
-/** 可注入依赖（测试接缝）：LLM provider / 鉴权链 / 云端写客户端 */
+/** 可注入依赖（测试接缝）：LLM provider / 鉴权链 / 云端写客户端 / 知识点词表接缝 */
 export interface GenerationServiceDeps {
   provider: LlmProvider;
   adminDeps?: AdminDeps;
   writeClient?: DomainPackWriteClient;
+  /** 词表语义校验接缝（#83 引用形态；缺省用 service_role 客户端拼装） */
+  vocabSeam?: KnowledgeAreaVocabSeam;
 }
 
 /** 发布依赖：不需要 LLM（重过闸门 + 落库） */
@@ -39,6 +41,8 @@ export type PublishResult =
   | { status: "unauthorized" }
   | { status: "forbidden" }
   | { status: "invalid" }
+  /** 引用形态草稿词表语义校验不通过（#83）：引用不存在 / 名称不对齐 / 新圈选停用条目 */
+  | { status: "vocabulary"; message: string }
   | { status: "error"; message: string };
 
 /** 入参形状校验：描述必填非空字符串；表数意愿若给出须是 3-5 的整数 */
@@ -106,8 +110,14 @@ export async function publishDomainPack(
   const auth = await authorizeAdminRequest(authorization, deps.adminDeps ?? defaultAdminDeps, PERMISSIONS.packExposure);
   if (auth.status !== "ok") return { status: auth.status };
 
-  const result = await upsertDomainPackAsset(deps.writeClient ?? serverPrivilegedClient(), (body as { pack: unknown }).pack);
+  const result = await upsertDomainPackAsset(
+    deps.writeClient ?? serverPrivilegedClient(),
+    (body as { pack: unknown }).pack,
+    // 词表语义校验接缝（#83）：缺省用 service_role 客户端拼装（单测注入桩）
+    { vocab: deps.vocabSeam },
+  );
   if (result.ok) return { status: "ok", packId: result.packId };
   if (result.kind === "gate") return { status: "gate", report: result.report };
+  if (result.kind === "vocabulary") return { status: "vocabulary", message: result.message };
   return { status: "error", message: result.message };
 }

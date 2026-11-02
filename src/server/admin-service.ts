@@ -91,6 +91,8 @@ export interface AdminKnowledgeAreaEntry {
   name: string;
   description: string;
   active: boolean;
+  /** 引用该条目的域包名称列表（#83 被引用视图；去重、按名称稳定排序，未被引用为空数组） */
+  referencedBy: string[];
 }
 
 /** 词表列表读取 */
@@ -120,11 +122,12 @@ export type AdminKnowledgeAreaUpdateResult =
   | { status: "duplicate_name" }
   | { status: "error" };
 
-/** 删除（物理删除）：载荷只有 id，无 invalid / 重名态 */
+/** 删除（物理删除）：载荷只有 id，无 invalid / 重名态；被引用条目拒绝（#83 禁删，只能停用） */
 export type AdminKnowledgeAreaDeleteResult =
   | { status: "ok" }
   | KnowledgeAreaAuthFailure
   | { status: "not_found" }
+  | { status: "in_use" }
   | { status: "error" };
 
 /** 启停：成功携带最新启停态；无重名态 */
@@ -160,6 +163,8 @@ export interface AdminDeps {
   updateKnowledgeArea(id: string, entry: { name: string; description: string }): Promise<KnowledgeAreaWriteOutcome>;
   deleteKnowledgeArea(id: string): Promise<KnowledgeAreaWriteOutcome>;
   setKnowledgeAreaActive(id: string, active: boolean): Promise<KnowledgeAreaWriteOutcome>;
+  /** 域包对词表条目的引用现状（#83）：每个引用形态域包的名称与其 knowledgeAreaRefIds 全量 */
+  fetchKnowledgeAreaReferences(): Promise<{ packName: string; refIds: string[] }[]>;
 }
 
 /** 从 Authorization 头提取 Bearer token；非 Bearer 方案或空 token 返回 null */
@@ -321,14 +326,34 @@ export const defaultAdminDeps: AdminDeps = {
     if (insertError) throw new Error(insertError.message);
   },
 
-  // 知识点词表全量读取（#79，service_role）：名称稳定排序展示；含停用条目（管理视图即全量）
+  // 知识点词表全量读取（#79，service_role）：名称稳定排序展示；含停用条目（管理视图即全量）。
+  // referencedBy 由编排层（listKnowledgeAreas）合并引用现状，接缝层不重复计算
   fetchKnowledgeAreas: async () => {
     const { data, error } = await serverPrivilegedClient()
       .from("knowledge_area")
       .select("id,name,description,active")
       .order("name");
     if (error) throw new Error(error.message);
-    return (data ?? []) as AdminKnowledgeAreaEntry[];
+    return ((data ?? []) as Omit<AdminKnowledgeAreaEntry, "referencedBy">[]).map((row) => ({
+      ...row,
+      referencedBy: [],
+    }));
+  },
+
+  // 域包对词表条目的引用现状（#83，service_role）：扫描引用形态域包资产行，
+  // 取资产名称与 knowledgeAreaRefIds（自由形态行无引用数组，跳过）
+  fetchKnowledgeAreaReferences: async () => {
+    const { data, error } = await serverPrivilegedClient()
+      .from("domain_pack_asset")
+      .select("pack_id, asset");
+    if (error) throw new Error(error.message);
+    const references: { packName: string; refIds: string[] }[] = [];
+    for (const row of (data ?? []) as { asset: { name?: unknown; knowledgeAreaRefIds?: unknown } | null }[]) {
+      const { name, knowledgeAreaRefIds } = row.asset ?? {};
+      if (typeof name !== "string" || !Array.isArray(knowledgeAreaRefIds)) continue;
+      references.push({ packName: name, refIds: knowledgeAreaRefIds as string[] });
+    }
+    return references;
   },
 
   // 词表条目创建：唯一约束（name）违例映射为 duplicate（业务态），其余异常上抛由编排层兜底 500
@@ -636,7 +661,7 @@ function normalizeKnowledgeAreaDescription(raw: unknown): string {
   return typeof raw === "string" ? raw.trim() : "";
 }
 
-/** 词表全量列表：鉴权前置（双权限点）→ 全量回读（含停用条目） */
+/** 词表全量列表：鉴权前置（双权限点）→ 全量回读（含停用条目）+ 合并被引用视图（#83） */
 export async function listKnowledgeAreas(
   authorization: string | null,
   deps: AdminDeps = defaultAdminDeps,
@@ -644,7 +669,26 @@ export async function listKnowledgeAreas(
   const auth = await authorizeAdminRequest(authorization, deps, PERMISSIONS.knowledgeAreaVocab);
   if (auth.status !== "ok") return auth;
   try {
-    return { status: "ok", entries: await deps.fetchKnowledgeAreas() };
+    const [entries, references] = await Promise.all([
+      deps.fetchKnowledgeAreas(),
+      deps.fetchKnowledgeAreaReferences(),
+    ]);
+    // 被引用域包名称：去重 + 按名称稳定排序（展示确定性）
+    const packsById = new Map<string, string[]>();
+    for (const { packName, refIds } of references) {
+      for (const refId of refIds) {
+        const packs = packsById.get(refId) ?? [];
+        if (!packs.includes(packName)) packs.push(packName);
+        packsById.set(refId, packs);
+      }
+    }
+    return {
+      status: "ok",
+      entries: entries.map((entry) => ({
+        ...entry,
+        referencedBy: [...(packsById.get(entry.id) ?? [])].sort((a, b) => a.localeCompare(b)),
+      })),
+    };
   } catch {
     return { status: "error" };
   }
@@ -693,7 +737,7 @@ export async function updateKnowledgeArea(
   }
 }
 
-/** 词表条目删除（物理删除）：鉴权前置 → 落库；不存在单独成态 */
+/** 词表条目删除（物理删除）：鉴权前置 → 被引用禁删（#83：引用中的条目只能停用，防悬挂引用）→ 落库；不存在单独成态 */
 export async function deleteKnowledgeArea(
   id: string,
   authorization: string | null,
@@ -702,6 +746,8 @@ export async function deleteKnowledgeArea(
   const auth = await authorizeAdminRequest(authorization, deps, PERMISSIONS.knowledgeAreaVocab);
   if (auth.status !== "ok") return auth;
   try {
+    const references = await deps.fetchKnowledgeAreaReferences();
+    if (references.some(({ refIds }) => refIds.includes(id))) return { status: "in_use" };
     const outcome = await deps.deleteKnowledgeArea(id);
     if (outcome === "not_found") return { status: "not_found" };
     return { status: "ok" };

@@ -290,6 +290,61 @@ describe("applyDomainPackRefinement：确认生效", () => {
     expect(historyRow.version_label).toBe("v1");
     expect(historyRow.asset.packId).toBe(current.packId);
   });
+
+  it("引用形态草稿词表校验不通过（引用已被删除）：vocabulary 拒绝，不落库（#83）", async () => {
+    const current = {
+      ...mkCloudPackJson({ packId: PACK_ID }),
+      knowledgeAreaRefIds: ["ka-1", "ka-2", "ka-3", "ka-4", "ka-5", "ka-6", "ka-7"],
+    } as unknown as DomainPackAsset;
+    // LLM 回显引用数组但 ka-7 已被从词表删除：草稿 B 类（模板微调）
+    const draft = {
+      ...current,
+      templates: current.templates.map((t, i) => (i === 0 ? { ...t, prompt: `${t.prompt}（微调）` } : t)),
+    };
+    const tables = mkTables([{ pack_id: PACK_ID, asset: current }]);
+    const vocab = {
+      fetchKnowledgeAreaEntries: async () =>
+        ["ka-1", "ka-2", "ka-3", "ka-4", "ka-5", "ka-6"].map((id, i) => ({
+          id,
+          name: (current.knowledgeAreas as string[])[i],
+          active: true,
+        })),
+      fetchCurrentRefIds: async () => current.knowledgeAreaRefIds ?? null,
+    };
+    const result = await applyDomainPackRefinement(
+      { packId: PACK_ID, pack: draft },
+      auth,
+      { adminDeps: mkAdminDeps(), vocabSeam: vocab, ...tables.deps },
+    );
+    expect(result).toMatchObject({ status: "vocabulary" });
+    expect(tables.upserts).toEqual([]);
+  });
+
+  it("引用形态草稿词表校验通过（既有引用含已停用条目）：照常落库，停用不阻断既有引用（#83）", async () => {
+    const refIds = ["ka-1", "ka-2", "ka-3", "ka-4", "ka-5", "ka-6", "ka-7"];
+    const current = {
+      ...mkCloudPackJson({ packId: PACK_ID }),
+      knowledgeAreaRefIds: refIds,
+    } as unknown as DomainPackAsset;
+    const draft = {
+      ...current,
+      templates: current.templates.map((t, i) => (i === 0 ? { ...t, prompt: `${t.prompt}（微调）` } : t)),
+    };
+    const tables = mkTables([{ pack_id: PACK_ID, asset: current }]);
+    const names = current.knowledgeAreas as string[];
+    const vocab = {
+      fetchKnowledgeAreaEntries: async () =>
+        refIds.map((id, i) => ({ id, name: names[i], active: id !== "ka-6" })), // ka-6 已停用但属既有引用
+      fetchCurrentRefIds: async () => refIds,
+    };
+    const result = await applyDomainPackRefinement(
+      { packId: PACK_ID, pack: draft },
+      auth,
+      { adminDeps: mkAdminDeps(), vocabSeam: vocab, ...tables.deps },
+    );
+    expect(result.status).toBe("ok");
+    expect(tables.upserts.length).toBeGreaterThan(0);
+  });
 });
 
 describe("getDomainPackVersionHistory：版本历史查询", () => {

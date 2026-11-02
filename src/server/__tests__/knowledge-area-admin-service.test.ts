@@ -35,13 +35,15 @@ function makeDeps(overrides: Partial<AdminDeps> = {}): AdminDeps {
     updateKnowledgeArea: async () => "updated",
     deleteKnowledgeArea: async () => "deleted",
     setKnowledgeAreaActive: async () => "updated",
+    // #83 新增接缝：域包对词表条目的引用现状（被引用视图与禁删判定）
+    fetchKnowledgeAreaReferences: async () => [],
     ...overrides,
   };
 }
 
 const sampleEntries: AdminKnowledgeAreaEntry[] = [
-  { id: "ka-1", name: "单表查询与投影", description: "SELECT 列投影", active: true },
-  { id: "ka-2", name: "子查询", description: "", active: false },
+  { id: "ka-1", name: "单表查询与投影", description: "SELECT 列投影", active: true, referencedBy: [] },
+  { id: "ka-2", name: "子查询", description: "", active: false, referencedBy: [] },
 ];
 
 describe("词表列表读取", () => {
@@ -65,6 +67,28 @@ describe("词表列表读取", () => {
   it("放行：返回全量条目（含停用态）", async () => {
     const result = await listKnowledgeAreas("Bearer valid-token", makeDeps({ fetchKnowledgeAreas: async () => sampleEntries }));
     expect(result).toEqual({ status: "ok", entries: sampleEntries });
+  });
+
+  it("被引用视图（#83）：条目携带引用它的域包名称列表（去重、按名称稳定排序）", async () => {
+    const result = await listKnowledgeAreas(
+      "Bearer valid-token",
+      makeDeps({
+        fetchKnowledgeAreas: async () => sampleEntries,
+        fetchKnowledgeAreaReferences: async () => [
+          { packName: "图书馆借阅", refIds: ["ka-1", "ka-2"] },
+          { packName: "员工薪酬", refIds: ["ka-1"] },
+          // 自由形态域包（无引用数组）不出现在任何条目的被引用列表
+          { packName: "自由形态包", refIds: [] },
+        ],
+      }),
+    );
+    expect(result).toEqual({
+      status: "ok",
+      entries: [
+        { ...sampleEntries[0], referencedBy: ["员工薪酬", "图书馆借阅"] },
+        { ...sampleEntries[1], referencedBy: ["图书馆借阅"] },
+      ],
+    });
   });
 
   it("读取异常：500（error）", async () => {
@@ -171,7 +195,21 @@ describe("词表条目删除", () => {
     expect(deleteDep).not.toHaveBeenCalled();
   });
 
-  it("放行：物理删除；条目不存在 → not_found", async () => {
+  it("被引用条目删除被拒（#83 禁删）：in_use，不触物理删除——只能停用", async () => {
+    const deleteDep = vi.fn().mockResolvedValue("deleted");
+    const result = await deleteKnowledgeArea(
+      "ka-1",
+      "Bearer valid-token",
+      makeDeps({
+        deleteKnowledgeArea: deleteDep as never,
+        fetchKnowledgeAreaReferences: async () => [{ packName: "图书馆借阅", refIds: ["ka-1"] }],
+      }),
+    );
+    expect(result).toEqual({ status: "in_use" });
+    expect(deleteDep).not.toHaveBeenCalled();
+  });
+
+  it("未被引用条目照常物理删除；条目不存在 → not_found", async () => {
     const deleteDep = vi.fn().mockResolvedValue("deleted");
     const result = await deleteKnowledgeArea("ka-2", "Bearer valid-token", makeDeps({ deleteKnowledgeArea: deleteDep as never }));
     expect(result).toEqual({ status: "ok" });
