@@ -35,8 +35,8 @@ beforeEach(() => {
 
 describe("学生端云端域包存储（cloudPackStore）", () => {
   it("初始快照：空清单 + 未就绪——学生端首屏仅见内置两包，不闪错域包", () => {
-    expect(cloudPackStore.getSnapshot()).toEqual({ packs: [], historyPacks: [], loaded: false });
-    expect(cloudPackStore.getServerSnapshot()).toEqual({ packs: [], historyPacks: [], loaded: false });
+    expect(cloudPackStore.getSnapshot()).toEqual({ packs: [], historyPacks: [], assets: [], loaded: false });
+    expect(cloudPackStore.getServerSnapshot()).toEqual({ packs: [], historyPacks: [], assets: [], loaded: false });
   });
 
   it("合法域包行收录为内核域包，loaded 置真", async () => {
@@ -49,6 +49,20 @@ describe("学生端云端域包存储（cloudPackStore）", () => {
     expect(snapshot.loaded).toBe(true);
     expect(snapshot.packs.map((d) => d.packId)).toEqual(["cloud-fixture-pack"]);
     expect(snapshot.packs[0].templates).toHaveLength(28);
+  });
+
+  it("合法域包行的完整资产形态保留在 assets（难度档位定义等教师端展示字段，票 #80）", async () => {
+    rowsOf([{ pack_id: "cloud-fixture-pack", asset: mkCloudPackJson() }]);
+    const unsubscribe = cloudPackStore.subscribe(() => {});
+    await vi.waitFor(() => expect(cloudPackStore.getSnapshot().loaded).toBe(true));
+    unsubscribe();
+    const snapshot = cloudPackStore.getSnapshot();
+    // 资产完整形态按 packId 对齐收录：难度档位定义（留在资产态供教师端展示）不随内核转换丢弃
+    expect(snapshot.assets.map((a) => a.packId)).toEqual(["cloud-fixture-pack"]);
+    expect(snapshot.assets[0].difficultyTiers.map((t) => t.level)).toEqual([1, 2, 3, 4, 5]);
+    expect(snapshot.assets[0].difficultyTiers[0]).toHaveProperty("name");
+    expect(snapshot.assets[0].difficultyTiers[0]).toHaveProperty("description");
+    expect(snapshot.assets[0].difficultyTiers[0]).toHaveProperty("sampleSql");
   });
 
   it("契约非法的域包不进入加载结果（闸门口径：非法即拒）", async () => {
