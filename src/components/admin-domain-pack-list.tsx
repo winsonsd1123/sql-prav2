@@ -10,6 +10,7 @@
 // 携带目标基础名 ?packId= 跨页跳转（替代旧页锚点滚动，目标页读取参数自动预选）。
 
 import { useEffect, useState } from "react";
+import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { bearerHeaders, getSessionAuth } from "@/lib/admin-api-client";
 import { buildDomainPackListRows, type DomainPackListRow } from "@/components/domain-pack-admin-view-model";
@@ -103,6 +104,14 @@ export default function AdminDomainPackList({ packs, builtinBaseIds, cloudLoaded
                   )}
                 </td>
                 <td className="flex gap-2 py-1.5">
+                  {/* 详情入口（票 #78）：只读预览，路由含 packId 可分享直达 */}
+                  <Link
+                    href={`/admin/packs/${encodeURIComponent(row.packId)}`}
+                    className="次按钮 px-2 py-1 text-xs"
+                    data-testid={`详情入口-${row.name}`}
+                  >
+                    详情
+                  </Link>
                   <button
                     type="button"
                     className="次按钮 px-2 py-1 text-xs"

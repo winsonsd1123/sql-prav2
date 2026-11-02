@@ -11,6 +11,7 @@ const eslintConfig = defineConfig([
     ".next/**",
     // Agent worktrees（含各自的 .next 构建产物，见 .gitignore）
     ".claude/worktrees/**",
+    ".worktrees/**",
     "out/**",
     "build/**",
     "next-env.d.ts",
