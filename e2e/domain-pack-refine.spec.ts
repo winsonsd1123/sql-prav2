@@ -109,6 +109,11 @@ test("packId 预选：B 类微调→确认产生 v2，学生旧会话钉旧版�
     });
   });
 
+  // 列表页放出清单桩（终态回跳落地 /admin/packs 后列表拉取，离线桩保 console 卫生）
+  await page.route("**/api/admin/pack-exposure*", async (route) => {
+    await route.fulfill({ status: 200, contentType: "application/json", body: JSON.stringify({ packIds: [] }) });
+  });
+
   // —— 带目标直达微调页：packId 已预选，无需手动选择 ——
   await page.goto(`/admin/packs/refine?packId=${BASE}`);
   await expect(page.getByTestId("微调目标域包")).toHaveValue(BASE);
@@ -120,7 +125,11 @@ test("packId 预选：B 类微调→确认产生 v2，学生旧会话钉旧版�
   await expect(page.getByTestId("改动分类提示")).toContainText("v2");
   await expect(page.getByTestId("微调报告")).toContainText("验证通过");
   await page.getByTestId("确认生效").click();
-  await expect(page.getByTestId("微调生效反馈")).toContainText("library-loan@v2");
+
+  // —— 终态回跳（spec #64 决策 6）：生效成功后回域包列表，行内 packId 即新版本可核对 ——
+  // （「再微调一轮」按钮随回跳失去宿主属预期——旧单页交互残留，由列表行内「微调」入口承接）
+  await expect(page).toHaveURL(/\/admin\/packs$/);
+  await expect(page.getByTestId("域包行-云端夹具域包")).toContainText("library-loan@v2");
 
   // —— 版本历史核对：跳独立版本历史页（#70 拆分后 /admin/packs 为纯列表页），v2 置顶标「当前」 ——
   await page.goto(`/admin/packs/versions?packId=${BASE}`);

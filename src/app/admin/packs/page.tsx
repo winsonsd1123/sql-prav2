@@ -9,24 +9,14 @@
 // 云端清单复用 #57 加载层（cloudPackStore，RLS authenticated 可读），不另建管理端只读 API；
 // 展示清单按基础名收敛为最新版本（票 #62：微调出新版本后列表该行即新版本）。
 import Link from "next/link";
-import { useSyncExternalStore } from "react";
 import AdminDomainPackList from "@/components/admin-domain-pack-list";
-import {
-  builtinDomainPacks,
-  mergePackRegistries,
-  pickLatestVersionPerBase,
-} from "@/components/domain-pack-registry";
-import { cloudPackStore } from "@/components/cloud-domain-pack-store";
+import { builtinDomainPacks } from "@/components/domain-pack-registry";
+import { useDisplayPacks } from "@/components/use-display-packs";
 
 export default function AdminPacksPage() {
-  // 云端域包快照（#57 加载层）：未就绪时只展示内置两包，副注说明仍在加载
-  const cloud = useSyncExternalStore(
-    cloudPackStore.subscribe,
-    cloudPackStore.getSnapshot,
-    cloudPackStore.getServerSnapshot,
-  );
+  // 云端域包快照（#57 加载层）：未就绪时只展示内置两包，副注说明仍在加载；
   // 展示清单（票 #62）：合并后按基础名只留最新版本
-  const displayPacks = pickLatestVersionPerBase(mergePackRegistries(builtinDomainPacks, cloud.packs));
+  const { cloud, displayPacks } = useDisplayPacks();
   const builtinBaseIds = new Set(builtinDomainPacks.map((d) => d.packId));
 
   return (

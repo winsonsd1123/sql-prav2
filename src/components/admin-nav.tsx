@@ -4,24 +4,15 @@
 // 域包管理为分组第一层，子功能点常显（不折叠——导航总量小，直接展示最简）。
 // 本票挂全四子项（#65 骨架，#70 补 versions / exposure / practice-config）。
 // 选中态判定用 resolveActiveNavKey（前缀归属：生成 / 微调页高亮「域包列表」，见 admin-nav-active.ts）。
+// 路由表单一数据源在 admin-nav-routes.ts（code-review 双源修复）：本组件与 active 判定均从表派生。
 // 宽屏纵向排列、当前项左侧竖条；窄屏退化为横滑胶囊条，分组标题作为不可点分隔呈现。
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { resolveActiveNavKey } from "@/components/admin-nav-active";
+import { ADMIN_NAV_DIRECT_ITEMS, ADMIN_NAV_PACK_GROUP_ITEMS } from "@/components/admin-nav-routes";
 
-const directItems = [
-  { key: "users", href: "/admin/users", label: "用户管理" },
-  { key: "whitelist", href: "/admin/whitelist", label: "邮箱白名单" },
-] as const;
-
-// 域包管理组子项（#70 挂全四项：列表占根路径，历史/放出/配置巡检式导航直达；
-// 生成 / 微调页不在导航列示，active 前缀归属「域包列表」——见 admin-nav-active.ts）
-const packGroupItems = [
-  { key: "packs-list", href: "/admin/packs", label: "域包列表" },
-  { key: "packs-versions", href: "/admin/packs/versions", label: "版本历史" },
-  { key: "packs-exposure", href: "/admin/packs/exposure", label: "放出管理" },
-  { key: "packs-practice-config", href: "/admin/packs/practice-config", label: "演练配置" },
-] as const;
+const directItems = ADMIN_NAV_DIRECT_ITEMS;
+const packGroupItems = ADMIN_NAV_PACK_GROUP_ITEMS;
 
 type NavLinkProps = {
   href: string;
