@@ -85,7 +85,60 @@ export type AdminSavePackExposureResult =
   | { status: "invalid" }
   | { status: "error" };
 
-/** 可注入依赖（测试接缝）：token 验证 / 权限并集 / profiles 分页 / 全量角色 / 封禁集合 / 角色读写 / 认证封禁写入 / 白名单读写 / 域包放出清单读写 */
+/** 知识点词表条目（#79 / spec #75，ADR 0010）：名称 + 描述 + 启停态 */
+export interface AdminKnowledgeAreaEntry {
+  id: string;
+  name: string;
+  description: string;
+  active: boolean;
+}
+
+/** 词表列表读取 */
+export type AdminKnowledgeAreaListResult =
+  | { status: "ok"; entries: AdminKnowledgeAreaEntry[] }
+  | { status: "unauthorized" }
+  | { status: "forbidden" }
+  | { status: "error" };
+
+/** 词表各写路径的精确失败集（鉴权态由 AdminAuthResult 透传形状复述）：重名冲突与条目不存在单独成态，不与 500 混淆 */
+type KnowledgeAreaAuthFailure = { status: "unauthorized" } | { status: "forbidden" };
+
+/** 创建：成功携带新条目 id；失败不含 not_found（新建无目标行） */
+export type AdminKnowledgeAreaCreateResult =
+  | { status: "ok"; id: string }
+  | KnowledgeAreaAuthFailure
+  | { status: "invalid" }
+  | { status: "duplicate_name" }
+  | { status: "error" };
+
+/** 编辑：成功无载荷；名称唯一冲突与条目不存在都可能 */
+export type AdminKnowledgeAreaUpdateResult =
+  | { status: "ok" }
+  | KnowledgeAreaAuthFailure
+  | { status: "invalid" }
+  | { status: "not_found" }
+  | { status: "duplicate_name" }
+  | { status: "error" };
+
+/** 删除（物理删除）：载荷只有 id，无 invalid / 重名态 */
+export type AdminKnowledgeAreaDeleteResult =
+  | { status: "ok" }
+  | KnowledgeAreaAuthFailure
+  | { status: "not_found" }
+  | { status: "error" };
+
+/** 启停：成功携带最新启停态；无重名态 */
+export type AdminKnowledgeAreaActiveResult =
+  | { status: "ok"; active: boolean }
+  | KnowledgeAreaAuthFailure
+  | { status: "invalid" }
+  | { status: "not_found" }
+  | { status: "error" };
+
+/** 词表接缝层结果：落库区分重名冲突（unique 违例）与成功；异常上抛由编排层兜底 500 */
+export type KnowledgeAreaWriteOutcome = "updated" | "deleted" | "not_found" | "duplicate";
+
+/** 可注入依赖（测试接缝）：token 验证 / 权限并集 / profiles 分页 / 全量角色 / 封禁集合 / 角色读写 / 认证封禁写入 / 白名单读写 / 域包放出清单读写 / 知识点词表读写 */
 export interface AdminDeps {
   verifyAccessToken(token: string): Promise<{ userId: string } | null>;
   fetchUserPermissions(userId: string): Promise<string[]>;
@@ -102,6 +155,11 @@ export interface AdminDeps {
   updateAllowAnyDomain(allowAnyDomain: boolean): Promise<void>;
   fetchExposedPackIds(): Promise<string[]>;
   replaceExposedPackIds(packIds: string[]): Promise<void>;
+  fetchKnowledgeAreas(): Promise<AdminKnowledgeAreaEntry[]>;
+  insertKnowledgeArea(entry: { name: string; description: string }): Promise<{ status: "ok"; id: string } | { status: "duplicate" }>;
+  updateKnowledgeArea(id: string, entry: { name: string; description: string }): Promise<KnowledgeAreaWriteOutcome>;
+  deleteKnowledgeArea(id: string): Promise<KnowledgeAreaWriteOutcome>;
+  setKnowledgeAreaActive(id: string, active: boolean): Promise<KnowledgeAreaWriteOutcome>;
 }
 
 /** 从 Authorization 头提取 Bearer token；非 Bearer 方案或空 token 返回 null */
@@ -261,6 +319,66 @@ export const defaultAdminDeps: AdminDeps = {
     if (packIds.length === 0) return;
     const { error: insertError } = await client.from("pack_exposure").insert(packIds.map((packId) => ({ pack_id: packId })));
     if (insertError) throw new Error(insertError.message);
+  },
+
+  // 知识点词表全量读取（#79，service_role）：名称稳定排序展示；含停用条目（管理视图即全量）
+  fetchKnowledgeAreas: async () => {
+    const { data, error } = await serverPrivilegedClient()
+      .from("knowledge_area")
+      .select("id,name,description,active")
+      .order("name");
+    if (error) throw new Error(error.message);
+    return (data ?? []) as AdminKnowledgeAreaEntry[];
+  },
+
+  // 词表条目创建：唯一约束（name）违例映射为 duplicate（业务态），其余异常上抛由编排层兜底 500
+  insertKnowledgeArea: async (entry) => {
+    const { data, error } = await serverPrivilegedClient()
+      .from("knowledge_area")
+      .insert({ name: entry.name, description: entry.description })
+      .select("id")
+      .single();
+    if (error) {
+      if (error.code === "23505") return { status: "duplicate" };
+      throw new Error(error.message);
+    }
+    return { status: "ok", id: (data as { id: string }).id };
+  },
+
+  // 词表条目编辑：带回读行判定 not_found（0 行受影响 = 条目不存在）；唯一违例映射 duplicate
+  updateKnowledgeArea: async (id, entry) => {
+    const { data, error } = await serverPrivilegedClient()
+      .from("knowledge_area")
+      .update({ name: entry.name, description: entry.description })
+      .eq("id", id)
+      .select("id");
+    if (error) {
+      if (error.code === "23505") return "duplicate";
+      throw new Error(error.message);
+    }
+    return (data ?? []).length === 0 ? "not_found" : "updated";
+  },
+
+  // 词表条目删除（本票即物理删除；被引用禁删在 #83 引用形态落地后引入）
+  deleteKnowledgeArea: async (id) => {
+    const { data, error } = await serverPrivilegedClient()
+      .from("knowledge_area")
+      .delete()
+      .eq("id", id)
+      .select("id");
+    if (error) throw new Error(error.message);
+    return (data ?? []).length === 0 ? "not_found" : "deleted";
+  },
+
+  // 词表条目启停：停用条目仍可被既有包引用、只是不能再被新圈选（ADR 0010）
+  setKnowledgeAreaActive: async (id, active) => {
+    const { data, error } = await serverPrivilegedClient()
+      .from("knowledge_area")
+      .update({ active })
+      .eq("id", id)
+      .select("id");
+    if (error) throw new Error(error.message);
+    return (data ?? []).length === 0 ? "not_found" : "updated";
   },
 };
 
@@ -496,6 +614,116 @@ export async function saveAdminPackExposure(
   try {
     await deps.replaceExposedPackIds([...normalized]);
     return { status: "ok" };
+  } catch {
+    return { status: "error" };
+  }
+}
+
+// ══════════════ 知识点词表管理（#79 / spec #75，ADR 0010） ══════════════
+// 全部走「访问后台 + 知识点词表管理」双权限点（authorizeAdminRequest 附加权限先例：域包放出管理）；
+// 写入经 service_role 落库（RLS 无写策略兜底）；删除本票即物理删除——被引用禁删与被引用视图
+// 属后续票 #83（引用形态尚不存在），不做不预留。
+
+/** 名称归一：去首尾空白；空串非法返回 null */
+function normalizeKnowledgeAreaName(raw: unknown): string | null {
+  if (typeof raw !== "string") return null;
+  const name = raw.trim();
+  return name === "" ? null : name;
+}
+
+/** 描述归一：非字符串或纯空白归空串（描述可选） */
+function normalizeKnowledgeAreaDescription(raw: unknown): string {
+  return typeof raw === "string" ? raw.trim() : "";
+}
+
+/** 词表全量列表：鉴权前置（双权限点）→ 全量回读（含停用条目） */
+export async function listKnowledgeAreas(
+  authorization: string | null,
+  deps: AdminDeps = defaultAdminDeps,
+): Promise<AdminKnowledgeAreaListResult> {
+  const auth = await authorizeAdminRequest(authorization, deps, PERMISSIONS.knowledgeAreaVocab);
+  if (auth.status !== "ok") return auth;
+  try {
+    return { status: "ok", entries: await deps.fetchKnowledgeAreas() };
+  } catch {
+    return { status: "error" };
+  }
+}
+
+/** 词表条目创建：鉴权前置 → 名称/描述归一（名称必填非空）→ 落库；重名冲突单独成态 */
+export async function createKnowledgeArea(
+  rawName: unknown,
+  rawDescription: unknown,
+  authorization: string | null,
+  deps: AdminDeps = defaultAdminDeps,
+): Promise<AdminKnowledgeAreaCreateResult> {
+  const auth = await authorizeAdminRequest(authorization, deps, PERMISSIONS.knowledgeAreaVocab);
+  if (auth.status !== "ok") return auth;
+  const name = normalizeKnowledgeAreaName(rawName);
+  if (name === null) return { status: "invalid" };
+  const description = normalizeKnowledgeAreaDescription(rawDescription);
+  try {
+    const outcome = await deps.insertKnowledgeArea({ name, description });
+    if (outcome.status === "duplicate") return { status: "duplicate_name" };
+    return { status: "ok", id: outcome.id };
+  } catch {
+    return { status: "error" };
+  }
+}
+
+/** 词表条目编辑（名称 + 描述）：鉴权前置 → 归一 → 落库；不存在 / 重名冲突单独成态 */
+export async function updateKnowledgeArea(
+  id: string,
+  payload: { name: unknown; description: unknown },
+  authorization: string | null,
+  deps: AdminDeps = defaultAdminDeps,
+): Promise<AdminKnowledgeAreaUpdateResult> {
+  const auth = await authorizeAdminRequest(authorization, deps, PERMISSIONS.knowledgeAreaVocab);
+  if (auth.status !== "ok") return auth;
+  const name = normalizeKnowledgeAreaName(payload.name);
+  if (name === null) return { status: "invalid" };
+  const description = normalizeKnowledgeAreaDescription(payload.description);
+  try {
+    const outcome = await deps.updateKnowledgeArea(id, { name, description });
+    if (outcome === "not_found") return { status: "not_found" };
+    if (outcome === "duplicate") return { status: "duplicate_name" };
+    return { status: "ok" };
+  } catch {
+    return { status: "error" };
+  }
+}
+
+/** 词表条目删除（物理删除）：鉴权前置 → 落库；不存在单独成态 */
+export async function deleteKnowledgeArea(
+  id: string,
+  authorization: string | null,
+  deps: AdminDeps = defaultAdminDeps,
+): Promise<AdminKnowledgeAreaDeleteResult> {
+  const auth = await authorizeAdminRequest(authorization, deps, PERMISSIONS.knowledgeAreaVocab);
+  if (auth.status !== "ok") return auth;
+  try {
+    const outcome = await deps.deleteKnowledgeArea(id);
+    if (outcome === "not_found") return { status: "not_found" };
+    return { status: "ok" };
+  } catch {
+    return { status: "error" };
+  }
+}
+
+/** 词表条目启停：鉴权前置 → 载荷校验（active 布尔）→ 落库；停用条目仍可被既有包引用（ADR 0010） */
+export async function setKnowledgeAreaActive(
+  id: string,
+  active: unknown,
+  authorization: string | null,
+  deps: AdminDeps = defaultAdminDeps,
+): Promise<AdminKnowledgeAreaActiveResult> {
+  const auth = await authorizeAdminRequest(authorization, deps, PERMISSIONS.knowledgeAreaVocab);
+  if (auth.status !== "ok") return auth;
+  if (typeof active !== "boolean") return { status: "invalid" };
+  try {
+    const outcome = await deps.setKnowledgeAreaActive(id, active);
+    if (outcome === "not_found") return { status: "not_found" };
+    return { status: "ok", active };
   } catch {
     return { status: "error" };
   }
