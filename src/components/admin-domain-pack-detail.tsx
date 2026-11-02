@@ -7,6 +7,8 @@
 // 严格只读：本组件不发起任何变更请求。
 
 import Link from "next/link";
+import AdminDomainPackTemplates from "@/components/admin-domain-pack-templates";
+import type { DifficultyTierDefinition } from "@/kernel/domain-pack-contract";
 import type { ColumnDefinition, DomainPack, TableDefinition } from "@/kernel/types";
 
 export interface AdminDomainPackDetailProps {
@@ -16,6 +18,9 @@ export interface AdminDomainPackDetailProps {
   pack: DomainPack | null;
   /** 云端清单加载完成标记（false = 展示清单可能不全，暂按加载中呈现） */
   cloudLoaded: boolean;
+  /** 难度档位定义（票 #80）：留在资产态供教师端展示（ADR-0009），由页面从资产形态解析注入；
+   * 内核域包转换会丢弃该字段，缺省时分区提示无定义 */
+  difficultyTiers?: DifficultyTierDefinition[];
 }
 
 /** 单列的骨架描述行：角色 / 名称池 / 类型 / 值池（或外键引用）/ 空值注入 */
@@ -79,7 +84,71 @@ function SkeletonTableCard({ table }: { table: TableDefinition }) {
   );
 }
 
-export default function AdminDomainPackDetail({ packId, pack, cloudLoaded }: AdminDomainPackDetailProps) {
+/** 单个难度档位定义卡片：级别 / 名称 / 含义描述 / 代表该档的 SQL 样例 */
+function DifficultyTierCard({ tier }: { tier: DifficultyTierDefinition }) {
+  return (
+    <li
+      className="卡片 rounded-xl border border-ink/10 bg-paper px-4 py-3"
+      data-testid={`难度档位-${tier.level}`}
+    >
+      <p className="font-medium">
+        第 {tier.level} 档 · {tier.name}
+      </p>
+      <p className="mt-1 text-sm text-muted">{tier.description}</p>
+      <p className="mt-1 font-mono text-xs">代表样例：{tier.sampleSql}</p>
+    </li>
+  );
+}
+
+/** 难度档位与演练配置分区：五档定义 + 会话总题数与各档数量分布 */
+function DifficultyAndConfigSection({
+  difficultyTiers,
+  practiceConfig,
+}: {
+  difficultyTiers?: DifficultyTierDefinition[];
+  practiceConfig?: DomainPack["practiceConfig"];
+}) {
+  return (
+    <section id="难度档位与演练配置" className="flex flex-col gap-3" data-testid="难度档位分区" aria-label="难度档位与演练配置">
+      <h2 className="标题 text-base">难度档位与演练配置</h2>
+      <p className="text-xs text-muted">
+        难度 1-5 各档的含义定义（含代表该档的 SQL 样例），以及每次会话的抽题配置。两者均为 A 类改动：即时生效、不产生域包版本。
+      </p>
+      {difficultyTiers === undefined ? (
+        <p className="text-sm text-muted">该域包暂无难度档位定义。</p>
+      ) : (
+        <ul className="flex flex-col gap-2">
+          {difficultyTiers.map((tier) => (
+            <DifficultyTierCard key={tier.level} tier={tier} />
+          ))}
+        </ul>
+      )}
+      {/* 演练配置为可选字段：内核域包兼容无配置的历史调用方，缺省回退默认抽题算法 */}
+      {practiceConfig === undefined ? (
+        <p className="text-sm text-muted">该域包未配置演练参数，按默认算法抽题。</p>
+      ) : (
+        <div className="卡片 rounded-xl border border-ink/10 bg-paper px-4 py-3 text-sm" data-testid="演练配置摘要">
+          <p>
+            <span className="text-muted">演练配置：</span>每次会话<span data-testid="演练配置总题数">总题数：{practiceConfig.totalQuestions} 题</span>
+          </p>
+          <p className="mt-1 text-xs text-muted">
+            档位分布：
+            {["1", "2", "3", "4", "5"]
+              .map((level) => `第 ${level} 档 ${practiceConfig.tierDistribution[level] ?? 0} 题`)
+              .join("、")}
+          </p>
+        </div>
+      )}
+    </section>
+  );
+}
+
+export default function AdminDomainPackDetail({
+  packId,
+  pack,
+  cloudLoaded,
+  difficultyTiers,
+}: AdminDomainPackDetailProps) {
   if (!cloudLoaded) {
     return <p className="呼吸 text-sm text-muted" data-testid="域包详情加载中">正在加载域包清单……</p>;
   }
@@ -130,19 +199,27 @@ export default function AdminDomainPackDetail({ packId, pack, cloudLoaded }: Adm
           <SkeletonTableCard key={table.tableRole} table={table} />
         ))}
       </section>
-      {/* 后续票（#80/#81）补全的分区占位：锚点目标先落位，内容随票填充 */}
-      <section id="知识点清单" data-testid="知识点清单分区" aria-label="知识点清单">
-        <h2 className="标题 mb-1 text-base">知识点清单</h2>
-        <p className="text-sm text-muted">分区建设中（后续功能补全）。</p>
+      {/* 知识点清单（票 #80）：有序清单，顺序即会话抽题推进顺序（票 #58 下放域包字段） */}
+      <section id="知识点清单" className="flex flex-col gap-3" data-testid="知识点清单分区" aria-label="知识点清单">
+        <h2 className="标题 text-base">知识点清单</h2>
+        <p className="text-xs text-muted">
+          该场景考察的知识点与推进顺序（共 {pack.knowledgeAreas?.length ?? 0} 类）：会话抽题按此顺序推进。
+        </p>
+        {pack.knowledgeAreas === undefined ? (
+          <p className="text-sm text-muted">该域包未携带知识点清单。</p>
+        ) : (
+          <ol className="卡片 flex flex-col gap-1 rounded-xl border border-ink/10 bg-paper px-4 py-3 text-sm">
+            {pack.knowledgeAreas.map((area, index) => (
+              <li key={area} data-testid={`知识点条目-${index}`}>
+                {index + 1}. {area}
+              </li>
+            ))}
+          </ol>
+        )}
       </section>
-      <section id="题目列表" data-testid="题目列表分区" aria-label="题目列表">
-        <h2 className="标题 mb-1 text-base">题目列表</h2>
-        <p className="text-sm text-muted">分区建设中（后续功能补全）。</p>
-      </section>
-      <section id="难度档位与演练配置" data-testid="难度档位分区" aria-label="难度档位与演练配置">
-        <h2 className="标题 mb-1 text-base">难度档位与演练配置</h2>
-        <p className="text-sm text-muted">分区建设中（后续功能补全）。</p>
-      </section>
+      {/* 题目列表分区（票 #81）：概要行 + 展开完整题 */}
+      <AdminDomainPackTemplates templates={pack.templates} />
+      <DifficultyAndConfigSection difficultyTiers={difficultyTiers} practiceConfig={pack.practiceConfig} />
     </div>
   );
 }

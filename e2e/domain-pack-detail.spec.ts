@@ -142,3 +142,92 @@ test("有「访问后台」但无「域包管理」权限直访详情页被拦�
   await expect(page).toHaveURL(/\/admin\/packs$/, { timeout: 10_000 });
   await expect(page.getByTestId("域包列表")).toBeVisible();
 });
+
+// —— 票 #80：知识点清单 + 难度档位/演练配置分区 ——
+
+test("知识点清单分区：按包内顺序完整展示（顺序即会话抽题推进顺序）", async ({ page }) => {
+  await mockTeacherPermissions(page);
+  await attachDetailPageStubs(page);
+
+  await page.goto("/admin/packs/student-course-grade");
+  const section = page.getByTestId("知识点清单分区");
+
+  // 有序清单：七类知识点全量呈现，序号顺序与包内 knowledgeAreas 一致（会话按此顺序推进）
+  const items = section.getByTestId(/^知识点条目-/);
+  await expect(items).toHaveCount(7);
+  await expect(section.getByTestId("知识点条目-0")).toContainText("1. 单表查询与投影");
+  await expect(section.getByTestId("知识点条目-6")).toContainText("7. 综合应用");
+});
+
+test("难度档位分区：五档定义（名称/描述/代表样例）+ 演练配置（总题数/五档分布）", async ({ page }) => {
+  await mockTeacherPermissions(page);
+  await attachDetailPageStubs(page);
+
+  await page.goto("/admin/packs/student-course-grade");
+  const section = page.getByTestId("难度档位分区");
+
+  // 难度五档定义：档位级别、名称、描述与代表 SQL 样例（抽查首末两档）
+  await expect(section.getByTestId("难度档位-1")).toContainText("第 1 档 · 入门");
+  await expect(section.getByTestId("难度档位-1")).toContainText("单表查询与列投影");
+  await expect(section.getByTestId("难度档位-1")).toContainText("SELECT {{col.学生.姓名}} FROM {{table.学生}}");
+  await expect(section.getByTestId("难度档位-5")).toContainText("第 5 档 · 挑战");
+  await expect(section.getByTestId("难度档位-5")).toContainText("多条件组合的综合应用");
+
+  // 演练配置：总题数与各档数量分布（内置包默认 10 题 1/3/3/2/1）
+  const config = section.getByTestId("演练配置摘要");
+  await expect(config).toContainText("总题数：10");
+  await expect(config).toContainText("第 1 档 1 题");
+  await expect(config).toContainText("第 2 档 3 题");
+  await expect(config).toContainText("第 3 档 3 题");
+  await expect(config).toContainText("第 4 档 2 题");
+  await expect(config).toContainText("第 5 档 1 题");
+});
+
+// —— 票 #81：题目列表分区（概要行 + 展开完整题）——
+
+test("题目列表分区：概要行覆盖全部模板，含题面摘要/知识点归属/难度", async ({ page }) => {
+  await mockTeacherPermissions(page);
+  await attachDetailPageStubs(page);
+
+  await page.goto("/admin/packs/student-course-grade");
+  const section = page.getByTestId("题目列表分区");
+
+  // 学生-课程-成绩内置包共 34 个题目模板：概要行数与包模板数一致
+  await expect(section.getByTestId(/^题目概要行-/)).toHaveCount(34);
+
+  // 概要行含题面摘要、知识点归属与难度
+  const row = section.getByTestId("题目概要行-single-select-all");
+  await expect(row).toContainText("查询所有学生的姓名。");
+  await expect(row).toContainText("知识点：单表查询与投影");
+  await expect(row).toContainText("难度：1");
+  // 抽查另一知识点归属与更高难度
+  await expect(section.getByTestId("题目概要行-comp-join-agg-having")).toContainText("知识点：综合应用");
+  await expect(section.getByTestId("题目概要行-comp-join-agg-having")).toContainText("难度：5");
+});
+
+test("题目展开显示完整内容：题面/提示×2/参考答案/常见错误/参数池/有序性", async ({ page }) => {
+  await mockTeacherPermissions(page);
+  await attachDetailPageStubs(page);
+
+  await page.goto("/admin/packs/student-course-grade");
+  const section = page.getByTestId("题目列表分区");
+
+  // 选带对象参数池、常见错误与行序敏感的模板（single-order-by-scholarship）点开验证
+  await section.getByTestId("题目概要行-single-order-by-scholarship").click();
+  const detail = section.getByTestId("题目完整内容-single-order-by-scholarship");
+  await expect(detail).toBeVisible();
+  await expect(detail).toContainText("题面：");
+  await expect(detail).toContainText("提示一：");
+  await expect(detail).toContainText("提示二：");
+  await expect(detail).toContainText("参考答案：SELECT");
+  await expect(detail).toContainText("常见错误：");
+  await expect(detail).toContainText("参数池：排序方向：描述:从高到低·SQL:DESC、描述:从低到高·SQL:ASC");
+  await expect(detail).toContainText("有序性：行序敏感（含 ORDER BY）");
+
+  // 行序不敏感且无参数池的模板对照（agg-count-all：可选字段缺省不渲染对应行）
+  await section.getByTestId("题目概要行-agg-count-all").click();
+  const plain = section.getByTestId("题目完整内容-agg-count-all");
+  await expect(plain).toBeVisible();
+  await expect(plain).toContainText("有序性：行序不敏感");
+  await expect(plain).not.toContainText("参数池：");
+});

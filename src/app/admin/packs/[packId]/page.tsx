@@ -10,6 +10,7 @@ import { useParams } from "next/navigation";
 import AdminDomainPackDetail from "@/components/admin-domain-pack-detail";
 import AdminPackManageGuard from "@/components/admin-pack-manage-guard";
 import { useDisplayPacks } from "@/components/use-display-packs";
+import { builtinPackAssets } from "@/domain-packs/builtin-packs";
 
 export default function AdminPackDetailPage() {
   // 动态段 packId 可能含 @vN 版本后缀（Next 动态参数已自动解码，此处再 decode 兜底编码形态）
@@ -17,10 +18,20 @@ export default function AdminPackDetailPage() {
   const packId = decodeURIComponent(params.packId);
   const { cloud, displayPacks } = useDisplayPacks();
   const pack = displayPacks.find((d) => d.packId === packId) ?? null;
+  // 难度档位定义留在资产态（ADR-0009，内核转换会丢弃）：云端同 id 资产优先
+  // （A 类改动即时改云端行，同 mergePackRegistries 的 practiceConfig 覆盖口径），否则内置资产
+  const difficultyTiers =
+    cloud.assets.find((a) => a.packId === packId)?.difficultyTiers ??
+    builtinPackAssets.find((a) => a.packId === packId)?.difficultyTiers;
 
   return (
     <AdminPackManageGuard>
-      <AdminDomainPackDetail packId={packId} pack={pack} cloudLoaded={cloud.loaded} />
+      <AdminDomainPackDetail
+        packId={packId}
+        pack={pack}
+        cloudLoaded={cloud.loaded}
+        difficultyTiers={difficultyTiers}
+      />
     </AdminPackManageGuard>
   );
 }
