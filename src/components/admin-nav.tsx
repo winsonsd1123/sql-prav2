@@ -2,7 +2,7 @@
 
 // 后台侧边导航（#50 起源，#65 / spec #64 改两层）：无子项的功能域（用户管理 / 邮箱白名单）第一层直达；
 // 域包管理为分组第一层，子功能点常显（不折叠——导航总量小，直接展示最简）。
-// 本票先挂「域包列表」子项（指向现有域包管理页），版本历史 / 放出管理 / 演练配置随后续票挂上。
+// 本票挂全四子项（#65 骨架，#70 补 versions / exposure / practice-config）。
 // 选中态判定用 resolveActiveNavKey（前缀归属：生成 / 微调页高亮「域包列表」，见 admin-nav-active.ts）。
 // 宽屏纵向排列、当前项左侧竖条；窄屏退化为横滑胶囊条，分组标题作为不可点分隔呈现。
 import Link from "next/link";
@@ -14,9 +14,13 @@ const directItems = [
   { key: "whitelist", href: "/admin/whitelist", label: "邮箱白名单" },
 ] as const;
 
-// 域包管理组子项（#65 仅挂列表；后续票在此补 versions / exposure / practice-config）
+// 域包管理组子项（#70 挂全四项：列表占根路径，历史/放出/配置巡检式导航直达；
+// 生成 / 微调页不在导航列示，active 前缀归属「域包列表」——见 admin-nav-active.ts）
 const packGroupItems = [
   { key: "packs-list", href: "/admin/packs", label: "域包列表" },
+  { key: "packs-versions", href: "/admin/packs/versions", label: "版本历史" },
+  { key: "packs-exposure", href: "/admin/packs/exposure", label: "放出管理" },
+  { key: "packs-practice-config", href: "/admin/packs/practice-config", label: "演练配置" },
 ] as const;
 
 type NavLinkProps = {

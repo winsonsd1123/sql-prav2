@@ -9,8 +9,8 @@ import type { GateReport } from "../src/kernel/domain-pack-gate";
 // 由 domain-pack-admin-page.spec.ts（单页混排时代）整体迁移而来。
 // LLM 打桩设计与迁移前一致：浏览器 fetch 打 page.route 桩即可，服务端出站 DeepSeek
 // 请求无法也无需在此拦截（真实协议边界由 domain-pack-generation.spec 直打路由覆盖）。
-// 发布后回跳的列表页（/admin/packs）目前仍是六区块混排旧页（#70 删除），同页其余
-// 区块的 API 桩（放出/演练配置/版本历史）保留，回跳后 console 保持卫生。
+// 发布后回跳的列表页（/admin/packs，#70 起为纯列表页）依赖的 API 桩
+// （放出/演练配置/版本历史）保留，回跳后 console 保持卫生。
 
 // console 卫生：全用例期间页面不得出现 console.error/warning 或未捕获异常。
 // 例外过滤：本 spec 打桩的 502/503 失败响应会被浏览器记为资源加载错误（Failed to load resource …），
@@ -46,7 +46,7 @@ async function mockTeacherPermissions(page: Page) {
   });
 }
 
-/** 回跳目标列表页（旧单页暂存，#70 删除）其余区块的 API 桩 + cloudPackStore 依赖表 */
+/** 回跳目标列表页（#70 起纯列表页）依赖的 API 桩 + cloudPackStore 依赖表 */
 async function mockReturnTargetPage(page: Page) {
   await page.route("**/api/admin/pack-exposure", async (route) => {
     await route.fulfill({ status: 200, contentType: "application/json", body: JSON.stringify({ packIds: [] }) });

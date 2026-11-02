@@ -6,8 +6,11 @@
 // 复用 #57 加载层，不加只读 API——管理页与学生端同一数据源，见施工记录的取舍说明）；
 // 放出状态自查 GET /api/admin/pack-exposure（与放出管理区块同源同语义：空清单 = 默认全放）。
 // 行视图口径在 domain-pack-admin-view-model 纯函数（单测锁死），本组件只渲染。
+// 行内入口（票 #70 / spec #64 入口规则）：变更操作从列表进入——「微调」「版本历史」
+// 携带目标基础名 ?packId= 跨页跳转（替代旧页锚点滚动，目标页读取参数自动预选）。
 
 import { useEffect, useState } from "react";
+import { useRouter } from "next/navigation";
 import { bearerHeaders, getSessionAuth } from "@/lib/admin-api-client";
 import { buildDomainPackListRows, type DomainPackListRow } from "@/components/domain-pack-admin-view-model";
 import type { DomainPack } from "@/kernel/types";
@@ -19,11 +22,10 @@ export interface AdminDomainPackListProps {
   builtinBaseIds: ReadonlySet<string>;
   /** 云端就绪标记（false = 仍在拉取，列表只含内置，副注说明） */
   cloudLoaded: boolean;
-  /** 行内「微调」入口回调（票 #62）：携带该行基础名，页面据此定位微调区块 */
-  onRefine?: (basePackId: string) => void;
 }
 
-export default function AdminDomainPackList({ packs, builtinBaseIds, cloudLoaded, onRefine }: AdminDomainPackListProps) {
+export default function AdminDomainPackList({ packs, builtinBaseIds, cloudLoaded }: AdminDomainPackListProps) {
+  const router = useRouter();
   // null = 放出清单未配置（默认全部放出）；undefined = 尚未加载完成（列表暂不渲染）
   const [exposedIds, setExposedIds] = useState<ReadonlySet<string> | null | undefined>(undefined);
 
@@ -100,14 +102,22 @@ export default function AdminDomainPackList({ packs, builtinBaseIds, cloudLoaded
                     <span className="text-muted">未放出</span>
                   )}
                 </td>
-                <td className="py-1.5">
+                <td className="flex gap-2 py-1.5">
                   <button
                     type="button"
                     className="次按钮 px-2 py-1 text-xs"
                     data-testid={`微调入口-${row.name}`}
-                    onClick={() => onRefine?.(row.basePackId)}
+                    onClick={() => router.push(`/admin/packs/refine?packId=${encodeURIComponent(row.basePackId)}`)}
                   >
                     微调
+                  </button>
+                  <button
+                    type="button"
+                    className="次按钮 px-2 py-1 text-xs"
+                    data-testid={`版本历史入口-${row.name}`}
+                    onClick={() => router.push(`/admin/packs/versions?packId=${encodeURIComponent(row.basePackId)}`)}
+                  >
+                    版本历史
                   </button>
                 </td>
               </tr>

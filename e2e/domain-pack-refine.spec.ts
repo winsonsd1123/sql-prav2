@@ -122,9 +122,9 @@ test("packId 预选：B 类微调→确认产生 v2，学生旧会话钉旧版�
   await page.getByTestId("确认生效").click();
   await expect(page.getByTestId("微调生效反馈")).toContainText("library-loan@v2");
 
-  // —— 版本历史核对回到管理页（旧单页版本历史区块，#70 拆分前仍在）：v2 置顶标「当前」 ——
-  await page.goto("/admin/packs");
-  await page.getByTestId("版本历史目标域包").selectOption(BASE);
+  // —— 版本历史核对：跳独立版本历史页（#70 拆分后 /admin/packs 为纯列表页），v2 置顶标「当前」 ——
+  await page.goto(`/admin/packs/versions?packId=${BASE}`);
+  await expect(page.getByTestId("版本历史目标域包")).toHaveValue(BASE);
   await expect(page.getByTestId("版本历史列表")).toContainText("当前（新会话使用）");
   await expect(page.getByTestId("版本历史列表")).toContainText("历史（旧会话钉住）");
 

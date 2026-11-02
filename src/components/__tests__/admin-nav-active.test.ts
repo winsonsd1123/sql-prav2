@@ -25,10 +25,10 @@ describe("resolveActiveNavKey", () => {
     expect(resolveActiveNavKey("/admin/packs/refine?packId=library-loan")).toBe("packs-list");
   });
 
-  it("后续票子项路径（版本历史 / 放出 / 演练配置）暂不归属任何已挂子项", () => {
-    expect(resolveActiveNavKey("/admin/packs/versions")).toBeNull();
-    expect(resolveActiveNavKey("/admin/packs/exposure")).toBeNull();
-    expect(resolveActiveNavKey("/admin/packs/practice-config")).toBeNull();
+  it("子项路径各归其 key（票 #70 挂全四子项后的归属登记）", () => {
+    expect(resolveActiveNavKey("/admin/packs/versions")).toBe("packs-versions");
+    expect(resolveActiveNavKey("/admin/packs/exposure")).toBe("packs-exposure");
+    expect(resolveActiveNavKey("/admin/packs/practice-config")).toBe("packs-practice-config");
   });
 
   it("不相关的后台路径无选中项", () => {
