@@ -7,6 +7,7 @@
 // 严格只读：本组件不发起任何变更请求。
 
 import Link from "next/link";
+import AdminDomainPackTemplates from "@/components/admin-domain-pack-templates";
 import type { ColumnDefinition, DomainPack, TableDefinition } from "@/kernel/types";
 
 export interface AdminDomainPackDetailProps {
@@ -130,15 +131,13 @@ export default function AdminDomainPackDetail({ packId, pack, cloudLoaded }: Adm
           <SkeletonTableCard key={table.tableRole} table={table} />
         ))}
       </section>
-      {/* 后续票（#80/#81）补全的分区占位：锚点目标先落位，内容随票填充 */}
+      {/* 后续票（#80）补全的分区占位：锚点目标先落位，内容随票填充 */}
       <section id="知识点清单" data-testid="知识点清单分区" aria-label="知识点清单">
         <h2 className="标题 mb-1 text-base">知识点清单</h2>
         <p className="text-sm text-muted">分区建设中（后续功能补全）。</p>
       </section>
-      <section id="题目列表" data-testid="题目列表分区" aria-label="题目列表">
-        <h2 className="标题 mb-1 text-base">题目列表</h2>
-        <p className="text-sm text-muted">分区建设中（后续功能补全）。</p>
-      </section>
+      {/* 题目列表分区（票 #81）：概要行 + 展开完整题 */}
+      <AdminDomainPackTemplates templates={pack.templates} />
       <section id="难度档位与演练配置" data-testid="难度档位分区" aria-label="难度档位与演练配置">
         <h2 className="标题 mb-1 text-base">难度档位与演练配置</h2>
         <p className="text-sm text-muted">分区建设中（后续功能补全）。</p>
