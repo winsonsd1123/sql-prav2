@@ -12,6 +12,7 @@
 | `docs/adr/0005` | RBAC：判定只认权限点，不认角色 |
 | `docs/adr/0007` | 后台鉴权定在 API 层 |
 | `docs/agents/domain.md` | agent 输出（issue 标题、测试名、重构提案等）使用 GLOSSARY 词汇，不漂移 |
+| `docs/e2e-conventions.md` | e2e 惯例：中文 testid、route 打桩、console 卫生、E2E_PORT 并行隔离、已知 flake 登记与处置口径 |
 | `issues/` | 施工记录惯例：「日期-标题.md」，上下文/计划/执行记录三段 |
 | `docs/screenshots/` | 验收视觉证据归档：`<feature>/before|after/` 同名同尺寸对照 |
 
