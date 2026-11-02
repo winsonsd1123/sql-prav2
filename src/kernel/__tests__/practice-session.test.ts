@@ -1,8 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { generatePracticeSession } from "@/kernel/question-picking";
 import { generateSession } from "@/kernel/generate";
-import { loadPackA } from "@/domain-packs/student-course-grades/pack-a";
-import { loadPackB } from "@/domain-packs/employee-department-salary/pack-b";
+import { builtinDomainPacks } from "@/domain-packs/builtin-packs";
 import type { DomainPack } from "@/kernel/types";
 
 /**
@@ -21,7 +20,7 @@ const knowledgeAreaOrder = [
   "综合应用",
 ];
 
-const packs: DomainPack[] = [loadPackA(), loadPackB()];
+const packs: DomainPack[] = [builtinDomainPacks[0], builtinDomainPacks[1]];
 
 describe.each(packs.map((pack) => [pack.name, pack]))(
   "%s 会话按知识点出题",

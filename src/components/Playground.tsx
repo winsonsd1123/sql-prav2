@@ -16,9 +16,18 @@ import {
   regenerateSession,
   setPack,
   instanceLabel,
-  domainPackRegistry,
   createDraftSaver,
 } from "@/components/session-store";
+import {
+  builtinDomainPacks,
+  mergePackRegistries,
+  pickLatestVersionPerBase,
+  findSessionPack,
+} from "@/components/domain-pack-registry";
+import { parsePackIdVersion } from "@/kernel/domain-pack-versioning";
+import { cloudPackStore } from "@/components/cloud-domain-pack-store";
+import { packExposureStore } from "@/components/pack-exposure-store";
+import { filterExposedPacks } from "@/lib/pack-exposure";
 import {
   emptyProgress,
   recordPass,
@@ -59,14 +68,39 @@ export default function Playground() {
   const packId = useSyncExternalStore(
     packStore.subscribe,
     packStore.getSnapshot,
-    () => domainPackRegistry[0].packId, // SSR 快照：客户端真实值在 hydrate 后生效
+    () => builtinDomainPacks[0].packId, // SSR 快照：客户端真实值在 hydrate 后生效
   );
+  // 合并加载（#57）：内置同步 + 云端异步合并。云端就绪前合并结果即内置两包（首屏不闪错）；
+  // 选中云端域包且云端未就绪时查表落空 → pack 为 null → 会话暂不生成（下方「正在生成会话」态），
+  // 就绪后即刻解析——绝不回退内置包A 顶替，避免闪错域包与进度键错位。
+  const cloudPacks = useSyncExternalStore(
+    cloudPackStore.subscribe,
+    cloudPackStore.getSnapshot,
+    cloudPackStore.getServerSnapshot,
+  );
+  // 展示注册表（票 #62）：合并后按基础名收敛为最新版——B 类微调出新版本后，
+  // 切换胶囊只显示当前最新版本；被取代的旧版本不进展示清单。
+  const registry = useMemo(
+    () => pickLatestVersionPerBase(mergePackRegistries(builtinDomainPacks, cloudPacks.packs)),
+    [cloudPacks],
+  );
+  // 会话域包解析（票 #62：进行中会话钉旧版本）：旧 packId 在 内置 → 云端当前 → 云端历史
+  // 中查表解析旧内容；查不到（云端未就绪/脏数据）会话暂不生成，不回退包A 顶替（#57 策略）。
   const pack = useMemo(
-    () => domainPackRegistry.find((d) => d.packId === packId) ?? domainPackRegistry[0],
-    [packId],
+    () => findSessionPack(builtinDomainPacks, cloudPacks.packs, cloudPacks.historyPacks, packId),
+    [cloudPacks, packId],
   );
+  // 域包放出（#55）：可演练列表 = 注册表 ∩ 系统级放出清单；清单异步就绪前为 null（未配置=全放），
+  // 首屏按全放渲染、就绪后过滤，不闪错。放出与否不影响进行中会话：当前选中的域包即使不再放出，
+  // 会话与进度照旧，只是切换胶囊不再展示它。
+  const exposure = useSyncExternalStore(
+    packExposureStore.subscribe,
+    packExposureStore.getSnapshot,
+    packExposureStore.getServerSnapshot,
+  );
+  const visiblePacks = useMemo(() => filterExposedPacks(registry, exposure), [registry, exposure]);
   const session = useMemo(
-    () => (seed === null ? null : generatePracticeSession(seed, pack)),
+    () => (seed === null || pack === null ? null : generatePracticeSession(seed, pack)),
     [seed, pack],
   );
   const [currentQuestionIndex, setCurrentQuestionIndex] = useState(0);
@@ -283,7 +317,8 @@ export default function Playground() {
   }
 
   function onSwitchPack(targetPackId: string) {
-    if (targetPackId === pack.packId) return;
+    // 会话守卫已保证渲染到交互时 pack 必非空（云端未就绪的加载态不渲染交互区）
+    if (pack === null || targetPackId === pack.packId) return;
     draftSaver.flushNow(); // 同上：落盘后再换键，避免草稿写进新会话
     setPack(targetPackId);
     onReset();
@@ -338,12 +373,14 @@ export default function Playground() {
         <h1 className="标题 text-[1.65rem] leading-none">SQL 演练场</h1>
         <div className="flex flex-wrap items-center gap-2">
           <span className="inline-flex rounded-full bg-ink/[0.06] p-0.5">
-            {domainPackRegistry.map((d) => (
+            {visiblePacks.map((d) => (
               <button
                 key={d.packId}
                 onClick={() => onSwitchPack(d.packId)}
                 className={`rounded-full px-3 py-1 text-xs ${
-                  d.packId === pack.packId
+                  // 高亮按基础名匹配：旧会话钉在旧版本时，同基础名的最新版本胶囊即其归处
+                  pack !== null &&
+                  parsePackIdVersion(d.packId).base === parsePackIdVersion(pack.packId).base
                     ? "bg-panel font-medium text-ink shadow-sm"
                     : "text-muted hover:text-ink"
                 }`}

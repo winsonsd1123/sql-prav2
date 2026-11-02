@@ -81,3 +81,41 @@ export function createCloudProgressStub() {
   };
   return { rows, receivedWrites, attach, rowKey };
 }
+
+// 云端域包资产表桩（票 #57）：演练场加载层会拉 /rest/v1/domain_pack_asset 合并云端域包，
+// 离线 e2e 回放内存行集（默认空 = 云端无域包，学生端仅见内置两包）。
+export interface DomainPackAssetRow {
+  pack_id: string;
+  asset: unknown;
+}
+
+export function createDomainPackAssetStub() {
+  const rows: DomainPackAssetRow[] = [];
+  const attach = async (page: Page) => {
+    await page.route("**/rest/v1/domain_pack_asset*", async (route) => {
+      await route.fulfill({
+        status: 200,
+        contentType: "application/json",
+        body: JSON.stringify(rows),
+      });
+    });
+  };
+  return { rows, attach };
+}
+
+// 版本历史表桩（票 #62）：加载层会随资产表一并拉 /rest/v1/domain_pack_version_history，
+// 学生端离线 e2e 回放内存行集（默认空 = 无历史版本，进行中会话无需钉旧版）。
+// 已有 spec 只桩资产表时会漏出这张表的真实请求（anon 401 打进 console 卫生），故单列。
+export function createDomainPackVersionHistoryStub() {
+  const rows: DomainPackAssetRow[] = [];
+  const attach = async (page: Page) => {
+    await page.route("**/rest/v1/domain_pack_version_history*", async (route) => {
+      await route.fulfill({
+        status: 200,
+        contentType: "application/json",
+        body: JSON.stringify(rows),
+      });
+    });
+  };
+  return { rows, attach };
+}

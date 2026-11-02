@@ -1,7 +1,7 @@
 import { describe, it, expect } from "vitest";
 import fixtureJson from "./fixtures/mysql-error-fixtures.json";
 import { generateSession } from "../generate";
-import { loadPackA } from "@/domain-packs/student-course-grades/pack-a";
+import { builtinDomainPacks } from "@/domain-packs/builtin-packs";
 import { judge } from "../judge";
 
 /**
@@ -22,7 +22,7 @@ const fixture = fixtureJson as {
 const wordBoundary = "(?![A-Za-z0-9_$\\u4e00-\\u9fff])";
 
 describe("错误保真度夹具回归", () => {
-  const pack = loadPackA();
+  const pack = builtinDomainPacks[0];
   const session = generateSession(42, pack);
   const question = session.questions[0];
 

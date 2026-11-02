@@ -9,14 +9,24 @@ type Database = InstanceType<Engine["Database"]>;
 
 let loadedEngine: Engine | null = null;
 
+/**
+ * Node 端 wasm 定位：指向随部署恒定分发的 public 副本。
+ * 不用 sql.js 默认的 __dirname 定位——serverless 打包不携带 node_modules/sql.js/dist 下的
+ * wasm 二进制（文件追踪只看到 JS chunk），默认定位在部署环境 ENOENT（教师端闸门生成检查触发）。
+ * process.cwd() 为项目根（public 目录同级）；不引入 node:path 以保持本模块浏览器同构。
+ */
+export function resolveNodeSqlWasmPath(): string {
+  return `${process.cwd()}/public/sql-wasm.wasm`;
+}
+
 /** sql.js 为 WASM 包，需动态加载；浏览器（主线程或 Worker，均无 Node fs）中 wasm 文件位于 public/ */
 async function loadEngine(): Promise<Engine> {
   if (!loadedEngine) {
-    // Worker 全局无 window 但有 self；Node 测试环境两者皆无，走 sql.js 默认路径
+    // Worker 全局无 window 但有 self；Node（测试与服务端闸门）两者皆无
     const isBrowser = typeof window !== "undefined" || typeof self !== "undefined";
     const init = (await import("sql.js")).default;
     loadedEngine = await init(
-      isBrowser ? { locateFile: () => "/sql-wasm.wasm" } : {},
+      isBrowser ? { locateFile: () => "/sql-wasm.wasm" } : { locateFile: resolveNodeSqlWasmPath },
     );
   }
   return loadedEngine;

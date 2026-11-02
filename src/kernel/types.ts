@@ -58,12 +58,37 @@ export interface QuestionTemplate {
   paramPool?: Record<string, (string | number | Record<string, string>)[]>;
 }
 
+/**
+ * 演练配置（GLOSSARY「演练配置」，票 #61）：会话总题数 + 各难度档位的数量分布。
+ * A 类改动（ADR-0009：不参与种子生成，即时生效、不产生域包版本）——
+ * 影响的是抽题（题目选取）而非库/数据生成路径。
+ */
+export interface PracticeConfiguration {
+  /** 每次会话的题目总数 */
+  totalQuestions: number;
+  /** 各档位数量分布，键为档位数字的字符串形式（"1"-"5"，JSON 对象键必为字符串） */
+  tierDistribution: Record<string, number>;
+}
+
 /** 域包：一个业务场景的完整定义 */
 export interface DomainPack {
   packId: string;
   name: string;
   schemaSkeleton: TableDefinition[];
   templates: QuestionTemplate[];
+  /**
+   * 演练配置（票 #61）：抽题按此生成（总题数 + 各档分布）。缺省回退旧算法
+   * （固定 10 题、知识点保底 + 种子随机余量，不施加难度约束）——
+   * 兼容自造模板且不带配置的历史调用方（单测夹具）。
+   * 数据资产域包（契约必填 practiceConfig）经 assetToKernelPack 恒有值。
+   */
+  practiceConfig?: PracticeConfiguration;
+  /**
+   * 有序知识点清单（票 #58 下放域包字段）：会话抽题按此顺序推进。
+   * 数据资产域包（契约校验必填）恒有值；缺省回退 question-picking 的内置七类
+   * （兼容无清单的历史调用方，如自造模板的单测）。
+   */
+  knowledgeAreas?: string[];
 }
 
 /** 规范化显示值：NULL 与空串严格区分、数值与字符串严格区分 */
@@ -74,12 +99,25 @@ export interface ResultSet {
   rows: DisplayValue[][];
 }
 
+/** 外键指向（实例化后的实际列名）：本表列 → 被引用表.被引用列 */
+export interface ForeignKeyMarker {
+  column: string;
+  referencesTable: string;
+  referencesColumn: string;
+}
+
 export interface TableInstance {
   tableName: string;
   columnNames: string[];
   types: string[];
   DDL: string;
   rows: (string | number | null)[][];
+  /** 主键列（serialKey 实例化后的实际列名）；未声明 serialKey 的表缺省 */
+  primaryKeyColumn?: string;
+  /** 外键列清单（结构语义，供 DDL 子句、完整性断言与列清单徽章共用） */
+  foreignKeys?: ForeignKeyMarker[];
+  /** DDL 中声明 NOT NULL 的列实际名（含主键列） */
+  notNullColumns?: string[];
 }
 
 /** 题目实例：模板结合会话库实例化出的可作答题目 */
