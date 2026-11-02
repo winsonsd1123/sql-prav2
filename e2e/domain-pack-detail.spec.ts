@@ -143,6 +143,46 @@ test("有「访问后台」但无「域包管理」权限直访详情页被拦�
   await expect(page.getByTestId("域包列表")).toBeVisible();
 });
 
+// —— 票 #80：知识点清单 + 难度档位/演练配置分区 ——
+
+test("知识点清单分区：按包内顺序完整展示（顺序即会话抽题推进顺序）", async ({ page }) => {
+  await mockTeacherPermissions(page);
+  await attachDetailPageStubs(page);
+
+  await page.goto("/admin/packs/student-course-grade");
+  const section = page.getByTestId("知识点清单分区");
+
+  // 有序清单：七类知识点全量呈现，序号顺序与包内 knowledgeAreas 一致（会话按此顺序推进）
+  const items = section.getByTestId(/^知识点条目-/);
+  await expect(items).toHaveCount(7);
+  await expect(section.getByTestId("知识点条目-0")).toContainText("1. 单表查询与投影");
+  await expect(section.getByTestId("知识点条目-6")).toContainText("7. 综合应用");
+});
+
+test("难度档位分区：五档定义（名称/描述/代表样例）+ 演练配置（总题数/五档分布）", async ({ page }) => {
+  await mockTeacherPermissions(page);
+  await attachDetailPageStubs(page);
+
+  await page.goto("/admin/packs/student-course-grade");
+  const section = page.getByTestId("难度档位分区");
+
+  // 难度五档定义：档位级别、名称、描述与代表 SQL 样例（抽查首末两档）
+  await expect(section.getByTestId("难度档位-1")).toContainText("第 1 档 · 入门");
+  await expect(section.getByTestId("难度档位-1")).toContainText("单表查询与列投影");
+  await expect(section.getByTestId("难度档位-1")).toContainText("SELECT {{col.学生.姓名}} FROM {{table.学生}}");
+  await expect(section.getByTestId("难度档位-5")).toContainText("第 5 档 · 挑战");
+  await expect(section.getByTestId("难度档位-5")).toContainText("多条件组合的综合应用");
+
+  // 演练配置：总题数与各档数量分布（内置包默认 10 题 1/3/3/2/1）
+  const config = section.getByTestId("演练配置摘要");
+  await expect(config).toContainText("总题数：10");
+  await expect(config).toContainText("第 1 档 1 题");
+  await expect(config).toContainText("第 2 档 3 题");
+  await expect(config).toContainText("第 3 档 3 题");
+  await expect(config).toContainText("第 4 档 2 题");
+  await expect(config).toContainText("第 5 档 1 题");
+});
+
 // —— 票 #81：题目列表分区（概要行 + 展开完整题）——
 
 test("题目列表分区：概要行覆盖全部模板，含题面摘要/知识点归属/难度", async ({ page }) => {
