@@ -7,12 +7,14 @@
  * - 「随时查看参考答案」：挂载助教、教师（T5 消费）；
  * - 「访问后台」：后台管理（/admin）的进入能力，挂载管理员（首任为存量教师经迁移回填）；
  * - 「编辑题库」「安排练习」「查看学情」：随表预定义的占位，不挂角色（YAGNI，待对应功能实现时启用）；
- * - 「域包管理」：管理系统级域包放出清单（#55，spec #53 目标③），挂载教师、管理员。
+ * - 「域包管理」：管理系统级域包放出清单（#55，spec #53 目标③），挂载教师、管理员；
+ * - 「知识点词表管理」：维护全局知识点词表条目（#79 / spec #75，ADR 0010），挂载教师、管理员。
  */
 export const PERMISSIONS = {
   viewAnswersAnytime: "随时查看参考答案",
   adminConsole: "访问后台",
   packExposure: "域包管理",
+  knowledgeAreaVocab: "知识点词表管理",
   editQuestionBank: "编辑题库",
   assignPractice: "安排练习",
   viewAnalytics: "查看学情",

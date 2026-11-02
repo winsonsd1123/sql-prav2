@@ -12,7 +12,8 @@ export type AdminNavKey =
   | "packs-list"
   | "packs-versions"
   | "packs-exposure"
-  | "packs-practice-config";
+  | "packs-practice-config"
+  | "packs-vocab";
 
 export type AdminNavItem = {
   key: AdminNavKey;
@@ -40,4 +41,5 @@ export const ADMIN_NAV_PACK_GROUP_ITEMS: readonly AdminNavItem[] = [
   { key: "packs-versions", href: "/admin/packs/versions", label: "版本历史" },
   { key: "packs-exposure", href: "/admin/packs/exposure", label: "放出管理" },
   { key: "packs-practice-config", href: "/admin/packs/practice-config", label: "演练配置" },
+  { key: "packs-vocab", href: "/admin/packs/vocab", label: "知识点词表" },
 ];
