@@ -40,6 +40,12 @@ describe("buildDomainPackPrompt", () => {
     expect(system).toContain("模板样例");
   });
 
+  it("JOIN 同名列的表限定技法（部署验收暴露过 ambiguous column name）", () => {
+    const { system } = buildDomainPackPrompt({ description: "图书馆借阅场景" });
+    expect(system).toContain("{{table.表角色}}.{{col.表角色.列角色}}");
+    expect(system).toContain("ambiguous");
+  });
+
   it("满足 DeepSeek JSON 输出模式前提：含「json」字样且给出输出格式说明", () => {
     const { system } = buildDomainPackPrompt({ description: "图书馆借阅场景" });
     expect(/json/i.test(system)).toBe(true);
