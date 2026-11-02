@@ -142,3 +142,52 @@ test("有「访问后台」但无「域包管理」权限直访详情页被拦�
   await expect(page).toHaveURL(/\/admin\/packs$/, { timeout: 10_000 });
   await expect(page.getByTestId("域包列表")).toBeVisible();
 });
+
+// —— 票 #81：题目列表分区（概要行 + 展开完整题）——
+
+test("题目列表分区：概要行覆盖全部模板，含题面摘要/知识点归属/难度", async ({ page }) => {
+  await mockTeacherPermissions(page);
+  await attachDetailPageStubs(page);
+
+  await page.goto("/admin/packs/student-course-grade");
+  const section = page.getByTestId("题目列表分区");
+
+  // 学生-课程-成绩内置包共 34 个题目模板：概要行数与包模板数一致
+  await expect(section.getByTestId(/^题目概要行-/)).toHaveCount(34);
+
+  // 概要行含题面摘要、知识点归属与难度
+  const row = section.getByTestId("题目概要行-single-select-all");
+  await expect(row).toContainText("查询所有学生的姓名。");
+  await expect(row).toContainText("知识点：单表查询与投影");
+  await expect(row).toContainText("难度：1");
+  // 抽查另一知识点归属与更高难度
+  await expect(section.getByTestId("题目概要行-comp-join-agg-having")).toContainText("知识点：综合应用");
+  await expect(section.getByTestId("题目概要行-comp-join-agg-having")).toContainText("难度：5");
+});
+
+test("题目展开显示完整内容：题面/提示×2/参考答案/常见错误/参数池/有序性", async ({ page }) => {
+  await mockTeacherPermissions(page);
+  await attachDetailPageStubs(page);
+
+  await page.goto("/admin/packs/student-course-grade");
+  const section = page.getByTestId("题目列表分区");
+
+  // 选带对象参数池、常见错误与行序敏感的模板（single-order-by-scholarship）点开验证
+  await section.getByTestId("题目概要行-single-order-by-scholarship").click();
+  const detail = section.getByTestId("题目完整内容-single-order-by-scholarship");
+  await expect(detail).toBeVisible();
+  await expect(detail).toContainText("题面：");
+  await expect(detail).toContainText("提示一：");
+  await expect(detail).toContainText("提示二：");
+  await expect(detail).toContainText("参考答案：SELECT");
+  await expect(detail).toContainText("常见错误：");
+  await expect(detail).toContainText("参数池：排序方向：描述:从高到低·SQL:DESC、描述:从低到高·SQL:ASC");
+  await expect(detail).toContainText("有序性：行序敏感（含 ORDER BY）");
+
+  // 行序不敏感且无参数池的模板对照（agg-count-all：可选字段缺省不渲染对应行）
+  await section.getByTestId("题目概要行-agg-count-all").click();
+  const plain = section.getByTestId("题目完整内容-agg-count-all");
+  await expect(plain).toBeVisible();
+  await expect(plain).toContainText("有序性：行序不敏感");
+  await expect(plain).not.toContainText("参数池：");
+});
