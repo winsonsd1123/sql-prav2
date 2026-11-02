@@ -27,6 +27,12 @@ function makeDeps(overrides: Partial<AdminDeps> = {}): AdminDeps {
     // #55 新增接缝：域包放出清单读写（本文件用例不触，给空实现补齐 AdminDeps 形状）
     fetchExposedPackIds: async () => [],
     replaceExposedPackIds: async () => undefined,
+    // #79 新增接缝：词表读写（本文件用例不触，给空实现补齐 AdminDeps 形状）
+    fetchKnowledgeAreas: async () => [],
+    insertKnowledgeArea: async () => ({ status: "ok", id: "ka-1" }),
+    updateKnowledgeArea: async () => "updated",
+    deleteKnowledgeArea: async () => "deleted",
+    setKnowledgeAreaActive: async () => "updated",
     ...overrides,
   };
 }
