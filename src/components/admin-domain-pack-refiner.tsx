@@ -4,7 +4,9 @@
 // 选择域包 → 修改意图（可附 SQL 样例）→ 同步等待 LLM（防重复提交）→ 验证报告 + A/B 类
 // 改动提示（明示后果：A 类即时生效、packId 不变；B 类将产生新版本、进行中会话钉旧版本）
 // → 确认生效 → 成功反馈。状态转移走 domain-pack-refine-flow 纯函数，本组件只按 phase 渲染。
-// 列表行「微调」入口经 targetBasePackId 预选目标（页面滚动定位到本区块）。
+// 跨页入口经 targetBasePackId 预选目标（票 #67：?packId= 查询参数契约；旧单页滚动定位
+// 机制由 #70 废除）。预选值须落在展示清单内：云端清单异步加载完成前选项未含目标包，
+// 预选在清单就绪后生效；参数无效（不在清单中）回退页内选择器兜底。
 // 鉴权在 API 层（ADR-0007）；经 admin-api-client 带 Bearer token。
 
 import { useState } from "react";
@@ -22,7 +24,7 @@ import type { DomainPack } from "@/kernel/types";
 export interface AdminDomainPackRefinerProps {
   /** 展示清单（页面收敛：每基础名一行最新版）；选择器的选项基础名派生 */
   packs: readonly DomainPack[];
-  /** 列表行「微调」入口预选的基础名（null = 未从列表进入） */
+  /** 跨页入口预选的基础名（null = 未指定；不在展示清单中视为无效，回退页内选择器） */
   targetBasePackId: string | null;
   /** 生效成功回调（页面注入：强制重拉云端清单，列表即时反映新版本） */
   onApplied?: () => void;
@@ -52,8 +54,12 @@ export default function AdminDomainPackRefiner({ packs, targetBasePackId, onAppl
     const { base } = parsePackIdVersion(d.packId);
     return { base, name: d.name };
   });
-  // 列表行「微调」入口预选：页面以 key={targetBasePackId} 挂载本组件，入口切换即重挂载回到预选值
-  const [selectedBase, setSelectedBase] = useState(targetBasePackId ?? "");
+  // 跨页入口预选：页面以 key={targetBasePackId} 挂载本组件，入口切换即重挂载回到预选值。
+  // 预选派生而非初始 state——云端清单异步就绪前选项未含目标包，就绪后预选随之生效；
+  // 用户手动选择后以手选值为准（含选回占位项），预选不再抢夺。
+  const [userSelected, setUserSelected] = useState<string | null>(null);
+  const preselected = targetBasePackId !== null && options.some((o) => o.base === targetBasePackId) ? targetBasePackId : null;
+  const selectedBase = userSelected ?? preselected ?? "";
   const [intent, setIntent] = useState("");
   const [sampleSql, setSampleSql] = useState("");
   const [phase, setPhase] = useState<Phase>({ kind: "idle" });
@@ -140,7 +146,7 @@ export default function AdminDomainPackRefiner({ packs, targetBasePackId, onAppl
             data-testid="微调目标域包"
             className="rounded-lg border border-ink/15 px-2 py-1.5 text-sm"
             value={selectedBase}
-            onChange={(e) => setSelectedBase(e.target.value)}
+            onChange={(e) => setUserSelected(e.target.value)}
             disabled={busy}
           >
             <option value="">请选择域包</option>
