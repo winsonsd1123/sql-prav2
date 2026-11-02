@@ -11,9 +11,6 @@ import { usePathname } from "next/navigation";
 import { resolveActiveNavKey } from "@/components/admin-nav-active";
 import { ADMIN_NAV_DIRECT_ITEMS, ADMIN_NAV_PACK_GROUP_ITEMS } from "@/components/admin-nav-routes";
 
-const directItems = ADMIN_NAV_DIRECT_ITEMS;
-const packGroupItems = ADMIN_NAV_PACK_GROUP_ITEMS;
-
 type NavLinkProps = {
   href: string;
   label: string;
@@ -49,7 +46,7 @@ export default function AdminNav() {
       data-testid="后台侧边导航"
       aria-label="后台导航"
     >
-      {directItems.map((item) => (
+      {ADMIN_NAV_DIRECT_ITEMS.map((item) => (
         <NavLink key={item.key} href={item.href} label={item.label} active={activeKey === item.key} />
       ))}
       {/* 分组第一层：不可点分隔（窄屏）+ 小节标题（宽屏）；子项常显 */}
@@ -60,7 +57,7 @@ export default function AdminNav() {
         域包管理
       </span>
       <div className="flex items-center gap-1 lg:flex-col lg:gap-0.5 lg:pl-2">
-        {packGroupItems.map((item) => (
+        {ADMIN_NAV_PACK_GROUP_ITEMS.map((item) => (
           <NavLink
             key={item.key}
             href={item.href}

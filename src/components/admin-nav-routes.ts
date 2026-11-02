@@ -3,8 +3,8 @@
 // （resolveActiveNavKey 的级联 + 前缀表），新增子路由须同改两处、易漏。收敛为本表
 // 单一数据源：href / label / 分组 / active 前缀规则在此声明，导航渲染与 active 判定
 // 均从表派生。口径见 spec #64 决策 3/4：第一层直达（用户管理 / 邮箱白名单）；
-// 域包管理组四子项常显（列表占根路径）；生成 / 微调页不在导航列示，activePrefixes
-// 声明其前缀归属「域包列表」。
+// 域包管理组四子项常显（列表占根路径）；生成 / 微调页不在导航列示，activePaths
+// 声明其归属「域包列表」。
 
 export type AdminNavKey =
   | "users"
@@ -20,7 +20,7 @@ export type AdminNavItem = {
   href: string;
   label: string;
   /** 不在导航列示、但按路径相等归属本项的路由（如生成 / 微调页归「域包列表」） */
-  activePrefixes?: readonly string[];
+  activePaths?: readonly string[];
 };
 
 /** 第一层直达项（无子项的功能域） */
@@ -35,7 +35,7 @@ export const ADMIN_NAV_PACK_GROUP_ITEMS: readonly AdminNavItem[] = [
     key: "packs-list",
     href: "/admin/packs",
     label: "域包列表",
-    activePrefixes: ["/admin/packs/generate", "/admin/packs/refine"],
+    activePaths: ["/admin/packs/generate", "/admin/packs/refine"],
   },
   { key: "packs-versions", href: "/admin/packs/versions", label: "版本历史" },
   { key: "packs-exposure", href: "/admin/packs/exposure", label: "放出管理" },

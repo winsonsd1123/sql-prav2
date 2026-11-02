@@ -21,9 +21,8 @@ describe("resolveActiveNavKey", () => {
     expect(resolveActiveNavKey("/admin/packs/refine")).toBe("packs-list");
   });
 
-  it("微调页带 query 参数时同样归属域包列表", () => {
-    expect(resolveActiveNavKey("/admin/packs/refine?packId=library-loan")).toBe("packs-list");
-  });
+  // 「?packId= 不影响归属」由 e2e 端到端覆盖（admin-nav-structure.spec）：
+  // 唯一调用方 usePathname() 从不返回 query，本函数契约输入即不含 query。
 
   it("子项路径各归其 key（票 #70 挂全四子项后的归属登记）", () => {
     expect(resolveActiveNavKey("/admin/packs/versions")).toBe("packs-versions");
