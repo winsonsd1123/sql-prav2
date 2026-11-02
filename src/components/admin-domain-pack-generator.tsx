@@ -8,9 +8,11 @@
 
 import { useState } from "react";
 
-/** 发布成功回调（页面注入：强制重拉云端清单，列表与放出管理即时纳入新包） */
+/** 终态回调（页面注入）：发布成功（强制重拉云端清单，列表与放出管理即时纳入新包）
+ * 与放弃草稿（票 #66：独立生成页借此回跳 /admin/packs；旧页暂不注入即维持原行为） */
 export interface AdminDomainPackGeneratorProps {
   onPublished?: () => void;
+  onDiscarded?: () => void;
 }
 import { postAdminJson } from "@/lib/admin-api-client";
 import {
@@ -29,7 +31,7 @@ type Phase =
   | { kind: "publishing"; outcome: GenerateOutcome & { phase: "report" } }
   | { kind: "published"; packId: string };
 
-export default function AdminDomainPackGenerator({ onPublished }: AdminDomainPackGeneratorProps) {
+export default function AdminDomainPackGenerator({ onPublished, onDiscarded }: AdminDomainPackGeneratorProps) {
   const [description, setDescription] = useState("");
   const [sampleSql, setSampleSql] = useState("");
   const [tableCount, setTableCount] = useState("");
@@ -196,7 +198,10 @@ export default function AdminDomainPackGenerator({ onPublished }: AdminDomainPac
                   {phase.kind === "publishing" ? "发布中……" : "确认发布"}
                 </button>
                 <button
-                  onClick={() => setPhase({ kind: "idle" })}
+                  onClick={() => {
+                    setPhase({ kind: "idle" });
+                    onDiscarded?.();
+                  }}
                   disabled={busy}
                   className="rounded-lg px-3 py-1.5 text-xs text-muted hover:text-ink disabled:opacity-50"
                 >

@@ -120,7 +120,7 @@ test("教师把内置包A 配置改为 7 题：学生端开练题数变为 7，�
   await mockTeacherPermissions(page);
   const { calls } = await mockPracticeConfigAdminApi(page);
   await mockAdminPageSiblingBlocks(page);
-  await page.goto("/admin/packs");
+  await page.goto("/admin/packs/practice-config");
   await expect(page.getByTestId("演练配置管理")).toBeVisible();
   await expect(page.getByTestId("演练配置总题数")).toHaveValue("10");
   await page.getByTestId("演练配置总题数").fill("7");
@@ -157,7 +157,7 @@ test("非法配置（各档总和不等于总题数）前端即拦：按钮禁�
   await mockTeacherPermissions(page);
   const { calls } = await mockPracticeConfigAdminApi(page);
   await mockAdminPageSiblingBlocks(page);
-  await page.goto("/admin/packs");
+  await page.goto("/admin/packs/practice-config");
   await expect(page.getByTestId("演练配置管理")).toBeVisible();
   await page.getByTestId("演练配置总题数").fill("7"); // 各档合计仍为 10
   await expect(page.getByTestId("演练配置校验提示")).toContainText("必须等于总题数");
