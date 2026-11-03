@@ -30,14 +30,22 @@
   --色-辅文: #909399;
   --色-占位: #c0c4cc;
 
-  /* 边框阶 */
-  --色-边框-基: #dcdfe6;
-  --色-边框-浅: #e4e7ed;
-  --色-边框: #ebeef5;
-  --色-边框-极浅: #f2f6fc;
+  /* 边框阶：一阶最深 → 四阶最浅（#93 单调阶梯；原 基 / 浅 / 边框 / 极浅，色值不变） */
+  --色-边框-一阶: #dcdfe6;
+  --色-边框-二阶: #e4e7ed;
+  --色-边框-三阶: #ebeef5;
+  --色-边框-四阶: #f2f6fc;
+
+  /* admin 侧栏专用：仅后台导航消费，学生端不引用 */
+  --色-侧栏-底: #304156;
+  --色-侧栏-子菜单: #1f2d3d;
+  --色-侧栏-文字: #bfcbd9;
+  --色-侧栏-当前: var(--色-主色); /* #409EFF */
+  --色-侧栏-亮字: #f4f4f5; /* 若依 theme-dark 菜单亮字（$base-menu-color-active），非 active 项 hover 补偿 */
+  --色-侧栏-悬停: rgba(0, 0, 0, 0.06);
 
   /* 画布与面板 */
-  --色-底: var(--色-边框-极浅);
+  --色-底: var(--色-边框-四阶);
   --色-面板: #ffffff;
   --色-深: var(--色-行悬停);
   --色-反色: var(--色-面板);
@@ -55,8 +63,9 @@
   --色-中性: #909399;
   --色-借助: #6d4f99;
 
-  /* 卡片 */
+  /* 卡片与侧栏投影 */
   --阴影-卡片: 0 2px 12px rgba(0, 0, 0, 0.1);
+  --阴影-侧栏: 2px 0 6px rgba(0, 21, 41, 0.35);
   --radius: 4px;
 
   /* shadcn 主题变量：一律映射到上方中文 token */
@@ -75,8 +84,8 @@
   --accent: var(--色-行悬停);
   --accent-foreground: var(--色-墨);
   --destructive: var(--色-错误);
-  --border: var(--色-边框);
-  --input: var(--色-边框-基);
+  --border: var(--色-边框-三阶);
+  --input: var(--色-边框-一阶);
   --ring: var(--色-主色);
 }
 
@@ -87,7 +96,14 @@
   --color-bg: var(--色-底);
   --color-panel: var(--色-面板);
   --color-deep: var(--色-深);
-  --color-border-strong: var(--色-边框);
+  --color-border-strong: var(--色-边框-三阶);
+  --color-sidebar: var(--色-侧栏-底);
+  --color-sidebar-sub: var(--色-侧栏-子菜单);
+  --color-sidebar-fg: var(--色-侧栏-文字);
+  --color-sidebar-active: var(--色-侧栏-当前);
+  --color-sidebar-bright: var(--色-侧栏-亮字);
+  --color-sidebar-hover: var(--色-侧栏-悬停);
+  --shadow-sidebar: var(--阴影-侧栏);
   --color-ink: var(--色-墨);
   --color-muted: var(--色-次文);
   --color-inverse: var(--色-反色);
@@ -148,7 +164,7 @@
 /* 白卡：4px 圆角 + 浅边 + 轻阴影 */
 .卡片 {
   background: var(--色-面板);
-  border: 1px solid var(--色-边框);
+  border: 1px solid var(--色-边框-三阶);
   border-radius: var(--radius);
   box-shadow: var(--阴影-卡片);
 }
@@ -185,7 +201,7 @@
 .次按钮 {
   background: var(--色-面板);
   color: var(--色-次文);
-  border: 1px solid var(--色-边框-基);
+  border: 1px solid var(--色-边框-一阶);
   border-radius: var(--radius);
   transition: background 150ms ease, border-color 150ms ease, color 150ms ease;
 }
@@ -196,14 +212,14 @@
 }
 .次按钮:disabled {
   color: var(--色-占位);
-  border-color: var(--色-边框);
+  border-color: var(--色-边框-三阶);
   cursor: not-allowed;
 }
 
 .输入框 {
   background: var(--色-面板);
   color: var(--色-次文);
-  border: 1px solid var(--色-边框-基);
+  border: 1px solid var(--色-边框-一阶);
   border-radius: var(--radius);
   font-size: 0.875rem;
   line-height: 1.25rem;
