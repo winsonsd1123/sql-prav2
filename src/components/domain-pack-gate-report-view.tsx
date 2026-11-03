@@ -12,7 +12,7 @@ export function GateReportView({ report }: { report: GateReport }) {
   const sections = buildGateReportSections(report);
   return (
     <div data-testid="验证报告" className="flex flex-col gap-2">
-      <p className={report.passed ? "text-sm font-medium text-emerald-700" : "text-sm font-medium text-red-700"}>
+      <p className={report.passed ? "text-sm font-medium text-pass" : "text-sm font-medium text-fail"}>
         {report.passed ? "验证通过：可确认发布" : "验证未通过：请根据以下明细修改后重试"}
       </p>
       {sections.map((section) => (
@@ -22,9 +22,9 @@ export function GateReportView({ report }: { report: GateReport }) {
             <span
               className={
                 section.status === "通过"
-                  ? "text-emerald-700"
+                  ? "text-pass"
                   : section.status === "失败"
-                    ? "text-red-700"
+                    ? "text-fail"
                     : "text-muted"
               }
             >
@@ -33,7 +33,7 @@ export function GateReportView({ report }: { report: GateReport }) {
             <span className="text-xs text-muted">{section.detail}</span>
           </p>
           {section.issues.length > 0 && (
-            <ul className="mt-1 flex list-disc flex-col gap-0.5 pl-5 text-xs text-red-700">
+            <ul className="mt-1 flex list-disc flex-col gap-0.5 pl-5 text-xs text-fail">
               {section.issues.map((issue, i) => (
                 <li key={i} data-testid={`验证报告问题-${i}`}>
                   {issue.templateId !== undefined && <span className="font-mono">[{issue.templateId}] </span>}

@@ -48,7 +48,7 @@ function TemplateItem({
   return (
     <li
       className={`卡片 rounded-xl border px-4 py-3 ${
-        isSelected ? "border-emerald-600 ring-1 ring-emerald-600" : "border-ink/10"
+        isSelected ? "border-primary ring-1 ring-primary" : "border-ink/10"
       } bg-paper`}
       data-testid={`题目卡片-${template.templateId}`}
     >
@@ -64,7 +64,7 @@ function TemplateItem({
           {selection && (
             <button
               type="button"
-              className={`ml-2 rounded-full px-2 py-0.5 text-xs ${isSelected ? "bg-emerald-700 text-white" : "border border-ink/20"}`}
+              className={`ml-2 rounded-full px-2 py-0.5 text-xs ${isSelected ? "bg-primary text-primary-foreground" : "border border-ink/20"}`}
               data-testid={`题目选中按钮-${template.templateId}`}
               aria-pressed={isSelected}
               onClick={(e) => {

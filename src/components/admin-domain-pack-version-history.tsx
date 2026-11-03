@@ -101,7 +101,7 @@ export default function AdminDomainPackVersionHistory({ packs, initialBasePackId
           ))}
         </select>
         {loading && <p className="text-sm text-muted">正在读取版本历史……</p>}
-        {error !== null && <p className="text-xs text-red-700" data-testid="版本历史错误">{error}</p>}
+        {error !== null && <p className="text-xs text-fail" data-testid="版本历史错误">{error}</p>}
         {versions !== null && !loading && error === null && (
           versions.length === 0 ? (
             <p className="text-sm text-muted">该域包尚无版本记录。</p>
@@ -124,7 +124,7 @@ export default function AdminDomainPackVersionHistory({ packs, initialBasePackId
                     <td className="py-1.5 pr-3">{v.name}</td>
                     <td className="py-1.5 text-xs">
                       {v.isCurrent ? (
-                        <span className="text-emerald-700">当前（新会话使用）</span>
+                        <span className="text-pass">当前（新会话使用）</span>
                       ) : (
                         <span className="text-muted">历史（旧会话钉住）</span>
                       )}
@@ -134,7 +134,7 @@ export default function AdminDomainPackVersionHistory({ packs, initialBasePackId
                     <td className="py-1.5">
                       <Link
                         href={`/admin/packs/versions/view?packId=${encodeURIComponent(v.packId)}`}
-                        className="text-xs text-sky-700 underline-offset-2 hover:underline"
+                        className="text-xs text-accent underline-offset-2 hover:underline"
                         data-testid={`查看内容-${v.packId}`}
                       >
                         查看内容

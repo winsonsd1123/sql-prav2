@@ -60,13 +60,13 @@ export default function SqlEditor({ value, onChange, onSubmit, tables, disabled,
       syntaxHighlighting(defaultHighlightStyle, { fallback: true }),
       cmPlaceholder("在此输入单条 SELECT 语句……"),
       EditorView.lineWrapping,
-      // 颜色走语义 token，随亮暗主题切换。扩展结构与受控同步不动。
+      // 颜色直连语义 token（不写兜底色值）；语法高亮沿用 defaultHighlightStyle 自带色。
       EditorView.theme({
         "&": {
           fontSize: "14px",
           minHeight: "168px",
-          backgroundColor: "var(--色-面板, #fff)",
-          color: "var(--色-墨, #111)",
+          backgroundColor: "var(--色-面板)",
+          color: "var(--色-墨)",
         },
         ".cm-content": {
           fontFamily: "var(--font-jetbrains-mono), ui-monospace, monospace",
@@ -81,11 +81,11 @@ export default function SqlEditor({ value, onChange, onSubmit, tables, disabled,
           color: "var(--色-次文)",
         },
         ".cm-activeLine": {
-          backgroundColor: "color-mix(in srgb, var(--色-墨, #111) 4%, transparent)",
+          backgroundColor: "color-mix(in srgb, var(--色-墨) 4%, transparent)",
         },
         ".cm-activeLineGutter": { backgroundColor: "transparent" },
         "&.cm-focused": {
-          outline: "1px solid color-mix(in srgb, var(--色-墨, #111) 18%, transparent)",
+          outline: "1px solid color-mix(in srgb, var(--色-墨) 18%, transparent)",
         },
       }),
       Prec.highest(

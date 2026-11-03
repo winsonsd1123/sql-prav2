@@ -40,7 +40,7 @@ function SkeletonColumnRow({ column }: { column: ColumnDefinition & { isPrimaryK
   return (
     <li className="border-t border-ink/5 py-1.5" data-testid={`骨架列-${column.columnRole}`}>
       <span className="font-medium">{column.columnRole}</span>
-      {column.isPrimaryKey && <span className="ml-1 text-[10px] text-emerald-700">主键</span>}
+      {column.isPrimaryKey && <span className="ml-1 text-[10px] text-accent">主键</span>}
       <span className="ml-2 text-xs text-muted">
         {column.columnNamePool && column.columnNamePool.length > 0
           ? `名称池：${column.columnNamePool.join("、")}`
@@ -49,7 +49,7 @@ function SkeletonColumnRow({ column }: { column: ColumnDefinition & { isPrimaryK
       </span>
       {/* 值池与外键引用互斥呈现：外键列值取自被引用表，无独立值池 */}
       {column.reference ? (
-        <span className="ml-2 text-xs text-amber-700">引用 {column.reference.table}.{column.reference.column}</span>
+        <span className="ml-2 text-xs text-neutral">引用 {column.reference.table}.{column.reference.column}</span>
       ) : (
         <span className="ml-2 text-xs text-muted">值池：{column.valuePool.join("、")}</span>
       )}
@@ -84,7 +84,7 @@ function SkeletonTableCard({
     : null;
   return (
     <section
-      className={`卡片 rounded-2xl border p-4 ${isSelected ? "border-emerald-600 ring-1 ring-emerald-600" : "border-ink/10"} bg-paper`}
+      className={`卡片 rounded-2xl border p-4 ${isSelected ? "border-primary ring-1 ring-primary" : "border-ink/10"} bg-paper`}
       data-testid={`骨架表-${table.tableRole}`}
       aria-label={`骨架表 ${table.tableRole}`}
     >
@@ -99,7 +99,7 @@ function SkeletonTableCard({
         {onToggleTable && (
           <button
             type="button"
-            className={`ml-auto self-center rounded-full px-2 py-0.5 text-xs ${isSelected ? "bg-emerald-700 text-white" : "border border-ink/20"}`}
+            className={`ml-auto self-center rounded-full px-2 py-0.5 text-xs ${isSelected ? "bg-primary text-primary-foreground" : "border border-ink/20"}`}
             data-testid={`表选中按钮-${table.tableRole}`}
             aria-pressed={isSelected}
             onClick={onToggleTable}
@@ -260,7 +260,7 @@ export default function AdminDomainPackDetail({
               return (
                 <li
                   key={area}
-                  className={`flex items-center gap-2 rounded-lg px-2 py-1 ${areaSelected ? "bg-emerald-50 ring-1 ring-emerald-600" : ""}`}
+                  className={`flex items-center gap-2 rounded-lg px-2 py-1 ${areaSelected ? "bg-primary/10 ring-1 ring-primary" : ""}`}
                   data-testid={`知识点条目-${index}`}
                 >
                   <span>
@@ -268,7 +268,7 @@ export default function AdminDomainPackDetail({
                   </span>
                   <button
                     type="button"
-                    className={`ml-auto rounded-full px-2 py-0.5 text-xs ${areaSelected ? "bg-emerald-700 text-white" : "border border-ink/20"}`}
+                    className={`ml-auto rounded-full px-2 py-0.5 text-xs ${areaSelected ? "bg-primary text-primary-foreground" : "border border-ink/20"}`}
                     data-testid={`知识点选中按钮-${area}`}
                     aria-pressed={areaSelected}
                     onClick={() => setTarget((prev) => toggleKnowledgeArea(prev, area))}

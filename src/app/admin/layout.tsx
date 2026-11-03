@@ -20,7 +20,7 @@ export default function AdminLayout({ children }: { children: ReactNode }) {
               Admin Console
             </p>
           </div>
-          <div className="basis-full border-t border-sidebar-sub pt-3 lg:flex-1 lg:basis-auto lg:pt-4">
+          <div className="basis-full border-t border-sidebar-divider pt-3 lg:flex-1 lg:basis-auto lg:pt-4">
             <AdminNav />
           </div>
           <AdminAccountArea />

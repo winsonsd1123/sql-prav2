@@ -112,12 +112,12 @@ export default function AdminPackExposureManager({ packs }: AdminPackExposureMan
         勾选的域包对学生可见（可演练列表）；清单为空时默认全部放出。放出与否不影响进行中的会话。
       </p>
       {error && (
-        <p role="alert" className="mb-3 rounded-lg bg-red-50 px-3 py-2 text-xs text-red-700">
+        <p role="alert" className="mb-3 rounded-lg bg-fail/10 px-3 py-2 text-xs text-fail">
           {error}
         </p>
       )}
       {notice && !error && (
-        <p role="status" className="mb-3 rounded-lg bg-emerald-50 px-3 py-2 text-xs text-emerald-700">
+        <p role="status" className="mb-3 rounded-lg bg-pass/10 px-3 py-2 text-xs text-pass">
           {notice}
         </p>
       )}
@@ -142,7 +142,7 @@ export default function AdminPackExposureManager({ packs }: AdminPackExposureMan
         })}
       </ul>
       {isUnconfigured && (
-        <p className="mb-3 text-xs text-amber-700">
+        <p className="mb-3 text-xs text-warn">
           未勾选任何域包：保存后清单清空，回到「默认全部放出」。
         </p>
       )}

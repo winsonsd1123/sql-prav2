@@ -38,7 +38,8 @@
 
   /* admin 侧栏专用：仅后台导航消费，学生端不引用 */
   --色-侧栏-底: #304156;
-  --色-侧栏-子菜单: #1f2d3d;
+  --色-侧栏-子菜单: #1f2d3d; /* 宽屏域包子菜单分组底 */
+  --色-侧栏-分界: var(--色-侧栏-子菜单); /* 导航与账户区之间的分界线 */
   --色-侧栏-文字: #bfcbd9;
   --色-侧栏-当前: var(--色-主色); /* #409EFF */
   --色-侧栏-亮字: #f4f4f5; /* 若依 theme-dark 菜单亮字（$base-menu-color-active），非 active 项 hover 补偿 */
@@ -99,6 +100,7 @@
   --color-border-strong: var(--色-边框-三阶);
   --color-sidebar: var(--色-侧栏-底);
   --color-sidebar-sub: var(--色-侧栏-子菜单);
+  --color-sidebar-divider: var(--色-侧栏-分界);
   --color-sidebar-fg: var(--色-侧栏-文字);
   --color-sidebar-active: var(--色-侧栏-当前);
   --color-sidebar-bright: var(--色-侧栏-亮字);
@@ -112,6 +114,7 @@
   --color-assist: var(--色-借助);
   --color-fail: var(--色-错误);
   --color-warn: var(--色-警示);
+  --color-neutral: var(--色-中性);
   --font-mono: var(--font-jetbrains-mono), ui-monospace, "SF Mono", monospace;
   --font-sans: var(--font-noto-sans), "PingFang SC", "Hiragino Sans GB", "Microsoft YaHei",
     "Noto Sans SC", system-ui, sans-serif;

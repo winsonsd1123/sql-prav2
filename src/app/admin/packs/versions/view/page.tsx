@@ -76,7 +76,7 @@ function VersionDiffSection({ diff, fromLabel, toLabel }: { diff: DomainPackDiff
       <p
         data-testid="版本diff结论"
         className={`w-fit rounded-full px-2.5 py-0.5 text-xs ${
-          diff.changeClass === "B" ? "bg-amber-50 text-amber-700" : "bg-panel text-muted"
+          diff.changeClass === "B" ? "bg-warn/10 text-warn" : "bg-panel text-muted"
         }`}
       >
         {DIFF_CLASS_LABEL[diff.changeClass]}
@@ -96,10 +96,10 @@ function VersionDiffSection({ diff, fromLabel, toLabel }: { diff: DomainPackDiff
               <span
                 className={
                   block.action === "added"
-                    ? "text-emerald-700"
+                    ? "text-pass"
                     : block.action === "removed"
-                      ? "text-red-700"
-                      : "text-amber-700"
+                      ? "text-fail"
+                      : "text-warn"
                 }
               >
                 {DIFF_ACTION_LABEL[block.action]}
@@ -196,7 +196,7 @@ function PackVersionViewContent() {
         <div className="flex flex-wrap items-center gap-3">
           <Link
             href={`/admin/packs/versions?packId=${encodeURIComponent(parsePackIdVersion(packId).base)}`}
-            className="text-xs text-sky-700 hover:underline"
+            className="text-xs text-accent hover:underline"
           >
             ← 返回版本历史
           </Link>
@@ -204,14 +204,14 @@ function PackVersionViewContent() {
           {content !== null && (
             <span
               data-testid="版本内容标识"
-              className={`rounded-full px-2.5 py-0.5 text-xs ${content.isCurrent ? "bg-emerald-50 text-emerald-700" : "bg-panel text-muted"}`}
+              className={`rounded-full px-2.5 py-0.5 text-xs ${content.isCurrent ? "bg-pass/10 text-pass" : "bg-panel text-muted"}`}
             >
               {content.isCurrent ? "当前版本（新会话使用）" : `历史版本 ${content.versionLabel}（旧会话钉住）`}
             </span>
           )}
         </div>
-        {missingPackId && <p className="text-sm text-red-700" data-testid="版本内容错误">缺少 packId 查询参数</p>}
-        {error !== null && <p className="text-sm text-red-700" data-testid="版本内容错误">{error}</p>}
+        {missingPackId && <p className="text-sm text-fail" data-testid="版本内容错误">缺少 packId 查询参数</p>}
+        {error !== null && <p className="text-sm text-fail" data-testid="版本内容错误">{error}</p>}
         {content === null && error === null && <p className="呼吸 text-sm text-muted">正在加载版本内容……</p>}
         {content !== null && !content.isCurrent && currentContent === null && diffBaseFailed && (
           <p data-testid="diff基准取数失败" className="text-xs text-muted">

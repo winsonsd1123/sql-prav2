@@ -96,9 +96,9 @@ export default function AdminDomainPackList({ packs, builtinBaseIds, cloudLoaded
                 <td className="py-1.5 pr-3 text-xs text-muted">{row.source}</td>
                 <td className="py-1.5 pr-3 text-xs">
                   {row.exposed && exposedIds === null ? (
-                    <span className="text-emerald-700">已放出（默认全放）</span>
+                    <span className="text-pass">已放出（默认全放）</span>
                   ) : row.exposed ? (
-                    <span className="text-emerald-700">已放出</span>
+                    <span className="text-pass">已放出</span>
                   ) : (
                     <span className="text-muted">未放出</span>
                   )}
