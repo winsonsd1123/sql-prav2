@@ -16,6 +16,7 @@
 
 - 每个 spec 在 `afterEach` 断言 `collectConsoleProblems` 为空：warning 及以上 console 输出即失败
 - 违例的正确修法是补齐页面所需的 API 桩，不是放宽断言
+- 断言统一走 `helpers.ts` 的 `expectConsoleClean(problems, exemptions?)`；豁免仅限「用例刻意桩失败响应、浏览器对 4xx/5xx 打的资源加载报错」这类无法补桩消除的预期噪声，且**必须收窄到桩失败资源的用例内传参**（用例置位标记、afterEach 按标记传入），文件级豁免会让同文件其他用例的违例逃逸（#96 验收补丁立此口径）
 
 ## 运行
 

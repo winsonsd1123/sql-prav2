@@ -1,5 +1,5 @@
 import { test, expect, type Page, type Route } from "@playwright/test";
-import { presetLoginState, collectConsoleProblems } from "./helpers";
+import { presetLoginState, collectConsoleProblems, expectConsoleClean } from "./helpers";
 
 // T5 · 邮箱白名单管理（issue #46 / spec #41）：离线 route-mock 覆盖配置展示、编辑保存载荷与总开关切换。
 // 权限两跳照 admin-users.spec.ts 的 mock 模式；/api/admin/whitelist* 用内存状态回放（写操作改状态后重读可见）。
@@ -58,15 +58,19 @@ async function mockAdminPermissions(page: Page) {
   });
 }
 
-// console 卫生（用户指令加严）：全用例期间页面不得出现 console.error/warning 或未捕获异常
+// console 卫生（用户指令加严）：全用例期间页面不得出现 console.error/warning 或未捕获异常；
+// 仅桩 400 的失败用例豁免其资源加载报错（用例内置位标记），其余用例零豁免
+const STUBBED_FAILURE_RESOURCE = /Failed to load resource: the server responded with a status of 400/;
 let consoleProblems: string[] = [];
+let stubbedFailureCase = false;
 test.beforeEach(async ({ page }) => {
   consoleProblems = collectConsoleProblems(page);
+  stubbedFailureCase = false;
   await presetLoginState(page);
   await mockAdminPermissions(page);
 });
 test.afterEach(() => {
-  expect(consoleProblems, `console 卫生违例：\n${consoleProblems.join("\n")}`).toEqual([]);
+  expectConsoleClean(consoleProblems, stubbedFailureCase ? [STUBBED_FAILURE_RESOURCE] : []);
 });
 
 test("配置展示：总开关收紧状态与域名清单（含备注）", async ({ page }) => {
@@ -115,4 +119,55 @@ test("总开关切换：点击放开发出 PATCH 载荷并刷新为放开状态"
   expect(calls.patchConfig).toEqual([{ allowAnyDomain: true }]);
   await expect(page.getByTestId("白名单总开关")).toContainText("已放开");
   await expect(page.getByTestId("白名单总开关")).toContainText("任何邮箱域名都可注册");
+});
+
+test("成功 toast（#96）：顶部居中浮出、不顶开布局、自动消失", async ({ page }) => {
+  await mockWhitelistApi(page);
+  await page.goto("/admin/whitelist");
+  const switchBlock = page.getByTestId("白名单总开关");
+  await expect(switchBlock).toBeVisible();
+  // 等页面入场动画落定再取基线（无限循环动画不等）
+  await page.evaluate(() =>
+    Promise.all(
+      document
+        .getAnimations()
+        .filter((a) => a.effect?.getTiming().iterations !== Infinity)
+        .map((a) => a.finished),
+    ),
+  );
+  const before = await switchBlock.boundingBox();
+
+  await page.getByTestId("保存域名清单").click();
+  const toast = page.getByTestId("白名单提示");
+  await expect(toast).toContainText("域名清单已保存");
+  await expect(toast).toHaveAttribute("data-type", "success");
+  // 浮层不占文档流：反馈出现前后表单分区位置不变；浮出在视口顶部居中（若依 Message 位）
+  expect(await switchBlock.boundingBox()).toEqual(before);
+  const box = await toast.boundingBox();
+  const viewport = page.viewportSize();
+  expect(box && viewport && box.y < viewport.height / 4 && Math.abs(box.x + box.width / 2 - viewport.width / 2) < 4).toBe(true);
+
+  await expect(toast).toBeHidden({ timeout: 10_000 });
+});
+
+test("失败 toast（#96）：透传服务端文案、错误语义，可继续操作", async ({ page }) => {
+  await mockWhitelistApi(page);
+  stubbedFailureCase = true; // 本用例桩 400，豁免其资源加载报错（仅本用例）
+  await page.route("**/api/admin/whitelist/domains", async (route: Route) => {
+    await route.fulfill({
+      status: 400,
+      contentType: "application/json",
+      body: JSON.stringify({ error: "域名格式不合法：stu..cuc" }),
+    });
+  });
+  await page.goto("/admin/whitelist");
+  await expect(page.getByTestId("域名行")).toHaveCount(2);
+
+  await page.getByTestId("保存域名清单").click();
+  const toast = page.getByTestId("白名单提示");
+  await expect(toast).toContainText("域名格式不合法：stu..cuc");
+  await expect(toast).toHaveAttribute("data-type", "error");
+  // busy 在 finally 解锁：失败后保存按钮立即恢复可用，草稿保留
+  await expect(page.getByTestId("保存域名清单")).toBeEnabled();
+  await expect(page.getByTestId("域名行")).toHaveCount(2);
 });

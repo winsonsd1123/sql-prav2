@@ -9,7 +9,14 @@
 // 停用条目仍可被既有包引用、只是不能再被新圈选（ADR 0010）。
 // 每次写操作成功后回读全量（写路径逐条化，无全量保存草稿态，回读保证与服务端一致）。
 import { useCallback, useEffect, useState } from "react";
+import { toast } from "sonner";
 import { getSessionAuth, readErrorMessage } from "@/lib/admin-api-client";
+
+/** 写操作反馈 toast：固定 id 使新反馈原位替换旧反馈（同一时刻只有一条） */
+const FEEDBACK_TOAST = { id: "词表提示", testId: "词表提示" };
+
+/** 错误反馈时长 8 秒（多条拼接的长错误读得完），成功仍走默认 4 秒 */
+const FEEDBACK_ERROR_TOAST = { ...FEEDBACK_TOAST, duration: 8000 };
 
 /** 词表条目（管理视图：名称 + 描述 + 启停态 + 被引用域包列表） */
 interface KnowledgeAreaEntry {
@@ -32,7 +39,6 @@ export default function AdminKnowledgeAreaManager() {
   const [entries, setEntries] = useState<KnowledgeAreaEntry[] | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [notice, setNotice] = useState<string | null>(null);
   const [newName, setNewName] = useState("");
   const [newDescription, setNewDescription] = useState("");
   const [editing, setEditing] = useState<EditingDraft | null>(null);
@@ -72,21 +78,20 @@ export default function AdminKnowledgeAreaManager() {
     })();
   }, [refresh]);
 
-  /** 四个写操作（创建/编辑/启停/删除）的公共骨架：busy 防重入 → 清 notice → 请求 →
-   *  成功清 error、出文案、onSuccess 收尾（如清输入/退编辑态）→ 回读全量；
-   *  失败透出服务端文案（no-session 已由 requestApi 提示重登，此处不重复 set） */
+  /** 四个写操作（创建/编辑/启停/删除）的公共骨架：busy 防重入 → 请求 →
+   *  成功清 error、成功 toast、onSuccess 收尾（如清输入/退编辑态）→ 回读全量；
+   *  失败 toast 透出服务端文案（no-session 已由 requestApi 提示重登，此处不重复提示） */
   const runWrite = async (path: string, init: RequestInit, successNotice: string, onSuccess?: () => void) => {
     if (busy) return;
     setBusy(true);
-    setNotice(null);
     try {
       await requestApi(path, init);
       setError(null);
-      setNotice(successNotice);
+      toast.success(successNotice, FEEDBACK_TOAST);
       onSuccess?.();
       await refresh();
     } catch (cause) {
-      if (cause instanceof Error && cause.message !== "no-session") setError(cause.message);
+      if (cause instanceof Error && cause.message !== "no-session") toast.error(cause.message, FEEDBACK_ERROR_TOAST);
     } finally {
       setBusy(false);
     }
@@ -152,13 +157,8 @@ export default function AdminKnowledgeAreaManager() {
         跨域包的知识点唯一来源：条目含名称与描述，可停用（停用后不能再被新圈选，既有引用不受影响）；被域包引用的条目不能删除，只能停用。
       </p>
       {error && (
-        <p role="alert" data-testid="词表提示" className="mb-3 rounded-lg bg-fail/10 px-3 py-2 text-xs text-fail">
+        <p role="alert" data-testid="词表错误" className="mb-3 rounded-lg bg-fail/10 px-3 py-2 text-xs text-fail">
           {error}
-        </p>
-      )}
-      {notice && !error && (
-        <p role="status" data-testid="词表提示" className="mb-3 rounded-lg bg-pass/10 px-3 py-2 text-xs text-pass">
-          {notice}
         </p>
       )}
 

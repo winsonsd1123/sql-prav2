@@ -7,7 +7,14 @@
 // 后续票 #60 的域包管理页会把本区块原样收纳，届时仅需换 props 来源。
 // 语义：清单为空（未配置）= 默认全部放出；保存空勾选即回到未配置（界面在该情形明示）。
 import { useCallback, useEffect, useState } from "react";
+import { toast } from "sonner";
 import { bearerHeaders, getSessionAuth, readErrorMessage } from "@/lib/admin-api-client";
+
+/** 写操作反馈 toast：固定 id 使新反馈原位替换旧反馈（同一时刻只有一条） */
+const FEEDBACK_TOAST = { id: "放出提示", testId: "放出提示" };
+
+/** 错误反馈时长 8 秒（多条拼接的长错误读得完），成功仍走默认 4 秒 */
+const FEEDBACK_ERROR_TOAST = { ...FEEDBACK_TOAST, duration: 8000 };
 
 /** 可选域包条目：packId 稳定标识，name 展示用（由调用方注入，便于 #60 搬迁换源） */
 export interface PackExposureOption {
@@ -25,7 +32,6 @@ export default function AdminPackExposureManager({ packs }: AdminPackExposureMan
   const [exposedIds, setExposedIds] = useState<Set<string> | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [notice, setNotice] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
 
   /** 拉取当前放出清单（保存成功后复用，保证展示的是最新配置） */
@@ -71,7 +77,6 @@ export default function AdminPackExposureManager({ packs }: AdminPackExposureMan
   const save = useCallback(async () => {
     if (exposedIds === null) return;
     setSaving(true);
-    setNotice(null);
     try {
       const { token } = await getSessionAuth();
       if (!token) {
@@ -84,14 +89,14 @@ export default function AdminPackExposureManager({ packs }: AdminPackExposureMan
         body: JSON.stringify({ packIds: [...exposedIds] }),
       });
       if (!response.ok) {
-        setError(await readErrorMessage(response, "放出清单保存失败"));
+        toast.error(await readErrorMessage(response, "放出清单保存失败"), FEEDBACK_ERROR_TOAST);
         return;
       }
       setError(null);
-      setNotice("已保存，学生端可演练列表即时生效");
+      toast.success("已保存，学生端可演练列表即时生效", FEEDBACK_TOAST);
       await refresh();
     } catch {
-      setError("放出清单保存失败，请稍后重试");
+      toast.error("放出清单保存失败，请稍后重试", FEEDBACK_ERROR_TOAST);
     } finally {
       setSaving(false);
     }
@@ -114,11 +119,6 @@ export default function AdminPackExposureManager({ packs }: AdminPackExposureMan
       {error && (
         <p role="alert" className="mb-3 rounded-lg bg-fail/10 px-3 py-2 text-xs text-fail">
           {error}
-        </p>
-      )}
-      {notice && !error && (
-        <p role="status" className="mb-3 rounded-lg bg-pass/10 px-3 py-2 text-xs text-pass">
-          {notice}
         </p>
       )}
       <ul className="mb-4 flex flex-col gap-2">

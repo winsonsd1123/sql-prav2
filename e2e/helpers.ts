@@ -2,7 +2,7 @@
 // 强制登录后，既有演练场 spec 需要在导航前预置一份未过期的 Supabase 登录态
 // （浏览器客户端固定存储键「演练场-supabase-auth」；auth-js 2.118 存扁平 Session 对象，
 //  顶层须含 access_token/refresh_token/expires_at，getSession 离线可读）。
-import type { Page } from "@playwright/test";
+import { expect, type Page } from "@playwright/test";
 
 export async function presetLoginState(page: Page) {
   await page.addInitScript(() => {
@@ -101,6 +101,16 @@ export function createDomainPackAssetStub() {
     });
   };
   return { rows, attach };
+}
+
+// console 卫生断言收口（#96 验收补丁）：exemptions 为可选豁免正则，仅限「桩失败响应引发的
+// 浏览器资源加载报错」这类无法补桩消除的预期噪声，且必须收窄到桩了失败资源的用例内传参——
+// 文件级豁免会让同文件其他用例的违例逃逸。豁免口径登记见 docs/e2e-conventions.md。
+export function expectConsoleClean(problems: string[], exemptions: RegExp[] = []) {
+  const effective = exemptions.length
+    ? problems.filter((m) => !exemptions.some((r) => r.test(m)))
+    : problems;
+  expect(effective, `console 卫生违例：\n${effective.join("\n")}`).toEqual([]);
 }
 
 // 版本历史表桩（票 #62）：加载层会随资产表一并拉 /rest/v1/domain_pack_version_history，

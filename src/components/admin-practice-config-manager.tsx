@@ -8,7 +8,14 @@
 // 进行中的学生会话题目与进度不受影响，下次开练/换一套按新配置生成。
 // 组件刻意独立（数据自取，不 import 注册表）：#60 的域包管理页收纳时整块搬迁即可。
 import { useCallback, useEffect, useMemo, useState } from "react";
+import { toast } from "sonner";
 import { bearerHeaders, getSessionAuth, readErrorMessage } from "@/lib/admin-api-client";
+
+/** 写操作反馈 toast：固定 id 使新反馈原位替换旧反馈（同一时刻只有一条） */
+const FEEDBACK_TOAST = { id: "演练配置提示", testId: "演练配置提示" };
+
+/** 错误反馈时长 8 秒（多条拼接的长错误读得完），成功仍走默认 4 秒 */
+const FEEDBACK_ERROR_TOAST = { ...FEEDBACK_TOAST, duration: 8000 };
 
 /** 配置视图条目（服务端 GET 返回形状） */
 interface PracticeConfigEntry {
@@ -63,7 +70,6 @@ export default function AdminPracticeConfigManager() {
   const [draft, setDraft] = useState<ConfigDraft | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [notice, setNotice] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
 
   const selected = useMemo(
@@ -110,7 +116,7 @@ export default function AdminPracticeConfigManager() {
       setSelectedPackId(packId);
       const entry = entries?.find((e) => e.packId === packId) ?? null;
       setDraft(entry === null ? null : toDraft(entry));
-      setNotice(null);
+      toast.dismiss(FEEDBACK_TOAST.id);
     },
     [entries],
   );
@@ -127,7 +133,6 @@ export default function AdminPracticeConfigManager() {
   const save = useCallback(async () => {
     if (draft === null || selectedPackId === null || draftErrors.length > 0) return;
     setSaving(true);
-    setNotice(null);
     try {
       const { token } = await getSessionAuth();
       if (!token) {
@@ -151,14 +156,14 @@ export default function AdminPracticeConfigManager() {
         // 400/422 带服务端中文错误清单（errors 数组），展示首条并整体列出
         const body = (await response.json().catch(() => null)) as { error?: string; errors?: string[] } | null;
         const messages = body?.errors?.length ? body.errors : [body?.error ?? "演练配置保存失败"];
-        setError(messages.join("；"));
+        toast.error(messages.join("；"), FEEDBACK_ERROR_TOAST);
         return;
       }
       setError(null);
-      setNotice("已保存，学生下次开练即按新配置生成（进行中的会话不受影响）");
+      toast.success("已保存，学生下次开练即按新配置生成（进行中的会话不受影响）", FEEDBACK_TOAST);
       await refresh();
     } catch {
-      setError("演练配置保存失败，请稍后重试");
+      toast.error("演练配置保存失败，请稍后重试", FEEDBACK_ERROR_TOAST);
     } finally {
       setSaving(false);
     }
@@ -183,11 +188,6 @@ export default function AdminPracticeConfigManager() {
       {error && (
         <p role="alert" className="mb-3 rounded-lg bg-fail/10 px-3 py-2 text-xs text-fail">
           {error}
-        </p>
-      )}
-      {notice && !error && (
-        <p role="status" className="mb-3 rounded-lg bg-pass/10 px-3 py-2 text-xs text-pass">
-          {notice}
         </p>
       )}
       <div className="mb-4 flex flex-wrap items-center gap-2 text-sm">

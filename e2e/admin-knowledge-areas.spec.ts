@@ -1,5 +1,5 @@
 import { test, expect, type Page, type Route } from "@playwright/test";
-import { presetLoginState, collectConsoleProblems } from "./helpers";
+import { presetLoginState, collectConsoleProblems, expectConsoleClean } from "./helpers";
 
 // 知识点词表管理页（issue #79 / spec #75，ADR 0010；#83 补被引用视图与禁删）：离线 route-mock
 // 覆盖列表展示、创建、编辑、启停与删除交互；权限两跳照 admin-whitelist.spec.ts 的 mock 模式
@@ -93,15 +93,19 @@ async function mockTeacherPermissions(page: Page, permissions: string[] = ["访�
   });
 }
 
-// console 卫生（用户指令加严）：全用例期间页面不得出现 console.error/warning 或未捕获异常
+// console 卫生（用户指令加严）：全用例期间页面不得出现 console.error/warning 或未捕获异常；
+// 仅桩 400 的失败用例豁免其资源加载报错（用例内置位标记），其余用例零豁免
+const STUBBED_FAILURE_RESOURCE = /Failed to load resource: the server responded with a status of 400/;
 let consoleProblems: string[] = [];
+let stubbedFailureCase = false;
 test.beforeEach(async ({ page }) => {
   consoleProblems = collectConsoleProblems(page);
+  stubbedFailureCase = false;
   await presetLoginState(page);
   await mockTeacherPermissions(page);
 });
 test.afterEach(() => {
-  expect(consoleProblems, `console 卫生违例：\n${consoleProblems.join("\n")}`).toEqual([]);
+  expectConsoleClean(consoleProblems, stubbedFailureCase ? [STUBBED_FAILURE_RESOURCE] : []);
 });
 
 test("列表展示：全量条目含停用态与描述，导航归属域包管理组", async ({ page }) => {
@@ -199,4 +203,26 @@ test("删除条目：物理删除后行消失", async ({ page }) => {
   await expect(page.getByTestId("词表提示")).toContainText("已删除");
   await expect(page.getByTestId("词表行-子查询")).toHaveCount(0);
   await expect(page.getByTestId("词表统计")).toContainText("共 1 个知识点");
+});
+
+test("写操作失败（#96）：toast 透传服务端文案，状态不变且按钮解锁", async ({ page }) => {
+  await mockKnowledgeAreaApi(page);
+  stubbedFailureCase = true; // 本用例桩 400，豁免其资源加载报错（仅本用例）
+  await page.route("**/api/admin/knowledge-areas/*", async (route) => {
+    if (route.request().method() !== "PATCH") return route.fallback();
+    await route.fulfill({
+      status: 400,
+      contentType: "application/json",
+      body: JSON.stringify({ error: "知识点条目不存在或已被删除" }),
+    });
+  });
+  await page.goto("/admin/packs/vocab");
+
+  const enable = page.getByTestId("词表行-子查询").getByRole("button", { name: "启用" });
+  await enable.click();
+  const toast = page.getByTestId("词表提示");
+  await expect(toast).toContainText("知识点条目不存在或已被删除");
+  await expect(toast).toHaveAttribute("data-type", "error");
+  await expect(page.getByTestId("词表行-子查询")).toContainText("已停用");
+  await expect(enable).toBeEnabled();
 });
