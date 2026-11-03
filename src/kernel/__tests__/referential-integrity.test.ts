@@ -161,7 +161,7 @@ import type { DomainPack, TableDefinition } from "@/kernel/types";
 
 /** 最小双表骨架：childTable引用parentTable，parentTable被引用列带 nullProbability（引用池必须剔 NULL） */
 function mkPack(schemaSkeleton: TableDefinition[]): DomainPack {
-  return { packId: "test-pack", name: "测试包", schemaSkeleton, templates: [] };
+  return { packId: "test-pack", name: "测试包", schemaSkeleton, templates: [], knowledgeAreas: [] };
 }
 
 const parentTable: TableDefinition = {

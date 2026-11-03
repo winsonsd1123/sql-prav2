@@ -77,6 +77,50 @@ describe("入库迁移与前端 JSON 同源", () => {
   });
 });
 
+describe("词表初始数据：内置两包清单合并去重（issue #84 核实，#79 迁移已落地）", () => {
+  it("内置两包知识点清单合并去重 = 七类全量（词表种子覆盖面）", () => {
+    const union = [...new Set(builtinPackAssets.flatMap((a) => a.knowledgeAreas))];
+    expect([...union]).toEqual([
+      "单表查询与投影",
+      "条件筛选与排序",
+      "聚合与分组",
+      "多表 JOIN",
+      "子查询",
+      "日期函数",
+      "综合应用",
+    ]);
+  });
+
+  it("词表迁移从 domain_pack_asset 展开 knowledgeAreas 种子 knowledge_area（与内置包资产同源不双写）", () => {
+    const sql = readFileSync("supabase/migrations/20261102000001_knowledge-area-vocabulary.sql", "utf8");
+    expect(sql).toContain("insert into public.knowledge_area");
+    expect(sql).toContain("jsonb_array_elements_text(asset->'knowledgeAreas')");
+  });
+});
+
+describe("内置包知识点清单引用化迁移（issue #84）", () => {
+  const sqlPath = "supabase/migrations/20261103000001_builtin-pack-knowledge-refs.sql";
+
+  it("迁移 SQL 存在且覆盖内置两包", () => {
+    const sql = readFileSync(sqlPath, "utf8");
+    expect(sql).toContain("'student-course-grade'");
+    expect(sql).toContain("'employee-department-payroll'");
+  });
+
+  it("按名称逐位对齐写入 knowledgeAreaRefIds（jsonb_set + join knowledge_area），不改 knowledgeAreas 本体", () => {
+    const sql = readFileSync(sqlPath, "utf8");
+    expect(sql).toContain("jsonb_set(asset, '{knowledgeAreaRefIds}'");
+    expect(sql).toContain("join public.knowledge_area");
+    // 只增引用数组、不动名称清单（归一化读取依赖名称逐位对齐，同种子复现不变）
+    expect(sql).not.toContain("jsonb_set(asset, '{knowledgeAreas}'");
+  });
+
+  it("幂等：已有引用数组的行跳过（not asset ? 'knowledgeAreaRefIds' 守卫）", () => {
+    const sql = readFileSync(sqlPath, "utf8");
+    expect(sql).toContain("not asset ? 'knowledgeAreaRefIds'");
+  });
+});
+
 describe("代码态域包下线", () => {
   it("TS 骨架与 YAML 模板文件已删除", () => {
     const legacy = [

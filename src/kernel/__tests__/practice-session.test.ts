@@ -77,6 +77,13 @@ describe.each(packs.map((pack) => [pack.name, pack]))(
       expect(hasDiff).toBe(true);
     });
 
+    it("缺知识点清单的域包直接抛错（回退常量已删，词表 + 包内清单全覆盖其职责）", () => {
+      // 契约（domain-pack-contract）要求数据资产域包必带清单，此路径仅在类型被绕过时触达；
+      // #84 删除 question-picking 的内置七类回退后，缺失即显式失败，不再静默回退
+      const noAreas = { ...pack, knowledgeAreas: undefined } as unknown as DomainPack;
+      expect(() => generatePracticeSession(1, noAreas)).toThrowError(/知识点清单/);
+    });
+
     it("库与全量生成同种子一致（抽题不改库），题目实例均为可判题形态", () => {
       const session = generatePracticeSession(20260101, pack);
       const fullSession = generateSession(20260101, pack);
