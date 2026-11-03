@@ -209,6 +209,8 @@ export default function Playground() {
   // 的时刻弹出；刷新载入已全通过的进度（首帧即全通过）不重弹。新会话（换一套/换域包）
   // 重置进度后，再次全通过会重新触发。
   const [summaryOpen, setSummaryOpen] = useState(false);
+  // 总结由验证通过触发，关闭后焦点还给验证按钮（判题期间按钮禁用已失焦，无法靠打开前的焦点还原）
+  const verifyButtonRef = useRef<HTMLButtonElement>(null);
   const wasAllPassed = useRef<boolean | null>(null);
   useEffect(() => {
     if (!session) return;
@@ -359,13 +361,15 @@ export default function Playground() {
 
   return (
     <div className="mx-auto flex min-h-screen w-full max-w-[1440px] flex-col px-4 py-4 lg:px-6">
-      {summaryOpen && session && (
+      {session && (
         <SessionSummary
+          open={summaryOpen}
           tiers={completionTierStats(progress, session.questions.length)}
           completed={progress.passedIndices.length}
           total={session.questions.length}
           onPlayAgain={onNewSession}
           onClose={() => setSummaryOpen(false)}
+          returnFocusRef={verifyButtonRef}
         />
       )}
 
@@ -525,6 +529,7 @@ export default function Playground() {
             </div>
             <div className="flex flex-wrap items-center gap-3">
               <button
+                ref={verifyButtonRef}
                 onClick={verify}
                 disabled={judging || sqlInput.trim().length === 0}
                 className="主按钮 px-5 py-2 text-sm"
