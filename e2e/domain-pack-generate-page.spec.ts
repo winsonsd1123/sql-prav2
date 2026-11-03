@@ -1,5 +1,5 @@
 import { test, expect, type Page, type Route } from "@playwright/test";
-import { presetLoginState, collectConsoleProblems, createDomainPackAssetStub, createDomainPackVersionHistoryStub } from "./helpers";
+import { presetLoginState, collectConsoleProblems, expectConsoleClean, createCloudProgressStub, createDomainPackAssetStub, createDomainPackVersionHistoryStub } from "./helpers";
 import { mkCloudPackJson, CLOUD_FIXTURE_KNOWLEDGE_AREAS } from "../src/kernel/__tests__/fixtures/cloud-domain-pack";
 import type { GateReport } from "../src/kernel/domain-pack-gate";
 
@@ -13,16 +13,17 @@ import type { GateReport } from "../src/kernel/domain-pack-gate";
 // （放出/演练配置/版本历史）保留，回跳后 console 保持卫生。
 
 // console 卫生：全用例期间页面不得出现 console.error/warning 或未捕获异常。
-// 例外过滤：本 spec 打桩的 502/503 失败响应会被浏览器记为资源加载错误（Failed to load resource …），
-// 这是测试注入的预期失败、非页面缺陷，按「本流程 fetch 只打到 /api/admin/domain-packs」的用例事实过滤。
+// 仅桩 502/503 的失败用例豁免其资源加载报错（用例内置位标记），其余用例零豁免。
 const STUBBED_FAILURE_RESOURCE = /Failed to load resource: the server responded with a status of (502|503)/;
 let consoleProblems: string[] = [];
+let stubbedFailureCase = false;
 test.beforeEach(async ({ page }) => {
-  consoleProblems = collectConsoleProblems(page).filter((m) => !STUBBED_FAILURE_RESOURCE.test(m));
+  consoleProblems = collectConsoleProblems(page);
+  stubbedFailureCase = false;
   await presetLoginState(page);
 });
 test.afterEach(() => {
-  expect(consoleProblems, `console 卫生违例：\n${consoleProblems.join("\n")}`).toEqual([]);
+  expectConsoleClean(consoleProblems, stubbedFailureCase ? [STUBBED_FAILURE_RESOURCE] : []);
 });
 
 /** mock 教师权限（访问后台 + 域包管理）：页面与 API 的体验层放行 */
@@ -123,6 +124,7 @@ test("教师描述→生成→验证报告→确认发布全流程，发布成�
   await page.route("**/rest/v1/pack_exposure*", async (route) => {
     await route.fulfill({ status: 200, contentType: "application/json", body: "[]" });
   });
+  await createCloudProgressStub().attach(page);
   await page.goto("/?seed=42");
   await expect(page.getByRole("heading", { name: "SQL 演练场" })).toBeVisible();
   await expect(page.getByRole("button", { name: "图书馆借阅" })).toBeVisible({ timeout: 15000 });
@@ -152,6 +154,7 @@ test("放弃草稿：终态自动回到 /admin/packs", async ({ page }) => {
 });
 
 test("生成失败（502）：明确错误 + 重试按钮，表单内容保留", async ({ page }) => {
+  stubbedFailureCase = true; // 本用例桩 502，豁免其资源加载报错（仅本用例）
   await mockTeacherPermissions(page);
   await mockReturnTargetPage(page);
   await createDomainPackAssetStub().attach(page);
@@ -186,6 +189,7 @@ test("生成失败（502）：明确错误 + 重试按钮，表单内容保留",
 });
 
 test("LLM 未配置（503）：提示需在服务端设置 DEEPSEEK_API_KEY", async ({ page }) => {
+  stubbedFailureCase = true; // 本用例桩 503，豁免其资源加载报错（仅本用例）
   await mockTeacherPermissions(page);
   await mockReturnTargetPage(page);
   await createDomainPackAssetStub().attach(page);

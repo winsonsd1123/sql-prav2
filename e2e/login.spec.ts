@@ -2,7 +2,7 @@
 // 验证码接缝：登录表单在 window.initAliyunCaptcha 已存在时直接使用（不加载外网脚本），
 // 故 addInitScript 注入 stub 即可替换整个验证码组件。
 import { expect, test, type Page } from "@playwright/test";
-import { presetLoginState } from "./helpers";
+import { presetLoginState, stubPlaygroundBackend } from "./helpers";
 
 /** 验证码 stub 形态：记录 initAliyunCaptcha 收到的配置，并按需把「点登录按钮」接到回调 */
 async function injectCaptcha(page: Page, behavior: "点击即通过" | "点击无反应" = "点击即通过") {
@@ -66,6 +66,7 @@ test.describe("强制登录", () => {
 
   test("已预置登录态：直接进入演练场", async ({ page }) => {
     await presetLoginState(page);
+    await stubPlaygroundBackend(page);
     await page.goto("/?seed=42");
     await expect(page.getByRole("heading", { name: "SQL 演练场" })).toBeVisible();
   });

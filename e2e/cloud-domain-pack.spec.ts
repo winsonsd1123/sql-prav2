@@ -1,5 +1,5 @@
 import { test, expect, type Page } from "@playwright/test";
-import { presetLoginState, collectConsoleProblems, createDomainPackAssetStub, createDomainPackVersionHistoryStub } from "./helpers";
+import { presetLoginState, collectConsoleProblems, createCloudProgressStub, createDomainPackAssetStub, createDomainPackVersionHistoryStub } from "./helpers";
 import { mkCloudPackJson } from "../src/kernel/__tests__/fixtures/cloud-domain-pack";
 
 // 云端域包合并加载（票 #57 / spec #53 目标②）：云端表里的合法 JSON 域包过收录检查后
@@ -12,6 +12,7 @@ let consoleProblems: string[] = [];
 test.beforeEach(async ({ page }) => {
   consoleProblems = collectConsoleProblems(page);
   await presetLoginState(page);
+  await createCloudProgressStub().attach(page);
 });
 test.afterEach(() => {
   expect(consoleProblems, `console 卫生违例：\n${consoleProblems.join("\n")}`).toEqual([]);

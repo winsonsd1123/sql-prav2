@@ -1,8 +1,9 @@
 import { test, expect, type Page } from "@playwright/test";
-import { presetLoginState } from "./helpers";
+import { presetLoginState, stubPlaygroundBackend } from "./helpers";
 
 test.beforeEach(async ({ page }) => {
   await presetLoginState(page);
+  await stubPlaygroundBackend(page);
 });
 
 // Worker 执行路径与大查询防护（issue #10 / T10 验收）：

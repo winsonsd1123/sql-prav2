@@ -1,5 +1,5 @@
 import { test, expect, type Page, type Route } from "@playwright/test";
-import { presetLoginState, collectConsoleProblems, createDomainPackAssetStub, createDomainPackVersionHistoryStub, chooseSelectOption } from "./helpers";
+import { presetLoginState, collectConsoleProblems, expectConsoleClean, createCloudProgressStub, createDomainPackAssetStub, createDomainPackVersionHistoryStub, chooseSelectOption } from "./helpers";
 import { mkCloudPackJson } from "../src/kernel/__tests__/fixtures/cloud-domain-pack";
 import type { GateReport } from "../src/kernel/domain-pack-gate";
 
@@ -8,15 +8,17 @@ import type { GateReport } from "../src/kernel/domain-pack-gate";
 // 新版本、进行中会话钉旧版；失败保留表单可重试）沿用票 #62 口径，迁移到新路由复验。
 // LLM 打桩沿用 #60 管理页 spec 的浏览器层 page.route 设计（服务端出站与生产零改动）。
 
-// console 卫生：同 domain-pack-admin-page.spec（打桩失败响应的资源错误按用例事实过滤）。
-const STUBBED_FAILURE_RESOURCE = /Failed to load resource: the server responded with a status of (502|503)/;
+// console 卫生：仅桩 400/502 的失败用例豁免其资源加载报错（用例内置位标记），其余用例零豁免。
+const STUBBED_FAILURE_RESOURCE = /Failed to load resource: the server responded with a status of (400|502)/;
 let consoleProblems: string[] = [];
+let stubbedFailureCase = false;
 test.beforeEach(async ({ page }) => {
-  consoleProblems = collectConsoleProblems(page).filter((m) => !STUBBED_FAILURE_RESOURCE.test(m));
+  consoleProblems = collectConsoleProblems(page);
+  stubbedFailureCase = false;
   await presetLoginState(page);
 });
 test.afterEach(() => {
-  expect(consoleProblems, `console 卫生违例：\n${consoleProblems.join("\n")}`).toEqual([]);
+  expectConsoleClean(consoleProblems, stubbedFailureCase ? [STUBBED_FAILURE_RESOURCE] : []);
 });
 
 async function mockTeacherPermissions(page: Page) {
@@ -141,6 +143,7 @@ test("packId 预选：B 类微调→确认产生 v2，学生旧会话钉旧版�
   await page.route("**/rest/v1/pack_exposure*", async (route) => {
     await route.fulfill({ status: 200, contentType: "application/json", body: "[]" });
   });
+  await createCloudProgressStub().attach(page);
   await page.addInitScript((base) => {
     localStorage.setItem("sql-playground:pack", base);
   }, BASE);
@@ -157,6 +160,7 @@ test("packId 预选：B 类微调→确认产生 v2，学生旧会话钉旧版�
 });
 
 test("微调失败（502）：明确错误，表单与意图保留可重试", async ({ page }) => {
+  stubbedFailureCase = true; // 本用例桩 502，豁免其资源加载报错（仅本用例）
   await mockTeacherPermissions(page);
   const assetStub = createDomainPackAssetStub();
   assetStub.rows.push({ pack_id: "library-loan", asset: mkCloudPackJson({ packId: "library-loan" }) });
@@ -207,6 +211,7 @@ test("不带参数直达微调页：页内选择器兜底可用", async ({ page 
   const assetStub = createDomainPackAssetStub();
   assetStub.rows.push({ pack_id: "library-loan", asset: mkCloudPackJson({ packId: "library-loan" }) });
   await assetStub.attach(page);
+  await createDomainPackVersionHistoryStub().attach(page);
 
   await page.goto("/admin/packs/refine");
   // 未携带目标：选择器落在占位项，可自行选择域包
@@ -220,6 +225,7 @@ test("packId 参数无效：回退页内选择器兜底，不落在不存在的�
   const assetStub = createDomainPackAssetStub();
   assetStub.rows.push({ pack_id: "library-loan", asset: mkCloudPackJson({ packId: "library-loan" }) });
   await assetStub.attach(page);
+  await createDomainPackVersionHistoryStub().attach(page);
 
   await page.goto("/admin/packs/refine?packId=不存在的域包");
   await expect(page.getByTestId("微调目标域包")).toHaveText("请选择域包");
@@ -381,6 +387,7 @@ test("表选中微调：详情页选中骨架表（含外键调整）→指令�
 });
 
 test("知识点条目选中微调：请求载荷携带 targetKnowledgeArea，词表越界草稿被闸门拒绝并明示原因", async ({ page }) => {
+  stubbedFailureCase = true; // 本用例生效桩 400，豁免其资源加载报错（仅本用例）
   await mockTeacherPermissions(page);
   const BASE = "student-course-grade";
   // 知识点微调草稿（B 类）：清单改序——结构闸门可过，apply 阶段被词表闸门拒绝

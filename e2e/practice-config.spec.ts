@@ -1,5 +1,5 @@
 import { test, expect, type Page, type Route } from "@playwright/test";
-import { presetLoginState, collectConsoleProblems, createDomainPackVersionHistoryStub, chooseSelectOption } from "./helpers";
+import { presetLoginState, collectConsoleProblems, createCloudProgressStub, createDomainPackVersionHistoryStub, chooseSelectOption } from "./helpers";
 import packAJson from "../src/domain-packs/student-course-grades/pack-a.json";
 
 // 难度配额抽题与演练配置（票 #61 / spec #53 目标②）：教师改配置 → 学生开练题数随之变化；
@@ -57,6 +57,7 @@ async function mockStudentSide(page: Page) {
   });
   // 版本历史表（票 #62 加载层随资产表一并拉取）：空桩避免漏出真实请求（anon 401 打进 console 卫生）
   await createDomainPackVersionHistoryStub().attach(page);
+  await createCloudProgressStub().attach(page);
 }
 
 /** /api/admin/domain-packs/practice-config 有状态桩：GET 回放内存状态；PUT 记录并更新（保存后刷新可见） */

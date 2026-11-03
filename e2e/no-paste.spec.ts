@@ -1,8 +1,9 @@
 import { test, expect, type Page } from "@playwright/test";
-import { presetLoginState } from "./helpers";
+import { presetLoginState, stubPlaygroundBackend } from "./helpers";
 
 test.beforeEach(async ({ page }) => {
   await presetLoginState(page);
+  await stubPlaygroundBackend(page);
 });
 
 // 编辑器禁粘贴与拖入（issue #17，T6）：粘贴/拖入无效果、
