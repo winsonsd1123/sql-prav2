@@ -74,8 +74,6 @@ test.describe("强制登录", () => {
 
 test.describe("登录流程", () => {
   test("学号登录成功：进入演练场", async ({ page }) => {
-    page.on("console", (m) => console.log("[console]", m.type(), m.text().slice(0, 200)));
-    page.on("response", (r) => { if (!r.url().includes("_next")) console.log("[res]", r.status(), r.url().slice(0, 120)); });
     let loginPayload: Record<string, unknown> | null = null;
     // setSession/getSession 若触发令牌刷新或用户拉取，按 supabase-js 解析约定 mock（离线可跑）
     await page.route("**/auth/v1/**", (route) =>
@@ -108,12 +106,7 @@ test.describe("登录流程", () => {
 
     // 票据原样透传后端
     expect(loginPayload).toEqual({ identifier: "2022110001", password: "play2026", captchaTicket: "e2e-验证票据" });
-    try {
-      await expect(page.getByRole("heading", { name: "SQL 演练场" })).toBeVisible({ timeout: 15000 });
-    } catch (e) {
-      console.log("[dbg] storage:", await page.evaluate(() => localStorage.getItem("演练场-supabase-auth")));
-      throw e;
-    }
+    await expect(page.getByRole("heading", { name: "SQL 演练场" })).toBeVisible({ timeout: 15000 });
   });
 
   test("登录失败：统一防枚举错误，停留登录页", async ({ page }) => {
