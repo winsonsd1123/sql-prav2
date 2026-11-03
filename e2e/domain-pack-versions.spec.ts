@@ -155,3 +155,64 @@ test("当前版本标识：视图页标「当前」，版本列表行同口径",
   await expect(page.getByTestId("版本内容标识")).toContainText("当前版本（新会话使用）");
   await expect(page.getByTestId("域包详情-图书馆借阅")).toBeVisible();
 });
+
+// —— 票 #88：版本轻量 diff（历史版本 → 当前版本基准：分类结论 + 变更区块清单）——
+
+/** diff 场景内容 API 桩：v1（历史）与 v2（当前）存在真实内容差异——
+ *  题目模板 cloud-tpl-01 题面改、知识点「综合应用」换成「窗口函数」、表「学生」行数改 */
+async function mockVersionDiffApi(page: Page) {
+  const currentJson = mkCloudPackJson({ packId: "library-loan@v2", name: "图书馆借阅" });
+  const historicalJson = mkCloudPackJson({
+    packId: "library-loan",
+    name: "图书馆借阅",
+    schemaSkeleton: (currentJson.schemaSkeleton as Record<string, unknown>[]).map((t, i) =>
+      i === 0 ? { ...t, rowCount: 15 } : t,
+    ),
+    templates: (currentJson.templates as Record<string, unknown>[]).map((t, i) =>
+      i === 0 ? { ...t, prompt: "旧题面：单表投影练习。" } : t,
+    ),
+    knowledgeAreas: (currentJson.knowledgeAreas as string[]).slice(0, 6).concat("窗口函数"),
+  });
+  await page.route("**/api/admin/domain-packs/versions/content*", async (route) => {
+    const packId = new URL(route.request().url()).searchParams.get("packId");
+    const isCurrent = packId === "library-loan@v2";
+    await route.fulfill({
+      status: 200,
+      contentType: "application/json",
+      body: JSON.stringify(
+        isCurrent
+          ? { asset: currentJson, versionLabel: "v2", isCurrent: true }
+          : { asset: historicalJson, versionLabel: "v1", isCurrent: false },
+      ),
+    });
+  });
+}
+
+test("历史版本视图页呈现轻量 diff：分类结论 + 变更区块清单", async ({ page }) => {
+  await mockTeacherPermissions(page);
+  await attachPageStubs(page);
+  await mockVersionsApi(page);
+  await mockVersionDiffApi(page);
+
+  await page.goto("/admin/packs/versions/view?packId=library-loan");
+  // 分类结论透传版本分类器：种子内容（表 / 知识点 / 模板）有变 → B 类
+  await expect(page.getByTestId("版本diff区块")).toBeVisible();
+  await expect(page.getByTestId("版本diff区块")).toContainText("v1 → 当前版本 v2");
+  await expect(page.getByTestId("版本diff结论")).toContainText("B 类改动");
+  // 变更区块清单：表 / 知识点 / 题目模板粒度的增删改（不做逐字段高亮）
+  await expect(page.getByTestId("diff区块-table-学生")).toContainText("修改");
+  await expect(page.getByTestId("diff区块-knowledgeArea-综合应用")).toContainText("新增");
+  await expect(page.getByTestId("diff区块-knowledgeArea-窗口函数")).toContainText("删除");
+  await expect(page.getByTestId("diff区块-template-cloud-tpl-01")).toContainText("修改");
+});
+
+test("当前版本视图页不呈现 diff 区块（vs 自身恒为无差异）", async ({ page }) => {
+  await mockTeacherPermissions(page);
+  await attachPageStubs(page);
+  await mockVersionsApi(page);
+  await mockVersionDiffApi(page);
+
+  await page.goto("/admin/packs/versions/view?packId=library-loan@v2");
+  await expect(page.getByTestId("版本内容标识")).toContainText("当前版本（新会话使用）");
+  await expect(page.getByTestId("版本diff区块")).toHaveCount(0);
+});
