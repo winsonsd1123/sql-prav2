@@ -147,7 +147,7 @@ export default function AdminDomainPackGenerator({ onPublished, onDiscarded }: A
       </p>
 
       {failure && (
-        <div role="alert" className="mb-3 rounded-lg bg-red-50 px-3 py-2 text-xs text-red-700" data-testid="生成错误">
+        <div role="alert" className="mb-3 rounded-lg bg-fail/10 px-3 py-2 text-xs text-fail" data-testid="生成错误">
           <p>{failure.message}</p>
           {failure.needsKeyConfig && <p>生成服务尚未配置：请管理员在服务端设置 DEEPSEEK_API_KEY 后重试。</p>}
           {failure.retryable && (
@@ -213,7 +213,7 @@ export default function AdminDomainPackGenerator({ onPublished, onDiscarded }: A
               <p className="text-xs text-muted">
                 勾选后本次生成的知识点清单只能取自圈选集合（越界草稿会被验证闸门拒绝）；不勾选则由 AI 自由拟定。
               </p>
-              {vocabError && <p className="text-xs text-amber-700">{vocabError}</p>}
+              {vocabError && <p className="text-xs text-warn">{vocabError}</p>}
               {vocabEntries?.length === 0 && !vocabError && (
                 <p className="text-xs text-muted">词表暂无启用条目，可在「知识点词表」页维护后再来圈选。</p>
               )}
@@ -236,7 +236,7 @@ export default function AdminDomainPackGenerator({ onPublished, onDiscarded }: A
           )}
         </div>
         {formErrors.length > 0 && (
-          <ul className="list-disc pl-5 text-xs text-red-700" data-testid="表单校验提示">
+          <ul className="list-disc pl-5 text-xs text-fail" data-testid="表单校验提示">
             {formErrors.map((e, i) => (
               <li key={i}>{e}</li>
             ))}
@@ -270,7 +270,7 @@ export default function AdminDomainPackGenerator({ onPublished, onDiscarded }: A
                 </p>
               ) : (
                 // 静默降级边界：闸门通过但草稿摘要字段缺失（理论上不该发生）——只提示，不阻断发布
-                <p className="text-xs text-amber-700">草稿结构不完整，无法展示摘要；发布以服务端重校验为准。</p>
+                <p className="text-xs text-warn">草稿结构不完整，无法展示摘要；发布以服务端重校验为准。</p>
               )}
               <div className="flex items-center gap-3">
                 <button onClick={publish} disabled={busy} className="主按钮 px-4 py-1.5 text-xs disabled:opacity-50">
@@ -293,7 +293,7 @@ export default function AdminDomainPackGenerator({ onPublished, onDiscarded }: A
       )}
 
       {phase.kind === "published" && (
-        <p role="status" className="mt-4 rounded-lg bg-emerald-50 px-3 py-2 text-xs text-emerald-700" data-testid="发布成功">
+        <p role="status" className="mt-4 rounded-lg bg-pass/10 px-3 py-2 text-xs text-pass" data-testid="发布成功">
           已发布「{phase.packId}」，学生端刷新后即可见可练；可继续在下方放出清单管理其可见性。
         </p>
       )}

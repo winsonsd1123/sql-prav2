@@ -152,12 +152,12 @@ export default function AdminKnowledgeAreaManager() {
         跨域包的知识点唯一来源：条目含名称与描述，可停用（停用后不能再被新圈选，既有引用不受影响）；被域包引用的条目不能删除，只能停用。
       </p>
       {error && (
-        <p role="alert" data-testid="词表提示" className="mb-3 rounded-lg bg-red-50 px-3 py-2 text-xs text-red-700">
+        <p role="alert" data-testid="词表提示" className="mb-3 rounded-lg bg-fail/10 px-3 py-2 text-xs text-fail">
           {error}
         </p>
       )}
       {notice && !error && (
-        <p role="status" data-testid="词表提示" className="mb-3 rounded-lg bg-emerald-50 px-3 py-2 text-xs text-emerald-700">
+        <p role="status" data-testid="词表提示" className="mb-3 rounded-lg bg-pass/10 px-3 py-2 text-xs text-pass">
           {notice}
         </p>
       )}
@@ -222,7 +222,7 @@ export default function AdminKnowledgeAreaManager() {
                   <span
                     data-testid={`词表状态-${entry.name}`}
                     className={`rounded-full px-2 py-0.5 text-[10px] ${
-                      entry.active ? "bg-emerald-50 text-emerald-700" : "bg-ink/5 text-muted"
+                      entry.active ? "bg-pass/10 text-pass" : "bg-ink/5 text-muted"
                     }`}
                   >
                     {entry.active ? "启用中" : "已停用"}
@@ -231,7 +231,7 @@ export default function AdminKnowledgeAreaManager() {
                   {entry.referencedBy.length > 0 && (
                     <span
                       data-testid={`词表引用-${entry.name}`}
-                      className="rounded-full bg-amber-50 px-2 py-0.5 text-[10px] text-amber-700"
+                      className="rounded-full bg-warn/10 px-2 py-0.5 text-[10px] text-warn"
                       title={`被以下域包引用：${entry.referencedBy.join("、")}`}
                     >
                       被 {entry.referencedBy.length} 个域包引用
@@ -255,7 +255,7 @@ export default function AdminKnowledgeAreaManager() {
                     onClick={() => remove(entry)}
                     disabled={busy || entry.referencedBy.length > 0}
                     title={entry.referencedBy.length > 0 ? "已被域包引用，不能删除（只能停用）" : undefined}
-                    className="次按钮 px-3 py-1 text-xs text-red-700 disabled:opacity-50"
+                    className="次按钮 px-3 py-1 text-xs text-fail disabled:opacity-50"
                   >
                     删除
                   </button>

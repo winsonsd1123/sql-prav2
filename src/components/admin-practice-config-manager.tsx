@@ -181,12 +181,12 @@ export default function AdminPracticeConfigManager() {
         进行中的会话不受影响，学生下次开练或换一套时按新配置生成。
       </p>
       {error && (
-        <p role="alert" className="mb-3 rounded-lg bg-red-50 px-3 py-2 text-xs text-red-700">
+        <p role="alert" className="mb-3 rounded-lg bg-fail/10 px-3 py-2 text-xs text-fail">
           {error}
         </p>
       )}
       {notice && !error && (
-        <p role="status" className="mb-3 rounded-lg bg-emerald-50 px-3 py-2 text-xs text-emerald-700">
+        <p role="status" className="mb-3 rounded-lg bg-pass/10 px-3 py-2 text-xs text-pass">
           {notice}
         </p>
       )}
@@ -243,7 +243,7 @@ export default function AdminPracticeConfigManager() {
             ))}
           </div>
           {draftErrors.length > 0 && (
-            <ul data-testid="演练配置校验提示" className="rounded-lg bg-amber-50 px-3 py-2 text-xs text-amber-800">
+            <ul data-testid="演练配置校验提示" className="rounded-lg bg-warn/10 px-3 py-2 text-xs text-warn">
               {draftErrors.map((message) => (
                 <li key={message}>{message}</li>
               ))}

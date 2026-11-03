@@ -157,7 +157,7 @@ export default function AdminDomainPackRefiner({
       {target != null ? (
         // 元素微调（#85 单题 → #87 三类元素）：目标由详情页选中而来，锁定目标包（隐藏选择器防漂移）
         <div
-          className="mb-3 flex items-center gap-2 rounded-lg border border-emerald-700/40 bg-emerald-50 px-3 py-2 text-sm"
+          className="mb-3 flex items-center gap-2 rounded-lg border border-primary/40 bg-primary/10 px-3 py-2 text-sm"
           data-testid="元素微调目标"
         >
           <span>
@@ -220,14 +220,14 @@ export default function AdminDomainPackRefiner({
           />
         </label>
         {formErrors.length > 0 && (
-          <ul className="flex list-disc flex-col gap-0.5 pl-5 text-xs text-red-700" data-testid="微调表单错误">
+          <ul className="flex list-disc flex-col gap-0.5 pl-5 text-xs text-fail" data-testid="微调表单错误">
             {formErrors.map((e, i) => (
               <li key={i}>{e}</li>
             ))}
           </ul>
         )}
         {failure !== null && (
-          <p className="text-xs text-red-700" data-testid="微调失败提示">
+          <p className="text-xs text-fail" data-testid="微调失败提示">
             {failure.message}
             {failure.needsKeyConfig && "（需在服务端配置 DEEPSEEK_API_KEY）"}
           </p>
@@ -263,7 +263,7 @@ export default function AdminDomainPackRefiner({
         ) : null}
         {phase.kind === "applied" && (
           <div className="flex flex-col gap-2" data-testid="微调生效反馈">
-            <p className="text-sm font-medium text-emerald-700">
+            <p className="text-sm font-medium text-pass">
               已生效（{phase.changeClass} 类改动，版本 {phase.versionLabel}）
             </p>
             <p className="font-mono text-xs text-muted">
