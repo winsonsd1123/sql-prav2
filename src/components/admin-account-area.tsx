@@ -45,13 +45,13 @@ export default function AdminAccountArea() {
 
   return (
     <div
-      className="flex basis-full flex-wrap items-center gap-x-3 gap-y-2 border-t border-border-strong pt-3 lg:basis-auto lg:flex-col lg:flex-nowrap lg:items-stretch lg:gap-3 lg:pt-4"
+      className="flex basis-full flex-wrap items-center gap-x-3 gap-y-2 border-t border-sidebar-sub pt-3 lg:basis-auto lg:flex-col lg:flex-nowrap lg:items-stretch lg:gap-3 lg:pt-4"
       data-testid="后台账户区"
     >
       <div className="min-w-0 flex-1 lg:flex-none">
-        <p className="hidden text-[11px] text-muted lg:block">当前登录</p>
+        <p className="hidden text-[11px] text-sidebar-fg lg:block">当前登录</p>
         <p
-          className="min-h-4 truncate font-mono text-xs text-ink lg:mt-1"
+          className="min-h-4 truncate font-mono text-xs text-sidebar-fg lg:mt-1"
           title={email ?? undefined}
           data-testid="当前账户邮箱"
         >
