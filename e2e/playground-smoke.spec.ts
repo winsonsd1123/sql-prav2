@@ -335,3 +335,22 @@ test("回顾题目关闭总结卡后可点目录回看；刷新已全通过不�
   await expect(page.getByTestId("完成度")).toHaveText("已完成 10/10");
   await expect(page.getByTestId("会话总结卡")).toBeHidden();
 });
+
+test("会话总结弹窗 Esc 关闭，焦点回到验证按钮（issue #95）", async ({ page }) => {
+  await seedMixedProgress(page);
+  await page.keyboard.press("Escape");
+  await expect(page.getByTestId("会话总结卡")).toBeHidden();
+  await expect(page.getByRole("button", { name: "验证", exact: true })).toBeFocused();
+});
+
+test("会话总结弹窗焦点被困：Tab / Shift+Tab 循环不离开弹窗（issue #95）", async ({ page }) => {
+  await seedMixedProgress(page);
+  const focusInsideSummary = () =>
+    page.evaluate(
+      () => !!document.activeElement?.closest('[data-testid="会话总结卡"]'),
+    );
+  for (const key of ["Tab", "Tab", "Tab", "Shift+Tab", "Shift+Tab", "Shift+Tab"]) {
+    await page.keyboard.press(key);
+    expect(await focusInsideSummary()).toBe(true);
+  }
+});

@@ -262,15 +262,6 @@
 .入场-2 { animation-delay: 80ms; }
 .入场-3 { animation-delay: 160ms; }
 
-@keyframes 浮现 {
-  from { opacity: 0; }
-  to { opacity: 1; }
-}
-.居中浮现 {
-  transform: translate(-50%, -50%);
-  animation: 浮现 280ms ease both;
-}
-
 @keyframes 落章 {
   0% { transform: scale(0.98); opacity: 0; }
   100% { transform: scale(1); opacity: 1; }
