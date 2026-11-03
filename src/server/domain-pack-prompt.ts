@@ -13,6 +13,9 @@ export interface DomainPackGenerationInput {
   sampleSql?: string;
   /** 可选：期望表数（3-5，缺省由 LLM 自行决定） */
   tableCount?: number;
+  /** 可选：圈选的知识点集合（票 #82 / ADR 0010「圈选即封闭」）：非空即注入用户提示词，
+   *  产出清单必须逐项取自集合；缺省 = 未圈选，提示词零差异、清单自由产出 */
+  knowledgeAreas?: { name: string; description: string }[];
 }
 
 /** 系统提示词：域包契约全文约束（精炼但完整，与 src/kernel/domain-pack-contract.ts 口径一致） */
@@ -68,6 +71,15 @@ export function buildDomainPackPrompt(input: DomainPackGenerationInput): { syste
   }
   if (input.tableCount !== undefined) {
     lines.push("", `期望表数：${input.tableCount} 张（仍须满足 3-5 张的契约约束）。`);
+  }
+  // 圈选知识点注入（票 #82，ADR 0010「圈选即封闭」提示词侧强制）：
+  // 集合条目（名称 + 描述）逐项列出，声明产出清单只能取自集合——名称逐字一致，禁止新增/改写。
+  if (input.knowledgeAreas !== undefined && input.knowledgeAreas.length > 0) {
+    lines.push(
+      "",
+      "【圈选的知识点集合】本次生成的 knowledgeAreas 有序清单只能取自以下集合（名称逐字一致，禁止新增、禁止改写），并按教学顺序由易到难排列：",
+      ...input.knowledgeAreas.map((area) => `- ${area.name}${area.description.trim() !== "" ? `：${area.description.trim()}` : ""}`),
+    );
   }
   return { system: SYSTEM_PROMPT, user: lines.join("\n") };
 }

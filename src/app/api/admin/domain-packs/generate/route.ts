@@ -29,11 +29,15 @@ export async function POST(request: Request) {
       case "forbidden":
         return adminErrorResponse("forbidden");
       case "invalid":
-        return Response.json({ error: "场景描述不能为空" }, { status: 400 });
+        // 圈选 id 不存在/停用等带具体原因（票 #82）；载荷形状问题沿用通用文案
+        return Response.json({ error: result.message ?? "场景描述不能为空" }, { status: 400 });
       case "llm_error":
       case "llm_invalid_json":
         // 可重试错误统一 502：调用方可原样重发（ADR-0008「失败给重试入口，不静默」）
         return Response.json({ code: result.status, error: result.message, retryable: true }, { status: 502 });
+      case "error":
+        // 圈选词表读取失败（云端异常）：透出原因，教师可重试
+        return Response.json({ error: result.message }, { status: 500 });
     }
   });
 }
