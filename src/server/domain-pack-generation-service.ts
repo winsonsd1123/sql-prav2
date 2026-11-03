@@ -8,7 +8,7 @@
 
 import { authorizeAdminRequest, defaultAdminDeps, type AdminDeps } from "@/server/admin-service";
 import { PERMISSIONS } from "@/lib/permissions";
-import { buildDomainPackPrompt, type DomainPackGenerationInput } from "@/server/domain-pack-prompt";
+import { buildDomainPackPrompt } from "@/server/domain-pack-prompt";
 import type { LlmProvider } from "@/server/llm-provider";
 import { LlmProviderError } from "@/server/llm-provider";
 import { validateDomainPack, type GateReport } from "@/kernel/domain-pack-gate";

@@ -14,7 +14,7 @@ export interface AdminDomainPackGeneratorProps {
   onPublished?: () => void;
   onDiscarded?: () => void;
 }
-import { postAdminJson } from "@/lib/admin-api-client";
+import { postAdminJson, getSessionAuth, readErrorMessage } from "@/lib/admin-api-client";
 import {
   resolveGenerateOutcome,
   resolvePublishOutcome,
@@ -31,6 +31,13 @@ type Phase =
   | { kind: "publishing"; outcome: GenerateOutcome & { phase: "report" } }
   | { kind: "published"; packId: string };
 
+/** 圈选器展示的词表条目（仅启用条目可圈选，ADR 0010） */
+interface SelectableKnowledgeArea {
+  id: string;
+  name: string;
+  description: string;
+}
+
 export default function AdminDomainPackGenerator({ onPublished, onDiscarded }: AdminDomainPackGeneratorProps) {
   const [description, setDescription] = useState("");
   const [sampleSql, setSampleSql] = useState("");
@@ -39,8 +46,38 @@ export default function AdminDomainPackGenerator({ onPublished, onDiscarded }: A
   const [formErrors, setFormErrors] = useState<string[]>([]);
   // 最近一次失败（生成或发布）：保留表单内容供重试；null = 无失败
   const [failure, setFailure] = useState<GenerateOutcome & { phase: "error" } | null>(null);
+  // ── 圈选知识点（票 #82，可选步骤）：懒加载——教师展开圈选器才拉词表，不圈选走现状路径 ──
+  const [vocabOpen, setVocabOpen] = useState(false);
+  const [vocabEntries, setVocabEntries] = useState<SelectableKnowledgeArea[] | null>(null);
+  const [vocabError, setVocabError] = useState<string | null>(null);
+  const [selectedIds, setSelectedIds] = useState<string[]>([]);
 
   const busy = phase.kind === "generating" || phase.kind === "publishing";
+
+  /** 展开圈选器：首次展开拉取词表启用条目（带会话 Bearer；失败不阻断生成，可不圈选继续） */
+  const toggleVocab = async () => {
+    const opening = !vocabOpen;
+    setVocabOpen(opening);
+    if (!opening || vocabEntries !== null || vocabError !== null) return;
+    try {
+      const { token } = await getSessionAuth();
+      if (!token) throw new Error("no-session");
+      const response = await fetch("/api/admin/knowledge-areas", { headers: { authorization: `Bearer ${token}` } });
+      if (!response.ok) throw new Error(await readErrorMessage(response, "词表加载失败"));
+      const body = (await response.json()) as { entries?: { id: string; name: string; description: string; active: boolean }[] };
+      // 仅启用条目可圈选（停用条目不能再被新圈选，ADR 0010）
+      setVocabEntries((body.entries ?? []).filter((entry) => entry.active).map(({ id, name, description }) => ({ id, name, description })));
+      setVocabError(null);
+    } catch {
+      setVocabEntries([]);
+      setVocabError("词表加载失败：可不圈选直接生成（自由产出），或稍后重试");
+    }
+  };
+
+  /** 圈选/取消圈选一条知识点 */
+  const toggleSelected = (id: string) => {
+    setSelectedIds((current) => (current.includes(id) ? current.filter((x) => x !== id) : [...current, id]));
+  };
 
   /** 发起生成：同步等待 LLM（约 1-3 分钟），期间禁用表单防重复提交 */
   const generate = async () => {
@@ -49,11 +86,13 @@ export default function AdminDomainPackGenerator({ onPublished, onDiscarded }: A
     if (errors.length > 0) return;
     setFailure(null);
     setPhase({ kind: "generating" });
-    // 共享请求骨架（admin-api-client.postAdminJson）：无会话/网络失败的文案兜底与归类函数共用
+    // 共享请求骨架（admin-api-client.postAdminJson）：无会话/网络失败的文案兜底与归类函数共用；
+    // 未圈选不携带 knowledgeAreaIds 字段——请求载荷与现状零差异（票 #82 回归口径）
     const result = await postAdminJson("/api/admin/domain-packs/generate", {
       description,
       ...(sampleSql.trim() !== "" ? { sampleSql } : {}),
       ...(tableCount.trim() !== "" ? { tableCount: Number(tableCount) } : {}),
+      ...(selectedIds.length > 0 ? { knowledgeAreaIds: selectedIds } : {}),
     });
     if (!result.ok) {
       setFailure({ phase: "error", message: "登录态已失效，请重新登录", retryable: true, needsKeyConfig: false });
@@ -156,6 +195,46 @@ export default function AdminDomainPackGenerator({ onPublished, onDiscarded }: A
             data-testid="表数意愿"
           />
         </label>
+        {/* 圈选知识点（可选步骤，票 #82）：不圈选走现状路径（自由产出），圈选即封闭——
+            服务端提示词注入圈选集合 + 闸门校验产出取自集合，双重强制 */}
+        <div className="flex flex-col gap-2">
+          <button
+            type="button"
+            onClick={() => void toggleVocab()}
+            disabled={busy}
+            className="self-start text-xs text-muted underline-offset-2 hover:text-ink hover:underline disabled:opacity-50"
+            data-testid="圈选知识点开关"
+            aria-expanded={vocabOpen}
+          >
+            {vocabOpen ? "收起圈选知识点" : `圈选知识点（可选${selectedIds.length > 0 ? `，已圈选 ${selectedIds.length} 项` : ""}）`}
+          </button>
+          {vocabOpen && (
+            <div className="flex flex-col gap-1 rounded-lg border border-ink/10 p-3" data-testid="圈选知识点">
+              <p className="text-xs text-muted">
+                勾选后本次生成的知识点清单只能取自圈选集合（越界草稿会被验证闸门拒绝）；不勾选则由 AI 自由拟定。
+              </p>
+              {vocabError && <p className="text-xs text-amber-700">{vocabError}</p>}
+              {vocabEntries?.length === 0 && !vocabError && (
+                <p className="text-xs text-muted">词表暂无启用条目，可在「知识点词表」页维护后再来圈选。</p>
+              )}
+              {(vocabEntries ?? []).map((entry) => (
+                <label key={entry.id} className="flex items-start gap-2 text-sm" data-testid={`圈选项-${entry.name}`}>
+                  <input
+                    type="checkbox"
+                    checked={selectedIds.includes(entry.id)}
+                    onChange={() => toggleSelected(entry.id)}
+                    disabled={busy}
+                    className="mt-1"
+                  />
+                  <span>
+                    {entry.name}
+                    {entry.description.trim() !== "" && <span className="block text-xs text-muted">{entry.description}</span>}
+                  </span>
+                </label>
+              ))}
+            </div>
+          )}
+        </div>
         {formErrors.length > 0 && (
           <ul className="list-disc pl-5 text-xs text-red-700" data-testid="表单校验提示">
             {formErrors.map((e, i) => (
