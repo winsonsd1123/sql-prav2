@@ -89,3 +89,69 @@ test("无 packId 参数：回退页内选择器，手动选择后查询成功", 
   await expect(page.getByTestId("版本历史列表")).toContainText("当前（新会话使用）");
   await expect(page.getByTestId("版本历史列表")).toContainText("历史（旧会话钉住）");
 });
+
+// —— 票 #86：版本完整内容查看（版本行「查看内容」→ 版本内容视图页复用详情展示组件）——
+
+/** 版本内容 API 桩：v1（历史，旧字符串清单形态——无 knowledgeAreaRefIds）与 v2（当前） */
+async function mockVersionContentApi(page: Page) {
+  await page.route("**/api/admin/domain-packs/versions/content*", async (route) => {
+    const packId = new URL(route.request().url()).searchParams.get("packId");
+    if (packId === "library-loan") {
+      await route.fulfill({
+        status: 200,
+        contentType: "application/json",
+        body: JSON.stringify({
+          asset: mkCloudPackJson({ packId: "library-loan", name: "图书馆借阅" }),
+          versionLabel: "v1",
+          isCurrent: false,
+        }),
+      });
+    } else {
+      await route.fulfill({
+        status: 200,
+        contentType: "application/json",
+        body: JSON.stringify({
+          asset: mkCloudPackJson({ packId: "library-loan@v2", name: "图书馆借阅" }),
+          versionLabel: "v2",
+          isCurrent: true,
+        }),
+      });
+    }
+  });
+}
+
+test("版本行「查看内容」：历史版本全分区渲染（旧字符串清单形态兼容）", async ({ page }) => {
+  await mockTeacherPermissions(page);
+  await attachPageStubs(page);
+  await mockVersionsApi(page);
+  await mockVersionContentApi(page);
+
+  await page.goto("/admin/packs/versions?packId=library-loan");
+  // 历史版本行（v1）入口携带完整 packId 跳版本内容视图页
+  await page.getByTestId("查看内容-library-loan").click();
+  await expect(page).toHaveURL(/\/admin\/packs\/versions\/view\?packId=library-loan$/);
+  // 历史版本标识：与版本列表同口径（历史 · 旧会话钉住）
+  await expect(page.getByTestId("版本内容标识")).toContainText("历史");
+  // 复用详情展示组件：四分区全量渲染（库骨架 / 知识点清单 / 题目列表 / 难度档位与演练配置）
+  await expect(page.getByTestId("域包详情-图书馆借阅")).toBeVisible();
+  await expect(page.getByTestId("库骨架分区").getByTestId(/^骨架表-/).first()).toBeVisible();
+  await expect(page.getByTestId("知识点条目-0")).toContainText("1. ");
+  await expect(page.getByTestId("题目列表分区").getByTestId(/^题目概要行-/).first()).toBeVisible();
+  await expect(page.getByTestId("难度档位分区").getByTestId("难度档位-1")).toBeVisible();
+  await expect(page.getByTestId("演练配置摘要")).toContainText("总题数：");
+});
+
+test("当前版本标识：视图页标「当前」，版本列表行同口径", async ({ page }) => {
+  await mockTeacherPermissions(page);
+  await attachPageStubs(page);
+  await mockVersionsApi(page);
+  await mockVersionContentApi(page);
+
+  await page.goto("/admin/packs/versions?packId=library-loan");
+  await expect(page.getByTestId("版本历史列表")).toContainText("当前（新会话使用）");
+  // 当前版本行（v2）入口：视图页明确标识当前版本（新会话使用）
+  await page.getByTestId("查看内容-library-loan@v2").click();
+  await expect(page).toHaveURL(/packId=library-loan%40v2$/);
+  await expect(page.getByTestId("版本内容标识")).toContainText("当前版本（新会话使用）");
+  await expect(page.getByTestId("域包详情-图书馆借阅")).toBeVisible();
+});
