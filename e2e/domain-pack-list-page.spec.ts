@@ -78,7 +78,7 @@ test("行内「微调」携带 packId 跳转微调页且目标包已预选", asy
   await page.goto("/admin/packs");
   await page.getByTestId("微调入口-学生-课程-成绩").click();
   await expect(page).toHaveURL(/\/admin\/packs\/refine\?packId=/);
-  await expect(page.getByTestId("微调目标域包")).toHaveValue("student-course-grade");
+  await expect(page.getByTestId("微调目标域包")).toContainText("（student-course-grade）");
 });
 
 test("行内「版本历史」携带 packId 跳转历史页且已预选查询", async ({ page }) => {
@@ -100,7 +100,7 @@ test("行内「版本历史」携带 packId 跳转历史页且已预选查询", 
   await page.goto("/admin/packs");
   await page.getByTestId("版本历史入口-学生-课程-成绩").click();
   await expect(page).toHaveURL(/\/admin\/packs\/versions\?packId=/);
-  await expect(page.getByTestId("版本历史目标域包")).toHaveValue("student-course-grade");
+  await expect(page.getByTestId("版本历史目标域包")).toContainText("（student-course-grade）");
   await expect(page.getByTestId("版本历史列表")).toContainText("当前（新会话使用）");
 });
 

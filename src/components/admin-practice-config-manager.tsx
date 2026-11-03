@@ -10,6 +10,7 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { toast } from "sonner";
 import { bearerHeaders, getSessionAuth, readErrorMessage } from "@/lib/admin-api-client";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 
 /** 写操作反馈 toast：固定 id 使新反馈原位替换旧反馈（同一时刻只有一条） */
 const FEEDBACK_TOAST = { id: "演练配置提示", testId: "演练配置提示" };
@@ -194,19 +195,18 @@ export default function AdminPracticeConfigManager() {
         <label htmlFor="practice-config-pack" className="text-muted">
           域包
         </label>
-        <select
-          id="practice-config-pack"
-          value={selectedPackId ?? ""}
-          onChange={(e) => switchPack(e.target.value)}
-          data-testid="演练配置域包选择"
-          className="rounded-lg border border-ink/15 bg-paper px-2 py-1"
-        >
-          {entries.map((entry) => (
-            <option key={entry.packId} value={entry.packId}>
-              {entry.name}（{entry.packId}）
-            </option>
-          ))}
-        </select>
+        <Select value={selectedPackId ?? ""} onValueChange={switchPack}>
+          <SelectTrigger id="practice-config-pack" data-testid="演练配置域包选择">
+            <SelectValue />
+          </SelectTrigger>
+          <SelectContent position="popper" align="start">
+            {entries.map((entry) => (
+              <SelectItem key={entry.packId} value={entry.packId}>
+                {entry.name}（{entry.packId}）
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
       </div>
       {draft !== null && selected !== null && (
         <div className="mb-4 flex flex-col gap-3">

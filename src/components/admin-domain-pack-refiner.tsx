@@ -12,6 +12,7 @@
 import { useState } from "react";
 import { postAdminJson } from "@/lib/admin-api-client";
 import { GateReportView } from "@/components/domain-pack-gate-report-view";
+import { PackBaseSelect } from "@/components/pack-base-select";
 import {
   validateRefineForm,
   resolveRefineOutcome,
@@ -181,20 +182,14 @@ export default function AdminDomainPackRefiner({
         {target == null && (
         <label className="flex flex-col gap-1 text-sm">
           目标域包
-          <select
-            data-testid="微调目标域包"
-            className="rounded-lg border border-ink/15 px-2 py-1.5 text-sm"
+          <PackBaseSelect
+            testId="微调目标域包"
+            className="w-full"
+            options={options}
             value={selectedBase}
-            onChange={(e) => setUserSelected(e.target.value)}
+            onValueChange={setUserSelected}
             disabled={busy}
-          >
-            <option value="">请选择域包</option>
-            {options.map((o) => (
-              <option key={o.base} value={o.base}>
-                {o.name}（{o.base}）
-              </option>
-            ))}
-          </select>
+          />
         </label>
         )}
         <label className="flex flex-col gap-1 text-sm">

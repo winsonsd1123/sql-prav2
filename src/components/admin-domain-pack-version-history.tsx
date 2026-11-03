@@ -10,6 +10,7 @@ import { useEffect, useState } from "react";
 import Link from "next/link";
 import { bearerHeaders, getSessionAuth } from "@/lib/admin-api-client";
 import { parsePackIdVersion } from "@/kernel/domain-pack-versioning";
+import { PackBaseSelect } from "@/components/pack-base-select";
 import type { DomainPack } from "@/kernel/types";
 
 /** 版本历史条目（与 /api/admin/domain-packs/versions 响应同形） */
@@ -82,24 +83,17 @@ export default function AdminDomainPackVersionHistory({ packs, initialBasePackId
         B 类微调产生的历代版本（进行中会话仍加载其进入时的版本；新会话使用当前版本）。
       </p>
       <div className="flex flex-col gap-3">
-        <select
-          data-testid="版本历史目标域包"
-          className="w-fit rounded-lg border border-ink/15 px-2 py-1.5 text-sm"
+        <PackBaseSelect
+          testId="版本历史目标域包"
+          options={options}
           value={selectedBase}
-          onChange={(e) => {
+          onValueChange={(base) => {
             // 切换目标即清空上一包的历史（查询失败提示一并清除），effect 只负责拉取
-            setSelectedBase(e.target.value);
+            setSelectedBase(base);
             setVersions(null);
             setError(null);
           }}
-        >
-          <option value="">请选择域包</option>
-          {options.map((o) => (
-            <option key={o.base} value={o.base}>
-              {o.name}（{o.base}）
-            </option>
-          ))}
-        </select>
+        />
         {loading && <p className="text-sm text-muted">正在读取版本历史……</p>}
         {error !== null && <p className="text-xs text-fail" data-testid="版本历史错误">{error}</p>}
         {versions !== null && !loading && error === null && (
