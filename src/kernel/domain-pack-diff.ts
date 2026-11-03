@@ -1,0 +1,109 @@
+// 版本轻量 diff 纯函数（票 #88 / spec #77 / ADR-0009）：两版本资产 → diff 视图模型。
+// 轻量口径 = 变更分类结论（透传既有版本分类器 classifyDomainPackChange 的 A/B 类判定）
+// + 变更区块清单（表 / 知识点 / 题目模板粒度的增删改），不做逐字段高亮（spec #77 范围外）。
+// 知识点清单双形态（#83 / ADR 0010）：对比在归一化名称层面——名称集合的增删、同集合重排
+// （知识点序参与抽题分区）、以及「名称一致但形态切换（自由 ↔ 引用）」均表现为清单变更区块。
+// 纯函数无 IO：便于单测与页面呈现双挂（呈现层只做渲染，不做判定）。
+
+import type { DomainPackAsset } from "./domain-pack-contract";
+import { classifyDomainPackChange, stableStringify, type DomainPackChangeClass } from "./domain-pack-versioning";
+
+/** 区块所属分区（GLOSSARY：库骨架表 / 知识点清单 / 题目模板） */
+export type DomainPackDiffSection = "table" | "knowledgeArea" | "template";
+
+/** 区块变更动作：新增 / 删除 / 修改（顺序调整、形态切换归入修改） */
+export type DomainPackDiffAction = "added" | "removed" | "modified";
+
+/** 一个变更区块：分区 + 动作 + 键（表语义角色 / 知识点名称 / 模板 id，或清单级说明键） */
+export interface DomainPackDiffBlock {
+  section: DomainPackDiffSection;
+  action: DomainPackDiffAction;
+  key: string;
+}
+
+/** diff 视图模型：分类结论 + 变更区块清单（区块按 表 → 知识点 → 模板 分组排序） */
+export interface DomainPackDiffView {
+  changeClass: DomainPackChangeClass;
+  blocks: DomainPackDiffBlock[];
+}
+
+/**
+ * 通用键控对比：按 key 归位，产出增 / 删 / 改区块。
+ * 「改」以稳定序列化比较（键序无关），与分类器口径一致。
+ */
+function diffByKey<T>(
+  before: readonly T[],
+  after: readonly T[],
+  keyOf: (item: T) => string,
+  section: DomainPackDiffSection,
+  same: (a: T, b: T) => boolean,
+): DomainPackDiffBlock[] {
+  const beforeMap = new Map(before.map((item) => [keyOf(item), item] as const));
+  const afterMap = new Map(after.map((item) => [keyOf(item), item] as const));
+  const blocks: DomainPackDiffBlock[] = [];
+  // 增删区块按原始顺序稳定输出（before 序 → after 序），便于教师按资产阅读
+  for (const [key, item] of beforeMap) {
+    const successor = afterMap.get(key);
+    if (successor === undefined) blocks.push({ section, action: "removed", key });
+    else if (!same(item, successor)) blocks.push({ section, action: "modified", key });
+  }
+  for (const key of afterMap.keys()) {
+    if (!beforeMap.has(key)) blocks.push({ section, action: "added", key });
+  }
+  return blocks;
+}
+
+/**
+ * 两版本资产 → 轻量 diff 视图模型。
+ * before/after 的方向由调用方定（版本页口径：历史版本 → 当前版本）。
+ * 分类结论透传 classifyDomainPackChange（服务端 diff 判定的单一真理源），
+ * 区块清单只是其人类可读的展开，不重复实现分界。
+ */
+export function buildDomainPackDiffView(before: DomainPackAsset, after: DomainPackAsset): DomainPackDiffView {
+  const tableBlocks = diffByKey(
+    before.schemaSkeleton,
+    after.schemaSkeleton,
+    (t) => t.tableRole,
+    "table",
+    (a, b) => stableStringify(a) === stableStringify(b),
+  );
+
+  const knowledgeBlocks = diffKnowledgeAreas(before, after);
+
+  const templateBlocks = diffByKey(
+    before.templates,
+    after.templates,
+    (t) => t.templateId,
+    "template",
+    (a, b) => stableStringify(a) === stableStringify(b),
+  );
+
+  return {
+    changeClass: classifyDomainPackChange(before, after),
+    blocks: [...tableBlocks, ...knowledgeBlocks, ...templateBlocks],
+  };
+}
+
+/**
+ * 知识点清单对比（双形态，#83）：归一化名称层面——
+ * 1. 名称集合增删 → 各自区块；
+ * 2. 集合相同但顺序变 → 单个「顺序调整」区块（知识点序参与抽题分区，ADR-0009）；
+ * 3. 名称与顺序全同但形态切换（自由 ↔ 引用，knowledgeAreaRefIds 有无/变化）→ 单个「形态切换」区块；
+ *    分类器把引用数组视为种子字段整体，形态切换即 B 类，清单区块与其对齐。
+ */
+function diffKnowledgeAreas(before: DomainPackAsset, after: DomainPackAsset): DomainPackDiffBlock[] {
+  const beforeNames = before.knowledgeAreas;
+  const afterNames = after.knowledgeAreas;
+  const nameBlocks = diffByKey(beforeNames, afterNames, (name) => name, "knowledgeArea", () => true);
+  if (nameBlocks.length > 0) return nameBlocks;
+
+  if (beforeNames.join("\u0000") !== afterNames.join("\u0000")) {
+    return [{ section: "knowledgeArea", action: "modified", key: "知识点清单顺序调整" }];
+  }
+  const beforeRefs = before.knowledgeAreaRefIds ?? null;
+  const afterRefs = after.knowledgeAreaRefIds ?? null;
+  if (JSON.stringify(beforeRefs) !== JSON.stringify(afterRefs)) {
+    return [{ section: "knowledgeArea", action: "modified", key: "知识点清单形态切换（引用 ↔ 自由）" }];
+  }
+  return [];
+}

@@ -19,6 +19,7 @@ import {
   type RefineOutcome,
 } from "@/components/domain-pack-refine-flow";
 import { parsePackIdVersion } from "@/kernel/domain-pack-versioning";
+import { describeElementTarget, toRequestTarget, type ElementRefineTarget } from "@/components/element-refine-target";
 import type { DomainPack } from "@/kernel/types";
 
 export interface AdminDomainPackRefinerProps {
@@ -28,6 +29,12 @@ export interface AdminDomainPackRefinerProps {
   targetBasePackId: string | null;
   /** 生效成功回调（页面注入：强制重拉云端清单，列表即时反映新版本） */
   onApplied?: () => void;
+  /** 元素微调目标（票 #85 单题 → #87 三类元素统一）：给定时锁定为该包的元素微调
+   * （请求体按目标类别携带 targetTemplateId / targetTemplateIds / targetTable /
+   * targetKnowledgeArea，服务端写进提示词做元素定位），隐藏包选择器并显示目标徽标 */
+  target?: ElementRefineTarget | null;
+  /** 取消元素微调目标（详情页注入：清除选中态回到纯只读） */
+  onClearTarget?: () => void;
 }
 
 /** 微调区块局部状态机：idle → refining → report/applying → applied；错误态保留表单供重试 */
@@ -49,7 +56,13 @@ function changeClassHint(outcome: RefineOutcome & { phase: "report" }): string {
   return "草稿与当前域包没有差异。";
 }
 
-export default function AdminDomainPackRefiner({ packs, targetBasePackId, onApplied }: AdminDomainPackRefinerProps) {
+export default function AdminDomainPackRefiner({
+  packs,
+  targetBasePackId,
+  onApplied,
+  target,
+  onClearTarget,
+}: AdminDomainPackRefinerProps) {
   const options = packs.map((d) => {
     const { base } = parsePackIdVersion(d.packId);
     return { base, name: d.name };
@@ -80,6 +93,8 @@ export default function AdminDomainPackRefiner({ packs, targetBasePackId, onAppl
       packId: selectedBase,
       intent,
       ...(sampleSql.trim() !== "" ? { sampleSql } : {}),
+      // 元素微调（#85 单题 → #87 三类元素）：目标随请求体进入服务端提示词（元素定位约束在服务端拼装）
+      ...(target != null ? toRequestTarget(target) : {}),
     });
     if (!result.ok) {
       setFailure({ phase: "error", message: "登录态已失效，请重新登录", retryable: true, needsKeyConfig: false });
@@ -139,7 +154,31 @@ export default function AdminDomainPackRefiner({ packs, targetBasePackId, onAppl
         选择域包并描述修改意图，AI 产出修改后草稿；改动分类由系统判定——A 类（难度档位定义/演练配置）即时生效，
         B 类（库骨架/名称池/题目模板/知识点清单）产生新版本，进行中会话留在旧版本。
       </p>
+      {target != null ? (
+        // 元素微调（#85 单题 → #87 三类元素）：目标由详情页选中而来，锁定目标包（隐藏选择器防漂移）
+        <div
+          className="mb-3 flex items-center gap-2 rounded-lg border border-emerald-700/40 bg-emerald-50 px-3 py-2 text-sm"
+          data-testid="元素微调目标"
+        >
+          <span>
+            元素微调目标：<span className="font-mono">{describeElementTarget(target)}</span>
+            <span className="ml-1 text-xs text-muted">（只修改选中的元素，其余逐字保留）</span>
+          </span>
+          {onClearTarget && (
+            <button
+              type="button"
+              className="次按钮 ml-auto px-2 py-0.5 text-xs"
+              data-testid="取消元素微调目标"
+              onClick={onClearTarget}
+              disabled={busy}
+            >
+              取消选中
+            </button>
+          )}
+        </div>
+      ) : null}
       <div className="flex flex-col gap-3">
+        {target == null && (
         <label className="flex flex-col gap-1 text-sm">
           目标域包
           <select
@@ -157,6 +196,7 @@ export default function AdminDomainPackRefiner({ packs, targetBasePackId, onAppl
             ))}
           </select>
         </label>
+        )}
         <label className="flex flex-col gap-1 text-sm">
           修改意图
           <textarea

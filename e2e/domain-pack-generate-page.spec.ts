@@ -1,6 +1,6 @@
 import { test, expect, type Page, type Route } from "@playwright/test";
 import { presetLoginState, collectConsoleProblems, createDomainPackAssetStub, createDomainPackVersionHistoryStub } from "./helpers";
-import { mkCloudPackJson } from "../src/kernel/__tests__/fixtures/cloud-domain-pack";
+import { mkCloudPackJson, CLOUD_FIXTURE_KNOWLEDGE_AREAS } from "../src/kernel/__tests__/fixtures/cloud-domain-pack";
 import type { GateReport } from "../src/kernel/domain-pack-gate";
 
 // 生成新域包独立页（票 #66 / spec #64）：教师直达 /admin/packs/generate，专属页面完成
@@ -72,9 +72,11 @@ test("教师描述→生成→验证报告→确认发布全流程，发布成�
   const assetStub = createDomainPackAssetStub();
   await assetStub.attach(page);
 
-  // 生成 API 桩：回放一份合法草稿（图书馆借阅）+ 通过态报告
+  // 生成 API 桩：回放一份合法草稿（图书馆借阅）+ 通过态报告；记录载荷供「未圈选零差异」断言
+  let generatePayload: Record<string, unknown> | null = null;
   const draft = mkCloudPackJson({ packId: "library-borrow", name: "图书馆借阅" });
   await page.route("**/api/admin/domain-packs/generate", async (route) => {
+    generatePayload = route.request().postDataJSON() as Record<string, unknown>;
     // 模拟同步等待：让 loading 态可被断言后再回包（等待与页面状态无关，用独立计时器）
     await new Promise((resolve) => setTimeout(resolve, 300));
     await route.fulfill({
@@ -110,6 +112,8 @@ test("教师描述→生成→验证报告→确认发布全流程，发布成�
   await expect(page.getByTestId("草稿摘要")).toContainText("图书馆借阅");
   await expect(page.getByTestId("草稿摘要")).toContainText("3 张表");
   // —— 确认发布 → 终态回跳：回到 /admin/packs，新包出现在列表（来源云端、默认放出）——
+  // 未圈选（票 #82 两态之一）：请求载荷不携带 knowledgeAreaIds，与现状零差异
+  expect(generatePayload).not.toHaveProperty("knowledgeAreaIds");
   await page.getByRole("button", { name: "确认发布" }).click();
   await expect(page).toHaveURL(/\/admin\/packs$/);
   await expect(page.getByTestId("域包行-图书馆借阅")).toContainText("云端");
@@ -229,4 +233,81 @@ test("闸门拒绝（报告未通过）：逐条展示中文明细，无确认�
   await expect(page.getByTestId("验证报告")).toContainText("模板数必须为 25-35");
   await expect(page.getByTestId("验证报告")).toContainText("跳过");
   await expect(page.getByRole("button", { name: "确认发布" })).toHaveCount(0);
+});
+
+// ── 圈选知识点（票 #82 / spec #75，ADR 0010「圈选即封闭」）：两态的页面级契约 ──
+// 圈选器数据源为词表启用条目（停用条目不可圈选）；圈选生成的请求携带 knowledgeAreaIds，
+// 产出清单 ⊆ 圈选集合、发布载荷带词表引用形态（knowledgeAreaRefIds，#83）。
+// 封闭性强制的服务端行为（提示词注入 + 闸门越界拒绝）在服务层单测覆盖（服务端出站 LLM 无法被 Playwright 拦截）。
+const VOCAB_IDS = ["ka-1", "ka-2", "ka-3", "ka-4", "ka-5", "ka-6", "ka-7"];
+
+test("圈选生成：圈选器只列启用条目，请求携带圈选 id，产出清单取自圈选集合且发布带词表引用形态", async ({ page }) => {
+  await mockTeacherPermissions(page);
+  await mockReturnTargetPage(page);
+  const assetStub = createDomainPackAssetStub();
+  await assetStub.attach(page);
+
+  // 词表桩：夹具七知识点全启用 + 一条停用条目（停用不可被新圈选，不应出现在圈选器）
+  await page.route("**/api/admin/knowledge-areas", async (route) => {
+    await route.fulfill({
+      status: 200,
+      contentType: "application/json",
+      body: JSON.stringify({
+        entries: [
+          ...CLOUD_FIXTURE_KNOWLEDGE_AREAS.map((name, i) => ({
+            id: VOCAB_IDS[i],
+            name,
+            description: `「${name}」的考察要点`,
+            active: true,
+            referencedBy: [],
+          })),
+          { id: "ka-inactive", name: "窗口函数", description: "已停用的知识点", active: false, referencedBy: [] },
+        ],
+      }),
+    });
+  });
+
+  const captured: { generate?: Record<string, unknown>; publish?: { pack?: { knowledgeAreas?: string[]; knowledgeAreaRefIds?: string[] } } } = {};
+  const selectedDraft = mkCloudPackJson({ packId: "selected-pack", knowledgeAreaRefIds: VOCAB_IDS });
+  await page.route("**/api/admin/domain-packs/generate", async (route) => {
+    captured.generate = route.request().postDataJSON() as Record<string, unknown>;
+    await route.fulfill({
+      status: 200,
+      contentType: "application/json",
+      body: JSON.stringify({ draft: selectedDraft, report: passedReport }),
+    });
+  });
+  await page.route("**/api/admin/domain-packs/publish", async (route) => {
+    captured.publish = route.request().postDataJSON() as { pack?: { knowledgeAreas?: string[]; knowledgeAreaRefIds?: string[] } };
+    await route.fulfill({
+      status: 200,
+      contentType: "application/json",
+      body: JSON.stringify({ ok: true, packId: "selected-pack" }),
+    });
+  });
+
+  await page.goto("/admin/packs/generate");
+  // —— 展开圈选器：列出启用条目（含描述），停用条目不出现 ——
+  await page.getByTestId("圈选知识点开关").click();
+  const selector = page.getByTestId("圈选知识点");
+  await expect(selector).toBeVisible();
+  await expect(page.getByTestId("圈选项-单表查询与投影")).toContainText("「单表查询与投影」的考察要点");
+  await expect(page.getByTestId("圈选项-窗口函数")).toHaveCount(0);
+  // —— 圈选全部启用条目 → 生成 ——
+  for (const name of CLOUD_FIXTURE_KNOWLEDGE_AREAS) {
+    await page.getByTestId(`圈选项-${name}`).locator("input").check();
+  }
+  await page.getByTestId("场景描述").fill("图书馆借阅场景：读者、图书、借阅记录");
+  await page.getByRole("button", { name: "生成草稿" }).click();
+  await expect(page.getByTestId("验证报告")).toContainText("验证通过：可确认发布");
+  // 请求载荷携带圈选 id（与圈选顺序一致）
+  expect(captured.generate?.knowledgeAreaIds).toEqual(VOCAB_IDS);
+  // —— 确认发布：产出清单 ⊆ 圈选集合（名称层面），发布载荷为词表引用形态 ——
+  const selectedNames = new Set<string>(CLOUD_FIXTURE_KNOWLEDGE_AREAS);
+  await page.getByRole("button", { name: "确认发布" }).click();
+  // 发布成功 → 终态回跳列表页（与既有用例同口径；载荷断言不依赖页面停留）
+  await expect(page).toHaveURL(/\/admin\/packs$/);
+  const pack = captured.publish?.pack;
+  expect(pack?.knowledgeAreas?.every((area: string) => selectedNames.has(area))).toBe(true);
+  expect(pack?.knowledgeAreaRefIds).toEqual(VOCAB_IDS);
 });

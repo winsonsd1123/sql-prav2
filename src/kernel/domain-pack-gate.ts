@@ -37,12 +37,22 @@ export interface GateReport {
   selfJudging: GateSection & { checkedTemplates: number; seed: number };
 }
 
+/** 闸门可选校验（票 #82 / ADR 0010「圈选即封闭」）：圈选生成时传入圈选集合
+ *  （归一化名称层面），产出清单必须 ⊆ 集合，越界记入结构检查报告；
+ *  缺省不做封闭校验（未圈选 = 自由产出现状不变） */
+export interface ValidateDomainPackOptions {
+  knowledgeAreaAllowList?: string[];
+}
+
 /**
  * 验证闸门主入口（纯数据进、纯报告出，不触碰 issue/issue 外状态）：
  * 结构（契约校验）→ 生成（固定种子生成会话 + DDL 装载 + 完整性断言）→ 自判（参考答案可执行、结果非空、模板可实例化）。
  * 前置失败则后续检查标记「跳过」。
  */
-export async function validateDomainPack(json: unknown): Promise<GateReport> {
+export async function validateDomainPack(
+  json: unknown,
+  options: ValidateDomainPackOptions = {},
+): Promise<GateReport> {
   // ── 一、结构检查 ──
   const structuralIssues: GateIssue[] = [];
   const parsed = parseDomainPackJson(json);
@@ -51,6 +61,18 @@ export async function validateDomainPack(json: unknown): Promise<GateReport> {
     structuralIssues.push(...parsed.errors.map((message) => ({ check: "结构" as const, message })));
   } else {
     asset = parsed.pack;
+  }
+  // 圈选封闭校验（票 #82）：产出清单 ⊆ 圈选集合（名称层面），越界逐项报告
+  if (asset !== null && options.knowledgeAreaAllowList !== undefined) {
+    const allowSet = new Set(options.knowledgeAreaAllowList);
+    for (const area of asset.knowledgeAreas) {
+      if (!allowSet.has(area)) {
+        structuralIssues.push({
+          check: "结构",
+          message: `知识点「${area}」不在圈选集合内（圈选即封闭：产出清单只能取自圈选集合，请修改描述或调整圈选）`,
+        });
+      }
+    }
   }
   const structural: GateReport["structural"] = {
     status: structuralIssues.length > 0 ? "失败" : "通过",

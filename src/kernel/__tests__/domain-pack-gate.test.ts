@@ -269,4 +269,30 @@ describe("验证闸门：validateDomainPack", () => {
     expect(failing).toContain("生成检查：跳过");
     expect(failing).toContain("自判检查：跳过");
   });
+
+  // ── 圈选封闭校验（票 #82 / spec #75，ADR 0010「圈选即封闭」闸门侧强制）──
+  // 圈选生成时产出清单必须 ⊆ 圈选集合（归一化名称层面判定）；越界记入结构检查报告。
+  it("圈选集合外知识点被结构检查拒绝（封闭校验），集合内子集照常通过", async () => {
+    // 越界：夹具清单含「多表 JOIN」，但圈选集合不含它
+    const outOfClosure = await validateDomainPack(mkPackJson(), {
+      knowledgeAreaAllowList: ["单表查询与投影", "条件筛选与排序", "聚合与分组"],
+    });
+    expect(outOfClosure.passed).toBe(false);
+    expect(outOfClosure.structural.status).toBe("失败");
+    expect(outOfClosure.structural.issues.some((i) => i.message.includes("多表 JOIN") && i.message.includes("圈选"))).toBe(true);
+    // 封闭校验属结构检查，失败时生成/自判跳过
+    expect(outOfClosure.generation.status).toBe("跳过");
+
+    // 集合内子集：清单是圈选集合的真子集，照常全过
+    const withinClosure = await validateDomainPack(mkPackJson(), {
+      knowledgeAreaAllowList: ["单表查询与投影", "条件筛选与排序", "聚合与分组", "多表 JOIN", "日期函数"],
+    });
+    expect(withinClosure.passed).toBe(true);
+  });
+
+  it("未给圈选集合（缺省）时不做封闭校验：自由产出现状零差异", async () => {
+    const report = await validateDomainPack(mkPackJson());
+    expect(report.passed).toBe(true);
+    expect(report.structural.issues.some((i) => i.message.includes("圈选"))).toBe(false);
+  });
 });

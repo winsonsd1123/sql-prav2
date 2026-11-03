@@ -5,7 +5,7 @@ import { describe, expect, it, vi, beforeEach } from "vitest";
 import type { AdminDeps } from "@/server/admin-service";
 import type { LlmProvider, LlmJsonPrompt } from "@/server/llm-provider";
 import { LlmProviderError } from "@/server/llm-provider";
-import { mkCloudPackJson } from "@/kernel/__tests__/fixtures/cloud-domain-pack";
+import { mkCloudPackJson, CLOUD_FIXTURE_KNOWLEDGE_AREAS } from "@/kernel/__tests__/fixtures/cloud-domain-pack";
 import { generateDomainPackDraft, publishDomainPack, type GenerationServiceDeps } from "@/server/domain-pack-generation-service";
 import { parseDomainPackJson, assetToKernelPack } from "@/kernel/domain-pack-contract";
 import { generatePracticeSession } from "@/kernel/question-picking";
@@ -107,6 +107,119 @@ describe("generateDomainPackDraft：生成编排", () => {
     expect(missing.status).toBe("invalid");
     expect(spy).not.toHaveBeenCalled();
   });
+
+  // ── 圈选生成（票 #82 / spec #75，ADR 0010「圈选即封闭」双重强制）──
+  // 词表桩：夹具七知识点逐条建条目（id ka-1..ka-7，全启用），供圈选解析与提示词注入断言。
+  const vocabEntries = [...CLOUD_FIXTURE_KNOWLEDGE_AREAS].map((name, i) => ({
+    id: `ka-${i + 1}`,
+    name,
+    description: `「${name}」的考察要点说明`,
+    active: true,
+  }));
+  const mkVocabStub = (entries = vocabEntries) => ({
+    fetchKnowledgeAreaEntries: vi.fn(async () => entries),
+  });
+
+  it("未圈选：提示词与现状零差异（不含圈选栏目），草稿不加盖词表引用", async () => {
+    const { provider, calls } = mkProvider(() => JSON.stringify(mkCloudPackJson({ packId: "free-draft-pack" })));
+    const result = await generateDomainPackDraft(input, auth, mkDeps({ provider, generationVocabSeam: mkVocabStub() }));
+    expect(result.status).toBe("ok");
+    expect(calls[0].user).toContain("图书馆借阅场景");
+    expect(calls[0].user).not.toContain("圈选");
+    if (result.status !== "ok") throw new Error("unreachable");
+    expect((result.draft as { knowledgeAreaRefIds?: unknown }).knowledgeAreaRefIds).toBeUndefined();
+  });
+
+  it("圈选生成：提示词注入圈选集合（名称+描述），封闭通过时草稿加盖 knowledgeAreaRefIds（与清单逐位对齐）", async () => {
+    const { provider, calls } = mkProvider(() => JSON.stringify(mkCloudPackJson({ packId: "selected-draft-pack" })));
+    const selectedIds = vocabEntries.map((e) => e.id);
+    const result = await generateDomainPackDraft(
+      { ...input, knowledgeAreaIds: selectedIds },
+      auth,
+      mkDeps({ provider, generationVocabSeam: mkVocabStub() }),
+    );
+    expect(result.status).toBe("ok");
+    if (result.status !== "ok") throw new Error("unreachable");
+    // 提示词侧强制：集合条目（名称与描述）进入用户提示词
+    expect(calls[0].user).toContain("圈选");
+    expect(calls[0].user).toContain("「多表 JOIN」的考察要点说明");
+    // 闸门按圈选集合校验，全在集合内 → 通过；草稿盖章为词表引用形态（发布走 #83 校验）
+    expect(result.report.passed).toBe(true);
+    expect((result.draft as { knowledgeAreaRefIds?: string[] }).knowledgeAreaRefIds).toEqual(selectedIds);
+  });
+
+  it("fake LLM 产出越界清单：闸门封闭校验拒绝（结构检查报告圈选越界），草稿与报告照常返回", async () => {
+    // 圈选集合剔除「子查询」，fake LLM 仍回夹具全七项 → 越界
+    const selectedIds = vocabEntries.filter((e) => e.name !== "子查询").map((e) => e.id);
+    const { provider } = mkProvider(() => JSON.stringify(mkCloudPackJson({ packId: "out-of-closure-pack" })));
+    const result = await generateDomainPackDraft(
+      { ...input, knowledgeAreaIds: selectedIds },
+      auth,
+      mkDeps({ provider, generationVocabSeam: mkVocabStub() }),
+    );
+    expect(result.status).toBe("ok");
+    if (result.status !== "ok") throw new Error("unreachable");
+    expect(result.report.passed).toBe(false);
+    expect(result.report.structural.status).toBe("失败");
+    expect(result.report.structural.issues.some((i) => i.message.includes("子查询") && i.message.includes("圈选"))).toBe(true);
+    // 越界草稿不加盖词表引用（未过封闭校验，不得以引用形态流转）
+    expect((result.draft as { knowledgeAreaRefIds?: unknown }).knowledgeAreaRefIds).toBeUndefined();
+  });
+
+  it("圈选生成→发布闭环：加盖引用的草稿经 #83 词表语义校验落库（引用形态写入路径）", async () => {
+    const { provider } = mkProvider(() => JSON.stringify(mkCloudPackJson({ packId: "closed-loop-pack" })));
+    const selectedIds = vocabEntries.map((e) => e.id);
+    const upsertMock = vi.fn().mockResolvedValue({ error: null });
+    const deps = mkDeps({
+      provider,
+      generationVocabSeam: mkVocabStub(),
+      writeClient: { from: () => ({ upsert: upsertMock }) },
+      vocabSeam: {
+        fetchKnowledgeAreaEntries: async () => vocabEntries.map(({ id, name, active }) => ({ id, name, active })),
+        fetchCurrentRefIds: async () => null,
+      },
+    });
+    const draftResult = await generateDomainPackDraft({ ...input, knowledgeAreaIds: selectedIds }, auth, deps);
+    if (draftResult.status !== "ok") throw new Error("unreachable");
+    expect(draftResult.report.passed).toBe(true);
+    const publishResult = await publishDomainPack({ pack: draftResult.draft }, auth, deps);
+    expect(publishResult.status).toBe("ok");
+    if (publishResult.status !== "ok") throw new Error("unreachable");
+    expect(publishResult.packId).toBe("closed-loop-pack");
+    // 落库行保持引用形态（#83：asset 携带 knowledgeAreaRefIds）
+    const row = upsertMock.mock.calls[0][0] as { pack_id: string; asset: { knowledgeAreaRefIds?: string[] } };
+    expect(row.asset.knowledgeAreaRefIds).toEqual(selectedIds);
+  });
+
+  it("圈选 id 不在词表或指向停用条目：invalid 并透出中文原因，不触发 LLM 调用", async () => {
+    const { provider } = mkProvider(() => JSON.stringify(mkCloudPackJson()));
+    const spy = vi.spyOn(provider, "completeJson");
+    const unknown = await generateDomainPackDraft(
+      { ...input, knowledgeAreaIds: ["ka-1", "no-such-id"] },
+      auth,
+      mkDeps({ provider, generationVocabSeam: mkVocabStub() }),
+    );
+    expect(unknown.status).toBe("invalid");
+    if (unknown.status === "invalid") expect(unknown.message).toContain("no-such-id");
+    const entriesWithInactive = vocabEntries.map((e) => (e.name === "子查询" ? { ...e, active: false } : e));
+    const inactive = await generateDomainPackDraft(
+      { ...input, knowledgeAreaIds: ["ka-1", "ka-5"] },
+      auth,
+      mkDeps({ provider, generationVocabSeam: mkVocabStub(entriesWithInactive) }),
+    );
+    expect(inactive.status).toBe("invalid");
+    if (inactive.status === "invalid") expect(inactive.message).toContain("子查询");
+    expect(spy).not.toHaveBeenCalled();
+  });
+
+  it("圈选 id 数组为空或缺省：视同未圈选，走现状路径", async () => {
+    const { provider, calls } = mkProvider(() => JSON.stringify(mkCloudPackJson({ packId: "empty-selection-pack" })));
+    const empty = await generateDomainPackDraft({ ...input, knowledgeAreaIds: [] }, auth, mkDeps({ provider, generationVocabSeam: mkVocabStub() }));
+    expect(empty.status).toBe("ok");
+    expect(calls[0].user).not.toContain("圈选");
+    if (empty.status !== "ok") throw new Error("unreachable");
+    expect((empty.draft as { knowledgeAreaRefIds?: unknown }).knowledgeAreaRefIds).toBeUndefined();
+  });
 });
 
 describe("publishDomainPack：确认发布编排", () => {
@@ -160,5 +273,24 @@ describe("publishDomainPack：确认发布编排", () => {
     expect((await publishDomainPack({ pack: mkCloudPackJson() }, null, mkDeps())).status).toBe("unauthorized");
     expect((await publishDomainPack({ pack: mkCloudPackJson() }, auth, mkDeps({ adminDeps: mkAdminDeps(["访问后台"]) }))).status).toBe("forbidden");
     expect((await publishDomainPack({}, auth, mkDeps())).status).toBe("invalid");
+  });
+
+  it("引用形态草稿圈选了停用条目（#83）：vocabulary 拒绝并透出中文原因，不落库", async () => {
+    const upsertMock = vi.fn().mockResolvedValue({ error: null });
+    const names = [...CLOUD_FIXTURE_KNOWLEDGE_AREAS];
+    const refIds = names.map((_n, i) => `ka-${i + 1}`);
+    const pack = mkCloudPackJson({ knowledgeAreaRefIds: refIds });
+    const deps = mkDeps({
+      writeClient: { from: () => ({ upsert: upsertMock }) },
+      vocabSeam: {
+        fetchKnowledgeAreaEntries: async () =>
+          refIds.map((id, i) => ({ id, name: names[i], active: id !== "ka-6" })), // 「日期函数」已停用
+        fetchCurrentRefIds: async () => null,
+      },
+    });
+    const result = await publishDomainPack({ pack }, auth, deps);
+    expect(result.status).toBe("vocabulary");
+    if (result.status === "vocabulary") expect(result.message).toContain("日期函数");
+    expect(upsertMock).not.toHaveBeenCalled();
   });
 });

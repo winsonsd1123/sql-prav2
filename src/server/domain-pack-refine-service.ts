@@ -25,13 +25,16 @@ import {
 } from "@/kernel/domain-pack-versioning";
 import { builtinPackAssets } from "@/domain-packs/builtin-packs";
 import { serverPrivilegedClient } from "@/lib/supabase/server-client";
+import { checkKnowledgeAreaReferences, defaultVocabSeam, type KnowledgeAreaVocabSeam } from "@/server/domain-pack-asset-service";
 
-/** 可注入依赖（测试接缝）：LLM provider（apply 不需要）/ 鉴权链 / 云端读写客户端 */
+/** 可注入依赖（测试接缝）：LLM provider（apply 不需要）/ 鉴权链 / 云端读写客户端 / 知识点词表接缝 */
 export interface RefineServiceDeps {
   provider?: LlmProvider;
   adminDeps?: AdminDeps;
   readClient?: RefineReadClient;
   writeClient?: DomainPackWriteClient;
+  /** 词表语义校验接缝（#83 引用形态；缺省用 service_role 客户端拼装） */
+  vocabSeam?: KnowledgeAreaVocabSeam;
 }
 
 /** 结构化最小读客户端（service_role Supabase 客户端满足此形状；单测传桩） */
@@ -82,6 +85,8 @@ export type ApplyRefinementResult =
   | { status: "not_found" }
   | { status: "base_name_changed"; actualBasePackId: string }
   | { status: "no_change" }
+  /** 引用形态草稿词表语义校验不通过（#83）：引用不存在 / 名称不对齐 / 新圈选停用条目 */
+  | { status: "vocabulary"; message: string }
   | { status: "error"; message: string };
 
 /** 版本历史条目（管理页「版本历史」区块渲染口径） */
@@ -100,14 +105,66 @@ export type VersionHistoryResult =
   | { status: "forbidden" }
   | { status: "error" };
 
-/** 微调请求体形状预检：{ packId, intent, sampleSql? }，意图必填非空 */
-function normalizeRefineInput(body: unknown): { packId: string; intent: string; sampleSql?: string } | null {
+/** 微调请求体形状预检：{ packId, intent, sampleSql?, target*? }，意图必填非空。
+ *  元素微调目标字段族（#85 targetTemplateId；#87 增 targetTemplateIds / targetTable /
+ *  targetKnowledgeArea）四者互斥——同时携带多个即 invalid，防定位歧义。 */
+interface RefineInput {
+  packId: string;
+  intent: string;
+  sampleSql?: string;
+  targetTemplateId?: string;
+  targetTemplateIds?: string[];
+  targetTable?: string;
+  targetKnowledgeArea?: string;
+}
+
+function normalizeRefineInput(body: unknown): RefineInput | null {
   if (typeof body !== "object" || body === null) return null;
-  const raw = body as { packId?: unknown; intent?: unknown; sampleSql?: unknown };
+  const raw = body as {
+    packId?: unknown;
+    intent?: unknown;
+    sampleSql?: unknown;
+    targetTemplateId?: unknown;
+    targetTemplateIds?: unknown;
+    targetTable?: unknown;
+    targetKnowledgeArea?: unknown;
+  };
   if (typeof raw.packId !== "string" || raw.packId.trim() === "") return null;
   if (typeof raw.intent !== "string" || raw.intent.trim() === "") return null;
   if (raw.sampleSql !== undefined && typeof raw.sampleSql !== "string") return null;
-  return { packId: raw.packId.trim(), intent: raw.intent, sampleSql: raw.sampleSql };
+  // 元素微调目标（票 #85）：可选；给定时必须是字符串（空串视为未指定）
+  if (raw.targetTemplateId !== undefined && typeof raw.targetTemplateId !== "string") return null;
+  // 多题框选（票 #87）：可选；给定为非空字符串数组（空数组 = 无目标，视为非法）
+  if (
+    raw.targetTemplateIds !== undefined &&
+    (!Array.isArray(raw.targetTemplateIds) ||
+      raw.targetTemplateIds.length === 0 ||
+      raw.targetTemplateIds.some((id) => typeof id !== "string" || id.trim() === ""))
+  ) {
+    return null;
+  }
+  if (raw.targetTable !== undefined && typeof raw.targetTable !== "string") return null;
+  if (raw.targetKnowledgeArea !== undefined && typeof raw.targetKnowledgeArea !== "string") return null;
+  // 互斥：四个目标字段至多一个（空串/空数组视为未携带，不参与互斥判定）
+  const present = [
+    typeof raw.targetTemplateId === "string" && raw.targetTemplateId.trim() !== "",
+    Array.isArray(raw.targetTemplateIds) && raw.targetTemplateIds.length > 0,
+    typeof raw.targetTable === "string" && raw.targetTable.trim() !== "",
+    typeof raw.targetKnowledgeArea === "string" && raw.targetKnowledgeArea.trim() !== "",
+  ].filter(Boolean).length;
+  if (present > 1) return null;
+  const targetTemplateId = raw.targetTemplateId?.trim();
+  const targetTable = raw.targetTable?.trim();
+  const targetKnowledgeArea = raw.targetKnowledgeArea?.trim();
+  return {
+    packId: raw.packId.trim(),
+    intent: raw.intent,
+    sampleSql: raw.sampleSql,
+    ...(targetTemplateId !== "" && targetTemplateId !== undefined ? { targetTemplateId } : {}),
+    ...(raw.targetTemplateIds !== undefined ? { targetTemplateIds: raw.targetTemplateIds as string[] } : {}),
+    ...(targetTable !== "" && targetTable !== undefined ? { targetTable } : {}),
+    ...(targetKnowledgeArea !== "" && targetKnowledgeArea !== undefined ? { targetKnowledgeArea } : {}),
+  };
 }
 
 /**
@@ -154,6 +211,32 @@ export async function refineDomainPackDraft(
   const current = await resolveCurrentAsset(deps.readClient ?? serverPrivilegedClient(), basePackId);
   if (current === null) return { status: "not_found" };
 
+  // 元素微调（票 #85）：目标题目必须存在于当前资产（不信任前端传来的 templateId）
+  if (
+    input.targetTemplateId !== undefined &&
+    !current.asset.templates.some((t) => t.templateId === input.targetTemplateId)
+  ) {
+    return { status: "invalid" };
+  }
+  // 多题框选（票 #87）：全部目标必须存在于当前资产，任一缺失即 invalid
+  if (
+    input.targetTemplateIds !== undefined &&
+    !input.targetTemplateIds.every((id) => current.asset.templates.some((t) => t.templateId === id))
+  ) {
+    return { status: "invalid" };
+  }
+  // 表定位（票 #87）：目标 tableRole 必须存在于当前资产骨架
+  if (input.targetTable !== undefined && !current.asset.schemaSkeleton.some((t) => t.tableRole === input.targetTable)) {
+    return { status: "invalid" };
+  }
+  // 知识点定位（票 #87）：目标条目必须存在于当前资产的知识点清单
+  if (
+    input.targetKnowledgeArea !== undefined &&
+    !(current.asset.knowledgeAreas ?? []).includes(input.targetKnowledgeArea)
+  ) {
+    return { status: "invalid" };
+  }
+
   if (deps.provider === undefined) {
     return { status: "llm_error", kind: "unknown", message: "LLM provider 未注入（未配置 DEEPSEEK_API_KEY？）" };
   }
@@ -162,6 +245,10 @@ export async function refineDomainPackDraft(
     intent: input.intent,
     sampleSql: input.sampleSql,
     currentPack: current.asset,
+    targetTemplateId: input.targetTemplateId,
+    targetTemplateIds: input.targetTemplateIds,
+    targetTable: input.targetTable,
+    targetKnowledgeArea: input.targetKnowledgeArea,
   });
   let completion: string;
   try {
@@ -230,6 +317,15 @@ export async function applyDomainPackRefinement(
     }
     const changeClass = classifyDomainPackChange(current.asset, parsedDraft.pack);
     if (changeClass === "unchanged") return { status: "no_change" };
+
+    // 引用形态草稿（LLM 回显引用数组等场景）过词表语义校验（#83）：拒绝不落库，防悬挂引用。
+    // 既有引用取当前资产（已在内存）而非回查数据库——写入路径的「既有」即本次微调的底本。
+    const vocab = deps.vocabSeam ?? {
+      fetchKnowledgeAreaEntries: defaultVocabSeam().fetchKnowledgeAreaEntries,
+      fetchCurrentRefIds: async () => current.asset.knowledgeAreaRefIds ?? null,
+    };
+    const vocabMessage = await checkKnowledgeAreaReferences(parsedDraft.pack, vocab);
+    if (vocabMessage !== null) return { status: "vocabulary", message: vocabMessage };
 
     const writeClient = deps.writeClient ?? serverPrivilegedClient();
     if (changeClass === "A") {
@@ -317,6 +413,53 @@ export async function getDomainPackVersionHistory(
 
     entries.sort((a, b) => Number(b.versionLabel.slice(1)) - Number(a.versionLabel.slice(1)));
     return { status: "ok", versions: entries };
+  } catch {
+    return { status: "error" };
+  }
+}
+
+/** 版本完整内容结果（票 #86：版本内容视图页数据源）——资产 + 版本标签 + 当前/历史标记 */
+export type VersionContentResult =
+  | { status: "ok"; asset: DomainPackAsset; versionLabel: string; isCurrent: boolean }
+  | { status: "not_found" }
+  | { status: "unauthorized" }
+  | { status: "forbidden" }
+  | { status: "error" };
+
+/**
+ * 版本完整内容查询（票 #86）：按完整版本 packId（v1 即基础名，vN≥2 带 @vN 后缀）取该版本
+ * 的完整资产——命中当前资产（请求 id 与当前资产 packId 一致）返回当前内容，否则查
+ * domain_pack_version_history 精确匹配。旧字符串清单形态（无 knowledgeAreaRefIds，
+ * #83 之前的历史资产）经 parseDomainPackJson 归一化读取，知识点清单直接可渲染。
+ */
+export async function getDomainPackVersionContent(
+  packId: string,
+  authorization: string | null,
+  deps: RefineServiceDeps = {},
+): Promise<VersionContentResult> {
+  const auth = await authorizeAdminRequest(authorization, deps.adminDeps ?? defaultAdminDeps, PERMISSIONS.packExposure);
+  if (auth.status !== "ok") return { status: auth.status };
+
+  try {
+    const { base } = parsePackIdVersion(packId);
+    const client = deps.readClient ?? serverPrivilegedClient();
+
+    const current = await resolveCurrentAsset(client, base);
+    if (current !== null && current.asset.packId === packId) {
+      return { status: "ok", asset: current.asset, versionLabel: `v${current.version}`, isCurrent: true };
+    }
+
+    const { data, error } = await client
+      .from("domain_pack_version_history")
+      .select("pack_id, version_label, asset");
+    if (error || data === null) return { status: "not_found" };
+    const row = (data as { pack_id: string; version_label: string; asset: unknown }[]).find(
+      (r) => r.pack_id === packId,
+    );
+    if (row === undefined) return { status: "not_found" };
+    const parsed = parseDomainPackJson(row.asset);
+    if (!parsed.ok) return { status: "not_found" };
+    return { status: "ok", asset: parsed.pack, versionLabel: row.version_label, isCurrent: false };
   } catch {
     return { status: "error" };
   }

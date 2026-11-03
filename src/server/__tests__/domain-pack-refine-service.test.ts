@@ -7,12 +7,13 @@
 import { describe, expect, it, vi, beforeEach } from "vitest";
 import type { AdminDeps } from "@/server/admin-service";
 import type { LlmProvider, LlmJsonPrompt } from "@/server/llm-provider";
-import { mkCloudPackJson } from "@/kernel/__tests__/fixtures/cloud-domain-pack";
+import { mkCloudPackJson, CLOUD_FIXTURE_KNOWLEDGE_AREAS } from "@/kernel/__tests__/fixtures/cloud-domain-pack";
 import type { DomainPackAsset } from "@/kernel/domain-pack-contract";
 import {
   refineDomainPackDraft,
   applyDomainPackRefinement,
   getDomainPackVersionHistory,
+  getDomainPackVersionContent,
   type RefineServiceDeps,
 } from "@/server/domain-pack-refine-service";
 import { parsePackIdVersion } from "@/kernel/domain-pack-versioning";
@@ -157,6 +158,184 @@ describe("refineDomainPackDraft：微调草稿编排", () => {
     });
     expect(result).toEqual({ status: "invalid" });
   });
+
+  // —— 票 #85：元素微调（单道题目模板定位；执行机制仍是全量重发，非补丁协议）——
+
+  it("元素微调：提示词承载目标题目标识与逐字保留约束，闸门与分类链路不变（B 类）", async () => {
+    const current = mkCloudPackJson({ packId: PACK_ID }) as unknown as DomainPackAsset;
+    // 元素微调草稿：只改 cloud-tpl-01 的题面（B 类——参与种子生成的内容变）
+    const draft = {
+      ...current,
+      templates: current.templates.map((t, i) => (i === 0 ? { ...t, prompt: `${t.prompt}（元素微调）` } : t)),
+    };
+    const { provider, calls } = mkProvider(() => JSON.stringify(draft));
+    const tables = mkTables([{ pack_id: PACK_ID, asset: current }]);
+    const result = await refineDomainPackDraft(
+      { packId: PACK_ID, intent: "把这道题的提示写得更具体", targetTemplateId: "cloud-tpl-01" },
+      auth,
+      { provider, adminDeps: mkAdminDeps(), ...tables.deps },
+    );
+    expect(result.status).toBe("ok");
+    if (result.status !== "ok") throw new Error("unreachable");
+    // 「提示词承载」断言口径扩展为承载元素定位：目标题目标识 + 逐字保留约束点名到元素
+    expect(calls[0].user).toContain("targetTemplateId=cloud-tpl-01");
+    expect(calls[0].user).toContain("只修改");
+    expect(calls[0].user).toContain("逐字保留");
+    // 分类与版本预告走既有链路：改题目模板属 B 类 → 预告知 v2
+    expect(result.changeClass).toBe("B");
+    expect(result.nextVersionLabel).toBe("v2");
+  });
+
+  it("元素微调目标题目不在当前资产中：invalid，不发起 LLM 调用", async () => {
+    const { provider } = mkProvider(() => "{}");
+    const tables = mkTables([{ pack_id: PACK_ID, asset: mkCloudPackJson({ packId: PACK_ID }) }]);
+    const result = await refineDomainPackDraft(
+      { packId: PACK_ID, intent: "改一道不存在的题", targetTemplateId: "ghost-template" },
+      auth,
+      { provider, adminDeps: mkAdminDeps(), ...tables.deps },
+    );
+    expect(result).toEqual({ status: "invalid" });
+    expect(provider.completeJson).not.toHaveBeenCalled();
+  });
+
+  it("targetTemplateId 类型不合法（非字符串）：invalid", async () => {
+    const { provider } = mkProvider(() => "{}");
+    const result = await refineDomainPackDraft(
+      { packId: PACK_ID, intent: "改", targetTemplateId: 42 },
+      auth,
+      { provider, adminDeps: mkAdminDeps(), ...mkTables([{ pack_id: PACK_ID, asset: mkCloudPackJson({ packId: PACK_ID }) }]).deps },
+    );
+    expect(result).toEqual({ status: "invalid" });
+  });
+
+  // —— 票 #87：三类元素定位（表 / 知识点条目 / 多题框选）沿用 #85 的校验与提示词承载 ——
+
+  it("表定位：提示词写死 tableRole（含外键约束），B 类链路不变", async () => {
+    const current = mkCloudPackJson({ packId: PACK_ID }) as unknown as DomainPackAsset;
+    // 表微调草稿：把「成绩」表行数改掉（B 类——库骨架变）
+    const draft = {
+      ...current,
+      schemaSkeleton: current.schemaSkeleton.map((t) => (t.tableRole === "成绩" ? { ...t, rowCount: 45 } : t)),
+    };
+    const { provider, calls } = mkProvider(() => JSON.stringify(draft));
+    const tables = mkTables([{ pack_id: PACK_ID, asset: current }]);
+    const result = await refineDomainPackDraft(
+      { packId: PACK_ID, intent: "把成绩表的外键改成指向课程表课程号", targetTable: "成绩" },
+      auth,
+      { provider, adminDeps: mkAdminDeps(), ...tables.deps },
+    );
+    expect(result.status).toBe("ok");
+    if (result.status !== "ok") throw new Error("unreachable");
+    expect(calls[0].user).toContain("targetTable=成绩");
+    expect(calls[0].user).toContain("外键");
+    expect(result.changeClass).toBe("B");
+    expect(result.nextVersionLabel).toBe("v2");
+  });
+
+  it("表定位目标表不在当前资产骨架中：invalid，不发起 LLM 调用", async () => {
+    const { provider } = mkProvider(() => "{}");
+    const tables = mkTables([{ pack_id: PACK_ID, asset: mkCloudPackJson({ packId: PACK_ID }) }]);
+    const result = await refineDomainPackDraft(
+      { packId: PACK_ID, intent: "改一张不存在的表", targetTable: "幽灵表" },
+      auth,
+      { provider, adminDeps: mkAdminDeps(), ...tables.deps },
+    );
+    expect(result).toEqual({ status: "invalid" });
+    expect(provider.completeJson).not.toHaveBeenCalled();
+  });
+
+  it("知识点定位：提示词写死条目名并声明清单不得越出词表，B 类链路不变", async () => {
+    const current = mkCloudPackJson({ packId: PACK_ID }) as unknown as DomainPackAsset;
+    // 知识点微调草稿：清单改序（「聚合与分组」移到末位）——B 类（知识点序参与抽题分区）
+    const areas = current.knowledgeAreas as string[];
+    const reordered = [...areas.filter((a) => a !== "聚合与分组"), "聚合与分组"];
+    const draft = {
+      ...current,
+      knowledgeAreas: reordered,
+      knowledgeAreaRefIds: reordered.map((_, i) => `ka-${i + 1}`),
+    };
+    const { provider, calls } = mkProvider(() => JSON.stringify(draft));
+    const tables = mkTables([{ pack_id: PACK_ID, asset: current }]);
+    const result = await refineDomainPackDraft(
+      { packId: PACK_ID, intent: "把该知识点移到清单更靠后", targetKnowledgeArea: "聚合与分组" },
+      auth,
+      { provider, adminDeps: mkAdminDeps(), ...tables.deps },
+    );
+    expect(result.status).toBe("ok");
+    if (result.status !== "ok") throw new Error("unreachable");
+    expect(calls[0].user).toContain("targetKnowledgeArea=聚合与分组");
+    expect(calls[0].user).toContain("词表");
+    expect(result.changeClass).toBe("B");
+  });
+
+  it("知识点定位目标条目不在当前清单中：invalid，不发起 LLM 调用", async () => {
+    const { provider } = mkProvider(() => "{}");
+    const tables = mkTables([{ pack_id: PACK_ID, asset: mkCloudPackJson({ packId: PACK_ID }) }]);
+    const result = await refineDomainPackDraft(
+      { packId: PACK_ID, intent: "改一个不存在的知识点", targetKnowledgeArea: "窗口函数" },
+      auth,
+      { provider, adminDeps: mkAdminDeps(), ...tables.deps },
+    );
+    expect(result).toEqual({ status: "invalid" });
+    expect(provider.completeJson).not.toHaveBeenCalled();
+  });
+
+  it("多题框选：提示词逐一点名目标集合，B 类链路不变", async () => {
+    const current = mkCloudPackJson({ packId: PACK_ID }) as unknown as DomainPackAsset;
+    const draft = {
+      ...current,
+      templates: current.templates.map((t) =>
+        t.templateId === "cloud-tpl-01" || t.templateId === "cloud-tpl-08"
+          ? { ...t, prompt: `${t.prompt}（批量微调）` }
+          : t,
+      ),
+    };
+    const { provider, calls } = mkProvider(() => JSON.stringify(draft));
+    const tables = mkTables([{ pack_id: PACK_ID, asset: current }]);
+    const result = await refineDomainPackDraft(
+      { packId: PACK_ID, intent: "这批题的提示统一更口语化", targetTemplateIds: ["cloud-tpl-01", "cloud-tpl-08"] },
+      auth,
+      { provider, adminDeps: mkAdminDeps(), ...tables.deps },
+    );
+    expect(result.status).toBe("ok");
+    if (result.status !== "ok") throw new Error("unreachable");
+    expect(calls[0].user).toContain("targetTemplateIds=[cloud-tpl-01, cloud-tpl-08]");
+    expect(result.changeClass).toBe("B");
+    expect(result.nextVersionLabel).toBe("v2");
+  });
+
+  it("多题框选任一目标不存在：invalid，不发起 LLM 调用", async () => {
+    const { provider } = mkProvider(() => "{}");
+    const tables = mkTables([{ pack_id: PACK_ID, asset: mkCloudPackJson({ packId: PACK_ID }) }]);
+    const result = await refineDomainPackDraft(
+      { packId: PACK_ID, intent: "批量改题", targetTemplateIds: ["cloud-tpl-01", "ghost-template"] },
+      auth,
+      { provider, adminDeps: mkAdminDeps(), ...tables.deps },
+    );
+    expect(result).toEqual({ status: "invalid" });
+    expect(provider.completeJson).not.toHaveBeenCalled();
+  });
+
+  it("多题框选传空数组：invalid（批量指令至少一道目标）", async () => {
+    const { provider } = mkProvider(() => "{}");
+    const result = await refineDomainPackDraft(
+      { packId: PACK_ID, intent: "批量改题", targetTemplateIds: [] },
+      auth,
+      { provider, adminDeps: mkAdminDeps(), ...mkTables([{ pack_id: PACK_ID, asset: mkCloudPackJson({ packId: PACK_ID }) }]).deps },
+    );
+    expect(result).toEqual({ status: "invalid" });
+  });
+
+  it("同时携带多个 target 字段（互斥约束）：invalid", async () => {
+    const { provider } = mkProvider(() => "{}");
+    const result = await refineDomainPackDraft(
+      { packId: PACK_ID, intent: "改", targetTemplateId: "cloud-tpl-01", targetTable: "学生" },
+      auth,
+      { provider, adminDeps: mkAdminDeps(), ...mkTables([{ pack_id: PACK_ID, asset: mkCloudPackJson({ packId: PACK_ID }) }]).deps },
+    );
+    expect(result).toEqual({ status: "invalid" });
+    expect(provider.completeJson).not.toHaveBeenCalled();
+  });
 });
 
 describe("applyDomainPackRefinement：确认生效", () => {
@@ -290,6 +469,91 @@ describe("applyDomainPackRefinement：确认生效", () => {
     expect(historyRow.version_label).toBe("v1");
     expect(historyRow.asset.packId).toBe(current.packId);
   });
+
+  it("引用形态草稿词表校验不通过（引用已被删除）：vocabulary 拒绝，不落库（#83）", async () => {
+    const current = {
+      ...mkCloudPackJson({ packId: PACK_ID }),
+      knowledgeAreaRefIds: ["ka-1", "ka-2", "ka-3", "ka-4", "ka-5", "ka-6", "ka-7"],
+    } as unknown as DomainPackAsset;
+    // LLM 回显引用数组但 ka-7 已被从词表删除：草稿 B 类（模板微调）
+    const draft = {
+      ...current,
+      templates: current.templates.map((t, i) => (i === 0 ? { ...t, prompt: `${t.prompt}（微调）` } : t)),
+    };
+    const tables = mkTables([{ pack_id: PACK_ID, asset: current }]);
+    const vocab = {
+      fetchKnowledgeAreaEntries: async () =>
+        ["ka-1", "ka-2", "ka-3", "ka-4", "ka-5", "ka-6"].map((id, i) => ({
+          id,
+          name: (current.knowledgeAreas as string[])[i],
+          active: true,
+        })),
+      fetchCurrentRefIds: async () => current.knowledgeAreaRefIds ?? null,
+    };
+    const result = await applyDomainPackRefinement(
+      { packId: PACK_ID, pack: draft },
+      auth,
+      { adminDeps: mkAdminDeps(), vocabSeam: vocab, ...tables.deps },
+    );
+    expect(result).toMatchObject({ status: "vocabulary" });
+    expect(tables.upserts).toEqual([]);
+  });
+
+  it("知识点微调越出词表（改序后引入词表外名称的引用形态）：vocabulary 拒绝，不落库（#87 / #83 闸门复用）", async () => {
+    const names = CLOUD_FIXTURE_KNOWLEDGE_AREAS as unknown as string[];
+    const current = {
+      ...mkCloudPackJson({ packId: PACK_ID }),
+      knowledgeAreaRefIds: ["ka-1", "ka-2", "ka-3", "ka-4", "ka-5", "ka-6", "ka-7"],
+    } as unknown as DomainPackAsset;
+    // 知识点微调草稿：改序意图下 LLM 引用了词表外条目 ka-99（第 2 位），名称清单维持原状以先过结构闸门
+    const draft = {
+      ...current,
+      knowledgeAreaRefIds: ["ka-1", "ka-99", "ka-3", "ka-4", "ka-5", "ka-6", "ka-7"],
+    };
+    const tables = mkTables([{ pack_id: PACK_ID, asset: current }]);
+    const vocab = {
+      fetchKnowledgeAreaEntries: async () =>
+        ["ka-1", "ka-2", "ka-3", "ka-4", "ka-5", "ka-6", "ka-7"].map((id, i) => ({
+          id,
+          name: names[i],
+          active: true,
+        })),
+      fetchCurrentRefIds: async () => current.knowledgeAreaRefIds ?? null,
+    };
+    const result = await applyDomainPackRefinement(
+      { packId: PACK_ID, pack: draft },
+      auth,
+      { adminDeps: mkAdminDeps(), vocabSeam: vocab, ...tables.deps },
+    );
+    expect(result).toMatchObject({ status: "vocabulary" });
+    expect(tables.upserts).toEqual([]);
+  });
+
+  it("引用形态草稿词表校验通过（既有引用含已停用条目）：照常落库，停用不阻断既有引用（#83）", async () => {
+    const refIds = ["ka-1", "ka-2", "ka-3", "ka-4", "ka-5", "ka-6", "ka-7"];
+    const current = {
+      ...mkCloudPackJson({ packId: PACK_ID }),
+      knowledgeAreaRefIds: refIds,
+    } as unknown as DomainPackAsset;
+    const draft = {
+      ...current,
+      templates: current.templates.map((t, i) => (i === 0 ? { ...t, prompt: `${t.prompt}（微调）` } : t)),
+    };
+    const tables = mkTables([{ pack_id: PACK_ID, asset: current }]);
+    const names = current.knowledgeAreas as string[];
+    const vocab = {
+      fetchKnowledgeAreaEntries: async () =>
+        refIds.map((id, i) => ({ id, name: names[i], active: id !== "ka-6" })), // ka-6 已停用但属既有引用
+      fetchCurrentRefIds: async () => refIds,
+    };
+    const result = await applyDomainPackRefinement(
+      { packId: PACK_ID, pack: draft },
+      auth,
+      { adminDeps: mkAdminDeps(), vocabSeam: vocab, ...tables.deps },
+    );
+    expect(result.status).toBe("ok");
+    expect(tables.upserts.length).toBeGreaterThan(0);
+  });
 });
 
 describe("getDomainPackVersionHistory：版本历史查询", () => {
@@ -311,5 +575,66 @@ describe("getDomainPackVersionHistory：版本历史查询", () => {
     if (result.status !== "ok") throw new Error("unreachable");
     expect(result.versions.map((v) => `${v.versionLabel}:${v.isCurrent}`)).toEqual(["v2:true", "v1:false"]);
     expect(result.versions[1].packId).toBe(PACK_ID);
+  });
+});
+
+// —— 票 #86：历史版本完整内容查询（版本内容视图页数据源）——
+
+describe("getDomainPackVersionContent：版本完整内容查询", () => {
+  it("请求当前版本 packId：返回当前资产并带 isCurrent 标记", async () => {
+    const v2 = mkCloudPackJson({ packId: `${PACK_ID}@v2` }) as unknown as DomainPackAsset;
+    const tables = mkTables([{ pack_id: PACK_ID, asset: v2 }]);
+    const result = await getDomainPackVersionContent(`${PACK_ID}@v2`, auth, {
+      adminDeps: mkAdminDeps(),
+      ...tables.deps,
+    });
+    expect(result.status).toBe("ok");
+    if (result.status !== "ok") throw new Error("unreachable");
+    expect(result.isCurrent).toBe(true);
+    expect(result.versionLabel).toBe("v2");
+    expect(result.asset.packId).toBe(`${PACK_ID}@v2`);
+    // 难度档位定义随资产透传（留在资产态供教师端展示，ADR-0009）
+    expect(result.asset.difficultyTiers).toHaveLength(5);
+  });
+
+  it("请求历史版本 packId：从版本历史表取旧资产（旧字符串清单形态兼容渲染）", async () => {
+    const v1 = mkCloudPackJson({ packId: PACK_ID, name: "图书馆借阅" });
+    const v2 = mkCloudPackJson({ packId: `${PACK_ID}@v2` }) as unknown as DomainPackAsset;
+    const tables = mkTables(
+      [{ pack_id: PACK_ID, asset: v2 }],
+      [{ pack_id: PACK_ID, version_label: "v1", asset: v1 }],
+    );
+    const result = await getDomainPackVersionContent(PACK_ID, auth, {
+      adminDeps: mkAdminDeps(),
+      ...tables.deps,
+    });
+    expect(result.status).toBe("ok");
+    if (result.status !== "ok") throw new Error("unreachable");
+    expect(result.isCurrent).toBe(false);
+    expect(result.versionLabel).toBe("v1");
+    expect(result.asset.packId).toBe(PACK_ID);
+    expect(result.asset.name).toBe("图书馆借阅");
+    // 旧字符串清单形态：无 knowledgeAreaRefIds 字段，知识点清单仍完整可读
+    expect(result.asset.knowledgeAreaRefIds).toBeUndefined();
+    expect(result.asset.knowledgeAreas.length).toBeGreaterThan(0);
+  });
+
+  it("请求不存在的版本 packId：not_found", async () => {
+    const v2 = mkCloudPackJson({ packId: `${PACK_ID}@v2` }) as unknown as DomainPackAsset;
+    const tables = mkTables([{ pack_id: PACK_ID, asset: v2 }]);
+    const result = await getDomainPackVersionContent(`${PACK_ID}@v9`, auth, {
+      adminDeps: mkAdminDeps(),
+      ...tables.deps,
+    });
+    expect(result.status).toBe("not_found");
+  });
+
+  it("无权限点：forbidden", async () => {
+    const tables = mkTables([]);
+    const result = await getDomainPackVersionContent(PACK_ID, auth, {
+      adminDeps: mkAdminDeps([]),
+      ...tables.deps,
+    });
+    expect(result.status).toBe("forbidden");
   });
 });

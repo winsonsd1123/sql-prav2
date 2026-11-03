@@ -13,6 +13,9 @@ export interface DomainPackGenerationInput {
   sampleSql?: string;
   /** 可选：期望表数（3-5，缺省由 LLM 自行决定） */
   tableCount?: number;
+  /** 可选：圈选的知识点集合（票 #82 / ADR 0010「圈选即封闭」）：非空即注入用户提示词，
+   *  产出清单必须逐项取自集合；缺省 = 未圈选，提示词零差异、清单自由产出 */
+  knowledgeAreas?: { name: string; description: string }[];
 }
 
 /** 系统提示词：域包契约全文约束（精炼但完整，与 src/kernel/domain-pack-contract.ts 口径一致） */
@@ -69,6 +72,15 @@ export function buildDomainPackPrompt(input: DomainPackGenerationInput): { syste
   if (input.tableCount !== undefined) {
     lines.push("", `期望表数：${input.tableCount} 张（仍须满足 3-5 张的契约约束）。`);
   }
+  // 圈选知识点注入（票 #82，ADR 0010「圈选即封闭」提示词侧强制）：
+  // 集合条目（名称 + 描述）逐项列出，声明产出清单只能取自集合——名称逐字一致，禁止新增/改写。
+  if (input.knowledgeAreas !== undefined && input.knowledgeAreas.length > 0) {
+    lines.push(
+      "",
+      "【圈选的知识点集合】本次生成的 knowledgeAreas 有序清单只能取自以下集合（名称逐字一致，禁止新增、禁止改写），并按教学顺序由易到难排列：",
+      ...input.knowledgeAreas.map((area) => `- ${area.name}${area.description.trim() !== "" ? `：${area.description.trim()}` : ""}`),
+    );
+  }
   return { system: SYSTEM_PROMPT, user: lines.join("\n") };
 }
 
@@ -88,6 +100,14 @@ export interface DomainPackRefineInput {
   sampleSql?: string;
   /** 当前域包资产全文（服务端取，微调的底稿） */
   currentPack: DomainPackAsset;
+  /** 可选：元素微调目标题目模板（票 #85）——选中单道题时提示词写死定位与逐字保留约束 */
+  targetTemplateId?: string;
+  /** 可选：多题框选目标题目模板（票 #87）——批量下指令时逐一点名目标集合 */
+  targetTemplateIds?: string[];
+  /** 可选：元素微调目标表（票 #87）——库骨架的表（含外键调整指令） */
+  targetTable?: string;
+  /** 可选：元素微调目标知识点条目（票 #87）——清单条目的增删/改序指令 */
+  targetKnowledgeArea?: string;
 }
 
 /** 微调专属约束：完整输出、packId 基础名不变、只按意图修改 */
@@ -110,6 +130,42 @@ export function buildRefinePrompt(input: DomainPackRefineInput): { system: strin
   ];
   if (input.sampleSql !== undefined && input.sampleSql.trim() !== "") {
     lines.push("", "目标难度可参考这条 SQL 样例的口味：", input.sampleSql.trim());
+  }
+  // 元素定位（票 #85 / spec #76）：执行机制仍是全量重发，但提示词写死目标题目标识
+  // 与「只改目标、其余逐字保留」约束——元素定位让保留约束从泛泛而谈变为点名到元素。
+  // 票 #87 扩展为三类元素（表 / 知识点条目 / 多题框选），沿用同一段机制；
+  // 四个 target 字段由服务层保证互斥，此处只按传入者渲染。
+  if (input.targetTemplateId !== undefined) {
+    lines.push(
+      "",
+      "【元素微调目标】",
+      `targetTemplateId=${input.targetTemplateId}：本次微调只修改 templates 数组中 templateId 为 ${input.targetTemplateId} 的这一道题目模板，`,
+      "其余所有内容（含其他题目模板的题面/提示/参考答案/常见错误/参数池、库骨架、知识点清单、难度档位定义、演练配置）逐字保留，禁止顺手改动或增删题目。",
+    );
+  }
+  if (input.targetTemplateIds !== undefined) {
+    lines.push(
+      "",
+      "【元素微调目标】",
+      `targetTemplateIds=[${input.targetTemplateIds.join(", ")}]：本次微调只修改 templates 数组中 templateId 为 ${input.targetTemplateIds.join("、")} 的这些题目模板，`,
+      "其余所有内容（含未列出的题目模板、库骨架、知识点清单、难度档位定义、演练配置）逐字保留，禁止顺手改动或增删清单之外的题目。",
+    );
+  }
+  if (input.targetTable !== undefined) {
+    lines.push(
+      "",
+      "【元素微调目标】",
+      `targetTable=${input.targetTable}：本次微调只修改 schemaSkeleton 数组中 tableRole 为 ${input.targetTable} 的这一张表（含其列定义、名称池、主键与外键引用），`,
+      "外键调整时被引用表/列必须存在于库骨架中、禁止循环引用；其余所有内容（含其他表、题目模板、知识点清单、难度档位定义、演练配置）逐字保留，禁止顺手改动。",
+    );
+  }
+  if (input.targetKnowledgeArea !== undefined) {
+    lines.push(
+      "",
+      "【元素微调目标】",
+      `targetKnowledgeArea=${input.targetKnowledgeArea}：本次微调只围绕知识点清单中的「${input.targetKnowledgeArea}」条目展开——可删除该条目、调整其顺序位置，或修改归属该知识点的题目模板；`,
+      "其余条目与所有其他内容逐字保留。清单的增删/改序后仍须满足每道模板恰好归属清单一项；调整后的清单只能由词表既有条目组成，禁止引入词表之外的新名称。",
+    );
   }
   return { system: SYSTEM_PROMPT + REFINE_ADDENDUM, user: lines.join("\n") };
 }

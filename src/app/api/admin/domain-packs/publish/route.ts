@@ -27,6 +27,9 @@ export async function POST(request: Request) {
         return adminErrorResponse("forbidden");
       case "invalid":
         return Response.json({ error: "请求体格式不正确" }, { status: 400 });
+      case "vocabulary":
+        // 400 = 引用形态草稿的词表语义校验不通过（#83）：中文原因透传（前端走通用错误态展示）
+        return Response.json({ error: result.message }, { status: 400 });
       case "error":
         return adminErrorResponse("error");
     }

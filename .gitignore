@@ -48,3 +48,4 @@ next-env.d.ts
 
 # 会话草稿目录（截图脚本、临时对照物），不入库
 /.scratch/
+package-lock.json
