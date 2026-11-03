@@ -70,4 +70,34 @@ describe("buildDomainPackPrompt", () => {
     expect(user).not.toContain("难度 SQL 样例");
     expect(user).not.toContain("期望表数");
   });
+
+  // ── 圈选知识点注入（票 #82 / spec #75，ADR 0010「圈选即封闭」双重强制的第一重）──
+
+  it("圈选集合注入用户提示词：条目名称与描述逐项列出，并声明清单只能取自集合", () => {
+    const { user } = buildDomainPackPrompt({
+      description: "图书馆借阅场景",
+      knowledgeAreas: [
+        { name: "单表查询与投影", description: "SELECT 基本列投影" },
+        { name: "多表 JOIN", description: "内连接与表限定列名" },
+      ],
+    });
+    expect(user).toContain("圈选");
+    expect(user).toContain("单表查询与投影");
+    expect(user).toContain("SELECT 基本列投影");
+    expect(user).toContain("多表 JOIN");
+    expect(user).toContain("内连接与表限定列名");
+    expect(user).toContain("逐字一致");
+  });
+
+  it("未圈选：用户提示词零差异（不出现圈选栏目，自由产出现状不变）", () => {
+    const { user, system } = buildDomainPackPrompt({
+      description: "图书馆借阅场景",
+      sampleSql: "SELECT 读者姓名 FROM 借阅记录",
+      tableCount: 3,
+    });
+    expect(user).not.toContain("圈选");
+    // 系统提示词为常量全文，圈选改动不得波及（回归断言口径与上方既有用例一致）
+    expect(system).toContain("3-5");
+    expect(system).not.toContain("圈选");
+  });
 });

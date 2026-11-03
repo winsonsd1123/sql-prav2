@@ -22,6 +22,29 @@ export interface GenerationServiceDeps {
   writeClient?: DomainPackWriteClient;
   /** 词表语义校验接缝（#83 引用形态；缺省用 service_role 客户端拼装） */
   vocabSeam?: KnowledgeAreaVocabSeam;
+  /** 圈选词表读取接缝（#82 圈选生成；缺省用 service_role 客户端拼装，单测注入桩） */
+  generationVocabSeam?: GenerationVocabSeam;
+}
+
+/**
+ * 圈选词表读取接缝（票 #82 / ADR 0010）：圈选生成的依赖——
+ * 词表条目现状（id / 名称 / 描述 / 启停态），用于圈选解析、提示词注入与引用盖章。
+ */
+export interface GenerationVocabSeam {
+  fetchKnowledgeAreaEntries(): Promise<{ id: string; name: string; description: string; active: boolean }[]>;
+}
+
+/** 缺省圈选词表接缝：service_role 读 knowledge_area 全量（含描述，供提示词注入） */
+export function defaultGenerationVocabSeam(): GenerationVocabSeam {
+  return {
+    fetchKnowledgeAreaEntries: async () => {
+      const { data, error } = await serverPrivilegedClient()
+        .from("knowledge_area")
+        .select("id,name,description,active");
+      if (error) throw new Error(error.message);
+      return (data ?? []) as { id: string; name: string; description: string; active: boolean }[];
+    },
+  };
 }
 
 /** 发布依赖：不需要 LLM（重过闸门 + 落库） */
@@ -31,9 +54,11 @@ export type GenerateDraftResult =
   | { status: "ok"; draft: unknown; report: GateReport }
   | { status: "unauthorized" }
   | { status: "forbidden" }
-  | { status: "invalid" }
+  | { status: "invalid"; message?: string }
   | { status: "llm_error"; kind: "network" | "api" | "empty" | "unknown"; message: string }
-  | { status: "llm_invalid_json"; message: string };
+  | { status: "llm_invalid_json"; message: string }
+  /** 圈选词表读取失败（云端异常）：透出原因，可重试 */
+  | { status: "error"; message: string };
 
 export type PublishResult =
   | { status: "ok"; packId: string }
@@ -45,16 +70,22 @@ export type PublishResult =
   | { status: "vocabulary"; message: string }
   | { status: "error"; message: string };
 
-/** 入参形状校验：描述必填非空字符串；表数意愿若给出须是 3-5 的整数 */
-function normalizeGenerationInput(body: unknown): DomainPackGenerationInput | null {
+/** 入参形状校验：描述必填非空字符串；表数意愿若给出须是 3-5 的整数；
+ *  圈选知识点 id 数组（#82）若给出须是非空字符串数组（空数组视同未圈选） */
+function normalizeGenerationInput(body: unknown): { description: string; sampleSql?: string; tableCount?: number; knowledgeAreaIds?: string[] } | null {
   if (typeof body !== "object" || body === null) return null;
-  const raw = body as { description?: unknown; sampleSql?: unknown; tableCount?: unknown };
+  const raw = body as { description?: unknown; sampleSql?: unknown; tableCount?: unknown; knowledgeAreaIds?: unknown };
   if (typeof raw.description !== "string" || raw.description.trim() === "") return null;
   if (raw.sampleSql !== undefined && typeof raw.sampleSql !== "string") return null;
   if (raw.tableCount !== undefined && (typeof raw.tableCount !== "number" || !Number.isInteger(raw.tableCount) || raw.tableCount < 3 || raw.tableCount > 5)) {
     return null;
   }
-  return { description: raw.description, sampleSql: raw.sampleSql, tableCount: raw.tableCount };
+  if (raw.knowledgeAreaIds !== undefined) {
+    if (!Array.isArray(raw.knowledgeAreaIds) || !raw.knowledgeAreaIds.every((id): id is string => typeof id === "string" && id.trim() !== "")) {
+      return null;
+    }
+  }
+  return { description: raw.description, sampleSql: raw.sampleSql, tableCount: raw.tableCount, knowledgeAreaIds: raw.knowledgeAreaIds };
 }
 
 /**
@@ -73,7 +104,37 @@ export async function generateDomainPackDraft(
   const auth = await authorizeAdminRequest(authorization, deps.adminDeps ?? defaultAdminDeps, PERMISSIONS.packExposure);
   if (auth.status !== "ok") return { status: auth.status };
 
-  const prompt = buildDomainPackPrompt(input);
+  // ── 圈选解析（票 #82 / ADR 0010「圈选即封闭」）：非空圈选 → 读词表、解析条目，
+  //    不存在/停用的 id 拒绝（停用条目不能再被新圈选）；空圈选或缺省 = 未圈选走现状路径。
+  const selectedIds = input.knowledgeAreaIds ?? [];
+  let selectedEntries: { id: string; name: string; description: string }[] | null = null;
+  if (selectedIds.length > 0) {
+    let entries: { id: string; name: string; description: string; active: boolean }[];
+    try {
+      entries = await (deps.generationVocabSeam ?? defaultGenerationVocabSeam()).fetchKnowledgeAreaEntries();
+    } catch (err) {
+      return { status: "error", message: `知识点词表读取失败：${err instanceof Error ? err.message : String(err)}` };
+    }
+    const byId = new Map(entries.map((entry) => [entry.id, entry]));
+    for (const id of selectedIds) {
+      const entry = byId.get(id);
+      if (entry === undefined) {
+        return { status: "invalid", message: `圈选的知识点不存在：${id}（词表可能已被删除，请刷新圈选列表）` };
+      }
+      if (!entry.active) {
+        return { status: "invalid", message: `知识点「${entry.name}」已停用，不能再被新圈选（可在词表管理重新启用）` };
+      }
+    }
+    // 按教师勾选顺序去重保序，作为圈选集合
+    selectedEntries = [...new Map(selectedIds.map((id) => [id, byId.get(id)!])).values()].map(({ id, name, description }) => ({ id, name, description }));
+  }
+
+  const prompt = buildDomainPackPrompt({
+    description: input.description,
+    sampleSql: input.sampleSql,
+    tableCount: input.tableCount,
+    ...(selectedEntries !== null ? { knowledgeAreas: selectedEntries } : {}),
+  });
   let completion: string;
   try {
     completion = await deps.provider.completeJson(prompt);
@@ -91,7 +152,20 @@ export async function generateDomainPackDraft(
     return { status: "llm_invalid_json", message: `LLM 输出不是合法 JSON：${err instanceof Error ? err.message : String(err)}` };
   }
 
-  const report = await validateDomainPack(draft);
+  // 闸门封闭校验（双重强制的第二重）：圈选时产出清单必须 ⊆ 圈选集合（名称层面）
+  const report = await validateDomainPack(
+    draft,
+    selectedEntries !== null ? { knowledgeAreaAllowList: selectedEntries.map((e) => e.name) } : undefined,
+  );
+  // 圈选且封闭成立（清单逐项都在集合内）→ 草稿盖章词表引用形态（发布走 #83 校验）；
+  // 封闭不成立时闸门已拒，草稿保持自由形态返回（供教师端渲染报告）
+  if (selectedEntries !== null) {
+    const idByName = new Map(selectedEntries.map((e) => [e.name, e.id]));
+    const areas = (draft as { knowledgeAreas?: unknown }).knowledgeAreas;
+    if (Array.isArray(areas) && areas.every((area) => typeof area === "string" && idByName.has(area))) {
+      (draft as { knowledgeAreaRefIds?: string[] }).knowledgeAreaRefIds = areas.map((area) => idByName.get(area as string)!);
+    }
+  }
   return { status: "ok", draft, report };
 }
 
