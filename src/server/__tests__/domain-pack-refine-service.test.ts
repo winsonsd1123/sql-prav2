@@ -157,6 +157,55 @@ describe("refineDomainPackDraft：微调草稿编排", () => {
     });
     expect(result).toEqual({ status: "invalid" });
   });
+
+  // —— 票 #85：元素微调（单道题目模板定位；执行机制仍是全量重发，非补丁协议）——
+
+  it("元素微调：提示词承载目标题目标识与逐字保留约束，闸门与分类链路不变（B 类）", async () => {
+    const current = mkCloudPackJson({ packId: PACK_ID }) as unknown as DomainPackAsset;
+    // 元素微调草稿：只改 cloud-tpl-01 的题面（B 类——参与种子生成的内容变）
+    const draft = {
+      ...current,
+      templates: current.templates.map((t, i) => (i === 0 ? { ...t, prompt: `${t.prompt}（元素微调）` } : t)),
+    };
+    const { provider, calls } = mkProvider(() => JSON.stringify(draft));
+    const tables = mkTables([{ pack_id: PACK_ID, asset: current }]);
+    const result = await refineDomainPackDraft(
+      { packId: PACK_ID, intent: "把这道题的提示写得更具体", targetTemplateId: "cloud-tpl-01" },
+      auth,
+      { provider, adminDeps: mkAdminDeps(), ...tables.deps },
+    );
+    expect(result.status).toBe("ok");
+    if (result.status !== "ok") throw new Error("unreachable");
+    // 「提示词承载」断言口径扩展为承载元素定位：目标题目标识 + 逐字保留约束点名到元素
+    expect(calls[0].user).toContain("targetTemplateId=cloud-tpl-01");
+    expect(calls[0].user).toContain("只修改");
+    expect(calls[0].user).toContain("逐字保留");
+    // 分类与版本预告走既有链路：改题目模板属 B 类 → 预告知 v2
+    expect(result.changeClass).toBe("B");
+    expect(result.nextVersionLabel).toBe("v2");
+  });
+
+  it("元素微调目标题目不在当前资产中：invalid，不发起 LLM 调用", async () => {
+    const { provider } = mkProvider(() => "{}");
+    const tables = mkTables([{ pack_id: PACK_ID, asset: mkCloudPackJson({ packId: PACK_ID }) }]);
+    const result = await refineDomainPackDraft(
+      { packId: PACK_ID, intent: "改一道不存在的题", targetTemplateId: "ghost-template" },
+      auth,
+      { provider, adminDeps: mkAdminDeps(), ...tables.deps },
+    );
+    expect(result).toEqual({ status: "invalid" });
+    expect(provider.completeJson).not.toHaveBeenCalled();
+  });
+
+  it("targetTemplateId 类型不合法（非字符串）：invalid", async () => {
+    const { provider } = mkProvider(() => "{}");
+    const result = await refineDomainPackDraft(
+      { packId: PACK_ID, intent: "改", targetTemplateId: 42 },
+      auth,
+      { provider, adminDeps: mkAdminDeps(), ...mkTables([{ pack_id: PACK_ID, asset: mkCloudPackJson({ packId: PACK_ID }) }]).deps },
+    );
+    expect(result).toEqual({ status: "invalid" });
+  });
 });
 
 describe("applyDomainPackRefinement：确认生效", () => {
