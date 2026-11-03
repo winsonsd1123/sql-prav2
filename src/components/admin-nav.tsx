@@ -23,7 +23,7 @@ function NavLink({ href, label, active }: NavLinkProps) {
       href={href}
       aria-current={active ? "page" : undefined}
       className={`whitespace-nowrap rounded-full px-3 py-1 text-xs transition-colors duration-150 hover:bg-sidebar-hover lg:rounded-lg lg:py-2 lg:text-sm ${
-        active ? "font-medium text-sidebar-active" : "text-sidebar-fg"
+        active ? "font-medium text-sidebar-active" : "text-sidebar-fg hover:text-sidebar-bright"
       }`}
     >
       {label}

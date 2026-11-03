@@ -41,6 +41,7 @@
   --色-侧栏-子菜单: #1f2d3d;
   --色-侧栏-文字: #bfcbd9;
   --色-侧栏-当前: var(--色-主色); /* #409EFF */
+  --色-侧栏-亮字: #f4f4f5; /* 若依 theme-dark 菜单亮字（$base-menu-color-active），非 active 项 hover 补偿 */
   --色-侧栏-悬停: rgba(0, 0, 0, 0.06);
 
   /* 画布与面板 */
@@ -100,6 +101,7 @@
   --color-sidebar-sub: var(--色-侧栏-子菜单);
   --color-sidebar-fg: var(--色-侧栏-文字);
   --color-sidebar-active: var(--色-侧栏-当前);
+  --color-sidebar-bright: var(--色-侧栏-亮字);
   --color-sidebar-hover: var(--色-侧栏-悬停);
   --shadow-sidebar: var(--阴影-侧栏);
   --color-ink: var(--色-墨);
