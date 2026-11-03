@@ -1,6 +1,6 @@
 "use client";
 
-// 注册表单（客户端）：静室主题；域名不符即时拦截（前端）+ 服务端注册校验双保险 + Supabase signUp（PKCE）。
+// 注册表单（客户端）：域名不符即时拦截（前端）+ 服务端注册校验双保险 + Supabase signUp（PKCE）。
 // 注册无行为验证码（spec #22 story 6：邮箱验证已防机器）。
 // 白名单配置挂载时经 GET /api/whitelist 拉取（拉不到回退最严配置），与服务端校验共用同一套判定纯函数。
 import { useEffect, useMemo, useState } from "react";

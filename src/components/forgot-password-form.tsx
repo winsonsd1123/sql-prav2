@@ -1,6 +1,6 @@
 "use client";
 
-// 忘记密码请求表单（客户端）：静室主题；resetPasswordForEmail（PKCE，redirectTo 指向回调页）。
+// 忘记密码请求表单（客户端）：resetPasswordForEmail（PKCE，redirectTo 指向回调页）。
 // 提交后统一展示防枚举提示（邮箱是否存在不泄露，与服务端注册校验语义一致）。
 import { useState } from "react";
 import Link from "next/link";
