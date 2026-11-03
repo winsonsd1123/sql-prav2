@@ -115,7 +115,7 @@ test("教师勾选放出单个域包并保存：PUT 全量清单，学生端只�
   // 未配置时从「全放」出发编辑：取消勾选「员工-部门-薪资」
   await page.getByTestId("放出勾选-员工-部门-薪资").click();
   await page.getByRole("button", { name: "保存放出清单" }).click();
-  await expect(page.getByRole("status")).toContainText("已保存");
+  await expect(page.getByTestId("放出提示")).toContainText("已保存");
   expect(calls.put).toEqual([["student-course-grade"]]);
 
   // —— 学生端：清单只含「学生-课程-成绩」→ 未放出的域包完全不可见 ——

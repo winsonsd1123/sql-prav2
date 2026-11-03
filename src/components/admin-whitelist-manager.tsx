@@ -5,7 +5,11 @@
 // 交互：总开关切换（PATCH 即时生效）；域名清单增删改 + 全量保存（PUT 幂等）；保存后重拉最新配置。
 // 观感与演练场同一设计语言：卡片容器、语义 class、宋体标题、域名走 JetBrains Mono。
 import { useCallback, useEffect, useState } from "react";
+import { toast } from "sonner";
 import { bearerHeaders, getSessionAuth, readErrorMessage } from "@/lib/admin-api-client";
+
+/** 写操作反馈 toast：固定 id 使新反馈原位替换旧反馈（同一时刻只有一条） */
+const FEEDBACK_TOAST = { id: "白名单提示", testId: "白名单提示" };
 
 /** 页面自持的清单条目（编辑中允许空行，保存前交服务层校验） */
 interface DraftDomain {
@@ -23,7 +27,6 @@ export default function AdminWhitelistManager() {
   const [drafts, setDrafts] = useState<DraftDomain[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [notice, setNotice] = useState<string | null>(null);
   const [switching, setSwitching] = useState(false);
   const [saving, setSaving] = useState(false);
 
@@ -63,7 +66,6 @@ export default function AdminWhitelistManager() {
   /** 总开关切换：PATCH 即时生效，成功后重拉确认服务端现状 */
   async function toggleAllowAny() {
     setSwitching(true);
-    setNotice(null);
     try {
       const { token } = await getSessionAuth();
       if (!token) {
@@ -76,13 +78,13 @@ export default function AdminWhitelistManager() {
         body: JSON.stringify({ allowAnyDomain: !allowAnyDomain }),
       });
       if (!response.ok) {
-        setError(await readErrorMessage(response, "总开关切换失败"));
+        toast.error(await readErrorMessage(response, "总开关切换失败"), FEEDBACK_TOAST);
         return;
       }
       await refresh();
-      setNotice(!allowAnyDomain ? "已放开任意域名注册" : "已收紧为仅白名单域名可注册");
+      toast.success(!allowAnyDomain ? "已放开任意域名注册" : "已收紧为仅白名单域名可注册", FEEDBACK_TOAST);
     } catch {
-      setError("总开关切换失败，请稍后重试");
+      toast.error("总开关切换失败，请稍后重试", FEEDBACK_TOAST);
     } finally {
       setSwitching(false);
     }
@@ -92,7 +94,6 @@ export default function AdminWhitelistManager() {
   async function saveDomains(event: React.FormEvent) {
     event.preventDefault();
     setSaving(true);
-    setNotice(null);
     try {
       const { token } = await getSessionAuth();
       if (!token) {
@@ -110,13 +111,13 @@ export default function AdminWhitelistManager() {
         }),
       });
       if (!response.ok) {
-        setError(await readErrorMessage(response, "域名清单保存失败"));
+        toast.error(await readErrorMessage(response, "域名清单保存失败"), FEEDBACK_TOAST);
         return;
       }
       await refresh();
-      setNotice("域名清单已保存");
+      toast.success("域名清单已保存", FEEDBACK_TOAST);
     } catch {
-      setError("域名清单保存失败，请稍后重试");
+      toast.error("域名清单保存失败，请稍后重试", FEEDBACK_TOAST);
     } finally {
       setSaving(false);
     }
@@ -129,11 +130,6 @@ export default function AdminWhitelistManager() {
         <p className="text-xs text-muted">保存后注册校验即时生效，修改前可在此确认当前配置。</p>
       </div>
 
-      {notice ? (
-        <p className="mb-3 rounded-md bg-panel px-3 py-2 text-xs text-ink" data-testid="白名单提示">
-          {notice}
-        </p>
-      ) : null}
       {error ? (
         <p className="mb-3 text-sm text-muted" data-testid="白名单错误">
           {error}

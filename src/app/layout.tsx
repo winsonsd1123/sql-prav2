@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import type { ReactNode } from "react";
 import { JetBrains_Mono, Noto_Sans_SC, Noto_Serif_SC } from "next/font/google";
+import { Toaster } from "@/components/ui/sonner";
 import "./globals.css";
 
 // 标题用宋体，界面用黑体，代码/题号/种子仍用 JetBrains Mono
@@ -34,7 +35,10 @@ export default function RootLayout({ children }: { children: ReactNode }) {
       lang="zh-CN"
       className={`${jetbrainsMono.variable} ${notoSans.variable} ${notoSerif.variable} h-full antialiased`}
     >
-      <body className="min-h-full flex flex-col">{children}</body>
+      <body className="min-h-full flex flex-col">
+        {children}
+        <Toaster position="top-center" />
+      </body>
     </html>
   );
 }

@@ -129,7 +129,7 @@ test("教师把内置包A 配置改为 7 题：学生端开练题数变为 7，�
   await page.getByTestId("演练配置档位-4").fill("1");
   await page.getByTestId("演练配置档位-5").fill("1");
   await page.getByRole("button", { name: "保存演练配置" }).click();
-  await expect(page.getByRole("status")).toContainText("已保存");
+  await expect(page.getByTestId("演练配置提示")).toContainText("已保存");
   expect(calls.put).toEqual([
     {
       packId: "student-course-grade",
