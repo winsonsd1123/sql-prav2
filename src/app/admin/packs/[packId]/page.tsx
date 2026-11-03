@@ -10,6 +10,7 @@ import { useParams } from "next/navigation";
 import AdminDomainPackDetail from "@/components/admin-domain-pack-detail";
 import AdminPackManageGuard from "@/components/admin-pack-manage-guard";
 import { useDisplayPacks } from "@/components/use-display-packs";
+import { cloudPackStore } from "@/components/cloud-domain-pack-store";
 import { builtinPackAssets } from "@/domain-packs/builtin-packs";
 
 export default function AdminPackDetailPage() {
@@ -31,6 +32,7 @@ export default function AdminPackDetailPage() {
         pack={pack}
         cloudLoaded={cloud.loaded}
         difficultyTiers={difficultyTiers}
+        onRefineApplied={() => cloudPackStore.forceReload()}
       />
     </AdminPackManageGuard>
   );

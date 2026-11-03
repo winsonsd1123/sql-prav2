@@ -106,13 +106,23 @@ export type VersionHistoryResult =
   | { status: "error" };
 
 /** 微调请求体形状预检：{ packId, intent, sampleSql? }，意图必填非空 */
-function normalizeRefineInput(body: unknown): { packId: string; intent: string; sampleSql?: string } | null {
+function normalizeRefineInput(
+  body: unknown,
+): { packId: string; intent: string; sampleSql?: string; targetTemplateId?: string } | null {
   if (typeof body !== "object" || body === null) return null;
-  const raw = body as { packId?: unknown; intent?: unknown; sampleSql?: unknown };
+  const raw = body as { packId?: unknown; intent?: unknown; sampleSql?: unknown; targetTemplateId?: unknown };
   if (typeof raw.packId !== "string" || raw.packId.trim() === "") return null;
   if (typeof raw.intent !== "string" || raw.intent.trim() === "") return null;
   if (raw.sampleSql !== undefined && typeof raw.sampleSql !== "string") return null;
-  return { packId: raw.packId.trim(), intent: raw.intent, sampleSql: raw.sampleSql };
+  // 元素微调目标（票 #85）：可选；给定时必须是字符串（空串视为未指定）
+  if (raw.targetTemplateId !== undefined && typeof raw.targetTemplateId !== "string") return null;
+  const targetTemplateId = raw.targetTemplateId?.trim();
+  return {
+    packId: raw.packId.trim(),
+    intent: raw.intent,
+    sampleSql: raw.sampleSql,
+    ...(targetTemplateId !== "" && targetTemplateId !== undefined ? { targetTemplateId } : {}),
+  };
 }
 
 /**
@@ -159,6 +169,14 @@ export async function refineDomainPackDraft(
   const current = await resolveCurrentAsset(deps.readClient ?? serverPrivilegedClient(), basePackId);
   if (current === null) return { status: "not_found" };
 
+  // 元素微调（票 #85）：目标题目必须存在于当前资产（不信任前端传来的 templateId）
+  if (
+    input.targetTemplateId !== undefined &&
+    !current.asset.templates.some((t) => t.templateId === input.targetTemplateId)
+  ) {
+    return { status: "invalid" };
+  }
+
   if (deps.provider === undefined) {
     return { status: "llm_error", kind: "unknown", message: "LLM provider 未注入（未配置 DEEPSEEK_API_KEY？）" };
   }
@@ -167,6 +185,7 @@ export async function refineDomainPackDraft(
     intent: input.intent,
     sampleSql: input.sampleSql,
     currentPack: current.asset,
+    targetTemplateId: input.targetTemplateId,
   });
   let completion: string;
   try {

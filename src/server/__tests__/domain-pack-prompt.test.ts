@@ -2,7 +2,9 @@
 // 占位符语法与教师输入（描述/难度 SQL 样例/表数意愿）完整带给 LLM，
 // 且满足 DeepSeek JSON 输出模式的要求（prompt 含「json」字样并给出输出格式示例）。
 import { describe, expect, it } from "vitest";
-import { buildDomainPackPrompt } from "@/server/domain-pack-prompt";
+import { buildDomainPackPrompt, buildRefinePrompt } from "@/server/domain-pack-prompt";
+import { mkCloudPackJson } from "@/kernel/__tests__/fixtures/cloud-domain-pack";
+import type { DomainPackAsset } from "@/kernel/domain-pack-contract";
 
 describe("buildDomainPackPrompt", () => {
   it("系统提示词完整嵌入契约约束：表数 3-5、模板 25-35、五档定义、知识点清单、演练配置、占位符语法", () => {
@@ -99,5 +101,39 @@ describe("buildDomainPackPrompt", () => {
     // 系统提示词为常量全文，圈选改动不得波及（回归断言口径与上方既有用例一致）
     expect(system).toContain("3-5");
     expect(system).not.toContain("圈选");
+  });
+});
+
+// 接缝：域包微调提示词组装（票 #62 / 票 #85 元素定位）——纯函数，
+// 校验微调提示词承载当前资产全文与修改意图；选中目标题目模板时（票 #85）
+// 追加元素定位约束：写死目标 templateId，要求「只改这一道题、其余逐字保留」。
+describe("buildRefinePrompt", () => {
+  const currentPack = mkCloudPackJson({ packId: "library-loan" }) as unknown as DomainPackAsset;
+
+  it("整体微调（未选中元素）：用户提示词承载当前资产全文与修改意图", () => {
+    const { system, user } = buildRefinePrompt({ packId: "library-loan", intent: "整体再打磨", currentPack });
+    expect(user).toContain(JSON.stringify(currentPack));
+    expect(user).toContain("整体再打磨");
+    expect(system).toContain("微调已有域包");
+  });
+
+  it("元素定位（票 #85）：写死目标 templateId 并要求只改这一道题、其余逐字保留", () => {
+    const { user } = buildRefinePrompt({
+      packId: "library-loan",
+      intent: "把这道题的提示写得更具体",
+      currentPack,
+      targetTemplateId: "cloud-tpl-01",
+    });
+    // 目标题目定位进入提示词：点名 templateId，且明确修改对象是题目模板
+    expect(user).toContain("targetTemplateId");
+    expect(user).toContain("cloud-tpl-01");
+    // 逐字保留约束点名到元素：其余题目模板与整包其余部分都不可动
+    expect(user).toContain("只修改");
+    expect(user).toContain("逐字保留");
+  });
+
+  it("未选中目标题目时不出现元素定位栏目", () => {
+    const { user } = buildRefinePrompt({ packId: "library-loan", intent: "整体微调", currentPack });
+    expect(user).not.toContain("targetTemplateId");
   });
 });

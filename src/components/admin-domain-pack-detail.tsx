@@ -1,13 +1,17 @@
 "use client";
 
 // 域包详情页展示组件（票 #78 / spec #73 子票一）：只读结构化预览，分区折叠布局的骨架
-// ——分区导航（库骨架 / 知识点清单 / 题目列表 / 难度档位与演练配置）+ 库骨架分区全量渲染；
-// 其余三个分区由后续票（#80/#81）在骨架上补全。组件刻意与数据加载解耦（pack 由页面注入），
-// 子票四「历史版本内容查看」复用本组件（spec #73 实现决策）。
-// 严格只读：本组件不发起任何变更请求。
+// ——分区导航（库骨架 / 知识点清单 / 题目列表 / 难度档位与演练配置）+ 全分区渲染。
+// 组件刻意与数据加载解耦（pack 由页面注入），子票四「历史版本内容查看」复用本组件。
+// 只读指展示：改动一律经微调闭环（共识 Q1，防脏数据）。票 #85 起题目列表支持选中
+// 单道题目作元素微调目标，选中后页面内嵌微调面板（复用既有微调链路：草稿 + 闸门
+// 报告 + 确认生效），生效产生的新版本经 onApplied 由页面刷新清单。
 
+import { useState } from "react";
 import Link from "next/link";
 import AdminDomainPackTemplates from "@/components/admin-domain-pack-templates";
+import AdminDomainPackRefiner from "@/components/admin-domain-pack-refiner";
+import { parsePackIdVersion } from "@/kernel/domain-pack-versioning";
 import type { DifficultyTierDefinition } from "@/kernel/domain-pack-contract";
 import type { ColumnDefinition, DomainPack, TableDefinition } from "@/kernel/types";
 
@@ -21,6 +25,8 @@ export interface AdminDomainPackDetailProps {
   /** 难度档位定义（票 #80）：留在资产态供教师端展示（ADR-0009），由页面从资产形态解析注入；
    * 内核域包转换会丢弃该字段，缺省时分区提示无定义 */
   difficultyTiers?: DifficultyTierDefinition[];
+  /** 元素微调生效后刷新展示清单（票 #85，页面注入：强制重拉云端快照，B 类新版本即时可见） */
+  onRefineApplied?: () => void;
 }
 
 /** 单列的骨架描述行：角色 / 名称池 / 类型 / 值池（或外键引用）/ 空值注入 */
@@ -148,7 +154,10 @@ export default function AdminDomainPackDetail({
   pack,
   cloudLoaded,
   difficultyTiers,
+  onRefineApplied,
 }: AdminDomainPackDetailProps) {
+  // 元素微调选中态（票 #85）：null = 未选中（题目列表纯只读）；选中后渲染单题微调面板
+  const [selectedTemplateId, setSelectedTemplateId] = useState<string | null>(null);
   if (!cloudLoaded) {
     return <p className="呼吸 text-sm text-muted" data-testid="域包详情加载中">正在加载域包清单……</p>;
   }
@@ -217,8 +226,23 @@ export default function AdminDomainPackDetail({
           </ol>
         )}
       </section>
-      {/* 题目列表分区（票 #81）：概要行 + 展开完整题 */}
-      <AdminDomainPackTemplates templates={pack.templates} />
+      {/* 题目列表分区（票 #81）：概要行 + 展开完整题；#85 起概要行可选中作元素微调目标 */}
+      <AdminDomainPackTemplates
+        templates={pack.templates}
+        selection={{ selectedTemplateId, onSelectTemplate: setSelectedTemplateId }}
+      />
+      {/* 元素微调面板（票 #85）：选中题目后内嵌，复用既有微调链路（key = 目标题目，
+          切换目标即重挂载回初始态）；生效成功后刷新清单并保留反馈 */}
+      {selectedTemplateId !== null && (
+        <AdminDomainPackRefiner
+          key={selectedTemplateId}
+          packs={[pack]}
+          targetBasePackId={parsePackIdVersion(pack.packId).base}
+          targetTemplateId={selectedTemplateId}
+          onClearTarget={() => setSelectedTemplateId(null)}
+          onApplied={onRefineApplied}
+        />
+      )}
       <DifficultyAndConfigSection difficultyTiers={difficultyTiers} practiceConfig={pack.practiceConfig} />
     </div>
   );

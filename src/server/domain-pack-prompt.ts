@@ -100,6 +100,8 @@ export interface DomainPackRefineInput {
   sampleSql?: string;
   /** 当前域包资产全文（服务端取，微调的底稿） */
   currentPack: DomainPackAsset;
+  /** 可选：元素微调目标题目模板（票 #85）——选中单道题时提示词写死定位与逐字保留约束 */
+  targetTemplateId?: string;
 }
 
 /** 微调专属约束：完整输出、packId 基础名不变、只按意图修改 */
@@ -122,6 +124,16 @@ export function buildRefinePrompt(input: DomainPackRefineInput): { system: strin
   ];
   if (input.sampleSql !== undefined && input.sampleSql.trim() !== "") {
     lines.push("", "目标难度可参考这条 SQL 样例的口味：", input.sampleSql.trim());
+  }
+  // 元素定位（票 #85 / spec #76）：执行机制仍是全量重发，但提示词写死目标题目标识
+  // 与「只改目标、其余逐字保留」约束——元素定位让保留约束从泛泛而谈变为点名到元素。
+  if (input.targetTemplateId !== undefined) {
+    lines.push(
+      "",
+      "【元素微调目标】",
+      `targetTemplateId=${input.targetTemplateId}：本次微调只修改 templates 数组中 templateId 为 ${input.targetTemplateId} 的这一道题目模板，`,
+      "其余所有内容（含其他题目模板的题面/提示/参考答案/常见错误/参数池、库骨架、知识点清单、难度档位定义、演练配置）逐字保留，禁止顺手改动或增删题目。",
+    );
   }
   return { system: SYSTEM_PROMPT + REFINE_ADDENDUM, user: lines.join("\n") };
 }
