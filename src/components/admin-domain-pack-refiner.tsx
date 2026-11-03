@@ -19,6 +19,7 @@ import {
   type RefineOutcome,
 } from "@/components/domain-pack-refine-flow";
 import { parsePackIdVersion } from "@/kernel/domain-pack-versioning";
+import { describeElementTarget, toRequestTarget, type ElementRefineTarget } from "@/components/element-refine-target";
 import type { DomainPack } from "@/kernel/types";
 
 export interface AdminDomainPackRefinerProps {
@@ -28,10 +29,11 @@ export interface AdminDomainPackRefinerProps {
   targetBasePackId: string | null;
   /** 生效成功回调（页面注入：强制重拉云端清单，列表即时反映新版本） */
   onApplied?: () => void;
-  /** 元素微调目标题目（票 #85）：给定时锁定为该包的单题微调（请求体携带 targetTemplateId，
-   * 服务端写进提示词做元素定位），隐藏包选择器并显示目标徽标 */
-  targetTemplateId?: string | null;
-  /** 取消元素微调目标（票 #85，详情页注入：清除选中态回到纯只读） */
+  /** 元素微调目标（票 #85 单题 → #87 三类元素统一）：给定时锁定为该包的元素微调
+   * （请求体按目标类别携带 targetTemplateId / targetTemplateIds / targetTable /
+   * targetKnowledgeArea，服务端写进提示词做元素定位），隐藏包选择器并显示目标徽标 */
+  target?: ElementRefineTarget | null;
+  /** 取消元素微调目标（详情页注入：清除选中态回到纯只读） */
   onClearTarget?: () => void;
 }
 
@@ -58,7 +60,7 @@ export default function AdminDomainPackRefiner({
   packs,
   targetBasePackId,
   onApplied,
-  targetTemplateId,
+  target,
   onClearTarget,
 }: AdminDomainPackRefinerProps) {
   const options = packs.map((d) => {
@@ -91,8 +93,8 @@ export default function AdminDomainPackRefiner({
       packId: selectedBase,
       intent,
       ...(sampleSql.trim() !== "" ? { sampleSql } : {}),
-      // 元素微调（票 #85）：目标题目标识随请求体进入服务端提示词（元素定位约束在服务端拼装）
-      ...(targetTemplateId != null ? { targetTemplateId } : {}),
+      // 元素微调（#85 单题 → #87 三类元素）：目标随请求体进入服务端提示词（元素定位约束在服务端拼装）
+      ...(target != null ? toRequestTarget(target) : {}),
     });
     if (!result.ok) {
       setFailure({ phase: "error", message: "登录态已失效，请重新登录", retryable: true, needsKeyConfig: false });
@@ -152,15 +154,15 @@ export default function AdminDomainPackRefiner({
         选择域包并描述修改意图，AI 产出修改后草稿；改动分类由系统判定——A 类（难度档位定义/演练配置）即时生效，
         B 类（库骨架/名称池/题目模板/知识点清单）产生新版本，进行中会话留在旧版本。
       </p>
-      {targetTemplateId != null ? (
-        // 元素微调（票 #85）：目标题目由详情页选中而来，锁定目标包（隐藏选择器防漂移）
+      {target != null ? (
+        // 元素微调（#85 单题 → #87 三类元素）：目标由详情页选中而来，锁定目标包（隐藏选择器防漂移）
         <div
           className="mb-3 flex items-center gap-2 rounded-lg border border-emerald-700/40 bg-emerald-50 px-3 py-2 text-sm"
           data-testid="元素微调目标"
         >
           <span>
-            元素微调目标：题目模板 <span className="font-mono">{targetTemplateId}</span>
-            <span className="ml-1 text-xs text-muted">（只修改这一道题，其余逐字保留）</span>
+            元素微调目标：<span className="font-mono">{describeElementTarget(target)}</span>
+            <span className="ml-1 text-xs text-muted">（只修改选中的元素，其余逐字保留）</span>
           </span>
           {onClearTarget && (
             <button
@@ -176,7 +178,7 @@ export default function AdminDomainPackRefiner({
         </div>
       ) : null}
       <div className="flex flex-col gap-3">
-        {targetTemplateId == null && (
+        {target == null && (
         <label className="flex flex-col gap-1 text-sm">
           目标域包
           <select

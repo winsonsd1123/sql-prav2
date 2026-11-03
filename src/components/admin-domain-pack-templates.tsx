@@ -1,20 +1,21 @@
 "use client";
 
-// 域包详情页「题目列表」分区（票 #81 / spec #73 子票三；票 #85 加选中交互）：
+// 域包详情页「题目列表」分区（票 #81 / spec #73 子票三；#85 选中交互、#87 多题框选）：
 // 全部题目模板的概要行（题面摘要 / 知识点归属 / 难度）+ 原生 details 展开完整题
 // （题面 / 提示×2 / 参考答案 / 常见错误 / 参数池 / 有序性）。
-// 票 #85：传入 onSelectTemplate 时概要行出现「选中微调」按钮，单选一道题目作为
-// 元素微调目标（选中态 aria-pressed + 徽标清晰可见）；微调本身由详情页的元素微调
-// 面板承接，本组件不发起任何变更请求。
+// 票 #85 起传入 selection 时概要行出现「框选微调」按钮；票 #87 扩为 toggle 多选
+// ——可框选一道或多道题目作元素微调目标（选中态 aria-pressed + 徽标清晰可见）；
+// 微调本身由详情页的元素微调面板承接，本组件不发起任何变更请求。
 
 import type { QuestionTemplate } from "@/kernel/types";
 
-/** 元素微调选中态扩展 props（票 #85）：缺省不渲染选中交互（版本历史页复用本组件时保持纯只读） */
+/** 元素微调选中态扩展 props（票 #85 建框架，票 #87 扩为多题框选）：
+ *  缺省不渲染选中交互（复用本组件的只读场景保持纯只读） */
 export interface TemplateSelectionProps {
-  /** 当前选中的微调目标题目（null = 未选中） */
-  selectedTemplateId: string | null;
-  /** 选中回调（点击已选中的行再点一次取消选中） */
-  onSelectTemplate: (templateId: string | null) => void;
+  /** 当前框选的微调目标题目集合（空 = 未选中） */
+  selectedTemplateIds: readonly string[];
+  /** 点选回调（toggle 语义：点未选加入集合、点已选移除） */
+  onToggleTemplate: (templateId: string) => void;
 }
 
 /** 参数候选池展示格式化：条目间分号分隔；候选值标量直出、对象按「子键:值」圆点连接 */
@@ -43,7 +44,7 @@ function TemplateItem({
   /** 元素微调选中态（票 #85）；undefined = 无选中交互 */
   selection?: TemplateSelectionProps;
 }) {
-  const isSelected = selection?.selectedTemplateId === template.templateId;
+  const isSelected = selection?.selectedTemplateIds.includes(template.templateId) ?? false;
   return (
     <li
       className={`卡片 rounded-xl border px-4 py-3 ${
@@ -69,10 +70,10 @@ function TemplateItem({
               onClick={(e) => {
                 // 阻止 summary 折叠切换：选中按钮只承担选中态
                 e.preventDefault();
-                selection.onSelectTemplate(isSelected ? null : template.templateId);
+                selection.onToggleTemplate(template.templateId);
               }}
             >
-              {isSelected ? "已选中（微调目标）" : "选中微调"}
+              {isSelected ? "已框选（微调目标）" : "框选微调"}
             </button>
           )}
         </summary>
@@ -131,7 +132,7 @@ export default function AdminDomainPackTemplates({
       <h2 className="标题 text-base">题目列表</h2>
       <p className="text-xs text-muted">
         全部题目模板（{templates.length} 题）：概要行含题面摘要、知识点归属与难度，点开查看完整题目内容。
-        {selection ? "可选中单道题目作为元素微调目标（改动一律经微调闭环，无手工行内编辑）。" : "严格只读。"}
+        {selection ? "可框选一道或多道题目作为元素微调目标（改动一律经微调闭环，无手工行内编辑）。" : "严格只读。"}
       </p>
       <ul className="flex flex-col gap-2">
         {templates.map((template) => (

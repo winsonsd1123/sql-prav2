@@ -136,4 +136,43 @@ describe("buildRefinePrompt", () => {
     const { user } = buildRefinePrompt({ packId: "library-loan", intent: "整体微调", currentPack });
     expect(user).not.toContain("targetTemplateId");
   });
+
+  // —— 票 #87：元素微调扩展到表 / 知识点条目 / 多题框选（沿用 #85 的【元素微调目标】段机制）——
+
+  it("表定位（票 #87）：写死目标 tableRole，点名可调外键且引用须自洽，其余逐字保留", () => {
+    const { user } = buildRefinePrompt({
+      packId: "library-loan",
+      intent: "把成绩表的外键改成指向课程表课程号",
+      currentPack,
+      targetTable: "成绩",
+    });
+    expect(user).toContain("targetTable=成绩");
+    expect(user).toContain("外键");
+    expect(user).toContain("逐字保留");
+  });
+
+  it("知识点定位（票 #87）：写死目标条目名，允许增删/改序指令且声明清单不得越出词表", () => {
+    const { user } = buildRefinePrompt({
+      packId: "library-loan",
+      intent: "把该知识点移到清单更靠后",
+      currentPack,
+      targetKnowledgeArea: "聚合与分组",
+    });
+    expect(user).toContain("targetKnowledgeArea=聚合与分组");
+    expect(user).toContain("增删");
+    expect(user).toContain("词表");
+    expect(user).toContain("逐字保留");
+  });
+
+  it("多题框选定位（票 #87）：逐一点名目标 templateId 列表，其余逐字保留", () => {
+    const { user } = buildRefinePrompt({
+      packId: "library-loan",
+      intent: "这批题的提示统一更口语化",
+      currentPack,
+      targetTemplateIds: ["cloud-tpl-01", "cloud-tpl-08"],
+    });
+    expect(user).toContain("targetTemplateIds=[cloud-tpl-01, cloud-tpl-08]");
+    expect(user).toContain("只修改");
+    expect(user).toContain("逐字保留");
+  });
 });

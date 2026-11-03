@@ -102,6 +102,12 @@ export interface DomainPackRefineInput {
   currentPack: DomainPackAsset;
   /** 可选：元素微调目标题目模板（票 #85）——选中单道题时提示词写死定位与逐字保留约束 */
   targetTemplateId?: string;
+  /** 可选：多题框选目标题目模板（票 #87）——批量下指令时逐一点名目标集合 */
+  targetTemplateIds?: string[];
+  /** 可选：元素微调目标表（票 #87）——库骨架的表（含外键调整指令） */
+  targetTable?: string;
+  /** 可选：元素微调目标知识点条目（票 #87）——清单条目的增删/改序指令 */
+  targetKnowledgeArea?: string;
 }
 
 /** 微调专属约束：完整输出、packId 基础名不变、只按意图修改 */
@@ -127,12 +133,38 @@ export function buildRefinePrompt(input: DomainPackRefineInput): { system: strin
   }
   // 元素定位（票 #85 / spec #76）：执行机制仍是全量重发，但提示词写死目标题目标识
   // 与「只改目标、其余逐字保留」约束——元素定位让保留约束从泛泛而谈变为点名到元素。
+  // 票 #87 扩展为三类元素（表 / 知识点条目 / 多题框选），沿用同一段机制；
+  // 四个 target 字段由服务层保证互斥，此处只按传入者渲染。
   if (input.targetTemplateId !== undefined) {
     lines.push(
       "",
       "【元素微调目标】",
       `targetTemplateId=${input.targetTemplateId}：本次微调只修改 templates 数组中 templateId 为 ${input.targetTemplateId} 的这一道题目模板，`,
       "其余所有内容（含其他题目模板的题面/提示/参考答案/常见错误/参数池、库骨架、知识点清单、难度档位定义、演练配置）逐字保留，禁止顺手改动或增删题目。",
+    );
+  }
+  if (input.targetTemplateIds !== undefined) {
+    lines.push(
+      "",
+      "【元素微调目标】",
+      `targetTemplateIds=[${input.targetTemplateIds.join(", ")}]：本次微调只修改 templates 数组中 templateId 为 ${input.targetTemplateIds.join("、")} 的这些题目模板，`,
+      "其余所有内容（含未列出的题目模板、库骨架、知识点清单、难度档位定义、演练配置）逐字保留，禁止顺手改动或增删清单之外的题目。",
+    );
+  }
+  if (input.targetTable !== undefined) {
+    lines.push(
+      "",
+      "【元素微调目标】",
+      `targetTable=${input.targetTable}：本次微调只修改 schemaSkeleton 数组中 tableRole 为 ${input.targetTable} 的这一张表（含其列定义、名称池、主键与外键引用），`,
+      "外键调整时被引用表/列必须存在于库骨架中、禁止循环引用；其余所有内容（含其他表、题目模板、知识点清单、难度档位定义、演练配置）逐字保留，禁止顺手改动。",
+    );
+  }
+  if (input.targetKnowledgeArea !== undefined) {
+    lines.push(
+      "",
+      "【元素微调目标】",
+      `targetKnowledgeArea=${input.targetKnowledgeArea}：本次微调只围绕知识点清单中的「${input.targetKnowledgeArea}」条目展开——可删除该条目、调整其顺序位置，或修改归属该知识点的题目模板；`,
+      "其余条目与所有其他内容逐字保留。清单的增删/改序后仍须满足每道模板恰好归属清单一项；调整后的清单只能由词表既有条目组成，禁止引入词表之外的新名称。",
     );
   }
   return { system: SYSTEM_PROMPT + REFINE_ADDENDUM, user: lines.join("\n") };
