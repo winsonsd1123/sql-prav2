@@ -90,24 +90,38 @@ test("无 packId 参数：回退页内选择器，手动选择后查询成功", 
   await expect(page.getByTestId("版本历史列表")).toContainText("历史（旧会话钉住）");
 });
 
-test("下拉键盘可达（票 #97）：回车展开、方向键移动高亮、回车确认并查询，焦点回到触发器", async ({ page }) => {
+test("下拉键盘可达（票 #97）：回车展开、Esc 关闭不查询；方向键移动后回车确认并查询，焦点回到触发器", async ({ page }) => {
   await mockTeacherPermissions(page);
   await attachPageStubs(page);
   await mockVersionsApi(page);
 
+  // 场景一（Esc）：展开后 Esc 关闭——面板收起、不触发查询（列表仍不渲染）、焦点回到触发器
   await page.goto("/admin/packs/versions");
-  const trigger = page.getByTestId("版本历史目标域包");
+  let trigger = page.getByTestId("版本历史目标域包");
+  await expect(trigger).toHaveText("请选择域包");
+  await trigger.focus();
+  await page.keyboard.press("Enter");
+  await expect(page.getByRole("listbox")).toBeVisible();
+  await page.keyboard.press("Escape");
+  await expect(page.getByRole("listbox")).toHaveCount(0);
+  await expect(trigger).toBeFocused();
+  await expect(page.getByTestId("版本历史列表")).toHaveCount(0);
+
+  // 场景二（选择链）：从干净初始态出发，回车展开、方向键移动、回车确认——
+  // 选中非占位项（触发器文字不再是占位）并触发查询，焦点回到触发器。
+  // reload 隔离两场景；ArrowDown 与 Enter 之间须等高亮真实移动（Radix 无外部
+  // 等价标记，data-highlighted 作同步点是务实选择），否则 Enter 抢跑选中初始高亮（占位项）
+  await page.reload();
+  trigger = page.getByTestId("版本历史目标域包");
   await expect(trigger).toHaveText("请选择域包");
   await trigger.focus();
   await page.keyboard.press("Enter");
   await expect(page.getByRole("listbox")).toBeVisible();
   await page.keyboard.press("ArrowDown");
-  const highlighted = page.locator('[role="option"][data-highlighted]');
-  await expect(highlighted).not.toHaveText("请选择域包");
-  const label = (await highlighted.textContent()) ?? "";
+  await expect(page.locator('[role="option"][data-highlighted]')).not.toHaveText("请选择域包");
   await page.keyboard.press("Enter");
   await expect(page.getByRole("listbox")).toHaveCount(0);
-  await expect(trigger).toHaveText(label);
+  await expect(trigger).not.toHaveText("请选择域包");
   await expect(trigger).toBeFocused();
   await expect(page.getByTestId("版本历史列表")).toContainText("当前（新会话使用）");
 });
