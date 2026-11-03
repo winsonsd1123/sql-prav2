@@ -10,7 +10,7 @@ import {
 import type { DomainPack } from "@/kernel/types";
 
 function mkPack(packId: string): DomainPack {
-  return { packId, name: packId, schemaSkeleton: [], templates: [] };
+  return { packId, name: packId, schemaSkeleton: [], templates: [], knowledgeAreas: [] };
 }
 
 describe("合并注册表 mergePackRegistries", () => {
