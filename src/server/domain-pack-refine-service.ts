@@ -105,23 +105,65 @@ export type VersionHistoryResult =
   | { status: "forbidden" }
   | { status: "error" };
 
-/** 微调请求体形状预检：{ packId, intent, sampleSql? }，意图必填非空 */
-function normalizeRefineInput(
-  body: unknown,
-): { packId: string; intent: string; sampleSql?: string; targetTemplateId?: string } | null {
+/** 微调请求体形状预检：{ packId, intent, sampleSql?, target*? }，意图必填非空。
+ *  元素微调目标字段族（#85 targetTemplateId；#87 增 targetTemplateIds / targetTable /
+ *  targetKnowledgeArea）四者互斥——同时携带多个即 invalid，防定位歧义。 */
+interface RefineInput {
+  packId: string;
+  intent: string;
+  sampleSql?: string;
+  targetTemplateId?: string;
+  targetTemplateIds?: string[];
+  targetTable?: string;
+  targetKnowledgeArea?: string;
+}
+
+function normalizeRefineInput(body: unknown): RefineInput | null {
   if (typeof body !== "object" || body === null) return null;
-  const raw = body as { packId?: unknown; intent?: unknown; sampleSql?: unknown; targetTemplateId?: unknown };
+  const raw = body as {
+    packId?: unknown;
+    intent?: unknown;
+    sampleSql?: unknown;
+    targetTemplateId?: unknown;
+    targetTemplateIds?: unknown;
+    targetTable?: unknown;
+    targetKnowledgeArea?: unknown;
+  };
   if (typeof raw.packId !== "string" || raw.packId.trim() === "") return null;
   if (typeof raw.intent !== "string" || raw.intent.trim() === "") return null;
   if (raw.sampleSql !== undefined && typeof raw.sampleSql !== "string") return null;
   // 元素微调目标（票 #85）：可选；给定时必须是字符串（空串视为未指定）
   if (raw.targetTemplateId !== undefined && typeof raw.targetTemplateId !== "string") return null;
+  // 多题框选（票 #87）：可选；给定为非空字符串数组（空数组 = 无目标，视为非法）
+  if (
+    raw.targetTemplateIds !== undefined &&
+    (!Array.isArray(raw.targetTemplateIds) ||
+      raw.targetTemplateIds.length === 0 ||
+      raw.targetTemplateIds.some((id) => typeof id !== "string" || id.trim() === ""))
+  ) {
+    return null;
+  }
+  if (raw.targetTable !== undefined && typeof raw.targetTable !== "string") return null;
+  if (raw.targetKnowledgeArea !== undefined && typeof raw.targetKnowledgeArea !== "string") return null;
+  // 互斥：四个目标字段至多一个（空串/空数组视为未携带，不参与互斥判定）
+  const present = [
+    typeof raw.targetTemplateId === "string" && raw.targetTemplateId.trim() !== "",
+    Array.isArray(raw.targetTemplateIds) && raw.targetTemplateIds.length > 0,
+    typeof raw.targetTable === "string" && raw.targetTable.trim() !== "",
+    typeof raw.targetKnowledgeArea === "string" && raw.targetKnowledgeArea.trim() !== "",
+  ].filter(Boolean).length;
+  if (present > 1) return null;
   const targetTemplateId = raw.targetTemplateId?.trim();
+  const targetTable = raw.targetTable?.trim();
+  const targetKnowledgeArea = raw.targetKnowledgeArea?.trim();
   return {
     packId: raw.packId.trim(),
     intent: raw.intent,
     sampleSql: raw.sampleSql,
     ...(targetTemplateId !== "" && targetTemplateId !== undefined ? { targetTemplateId } : {}),
+    ...(raw.targetTemplateIds !== undefined ? { targetTemplateIds: raw.targetTemplateIds as string[] } : {}),
+    ...(targetTable !== "" && targetTable !== undefined ? { targetTable } : {}),
+    ...(targetKnowledgeArea !== "" && targetKnowledgeArea !== undefined ? { targetKnowledgeArea } : {}),
   };
 }
 
@@ -176,6 +218,24 @@ export async function refineDomainPackDraft(
   ) {
     return { status: "invalid" };
   }
+  // 多题框选（票 #87）：全部目标必须存在于当前资产，任一缺失即 invalid
+  if (
+    input.targetTemplateIds !== undefined &&
+    !input.targetTemplateIds.every((id) => current.asset.templates.some((t) => t.templateId === id))
+  ) {
+    return { status: "invalid" };
+  }
+  // 表定位（票 #87）：目标 tableRole 必须存在于当前资产骨架
+  if (input.targetTable !== undefined && !current.asset.schemaSkeleton.some((t) => t.tableRole === input.targetTable)) {
+    return { status: "invalid" };
+  }
+  // 知识点定位（票 #87）：目标条目必须存在于当前资产的知识点清单
+  if (
+    input.targetKnowledgeArea !== undefined &&
+    !(current.asset.knowledgeAreas ?? []).includes(input.targetKnowledgeArea)
+  ) {
+    return { status: "invalid" };
+  }
 
   if (deps.provider === undefined) {
     return { status: "llm_error", kind: "unknown", message: "LLM provider 未注入（未配置 DEEPSEEK_API_KEY？）" };
@@ -186,6 +246,9 @@ export async function refineDomainPackDraft(
     sampleSql: input.sampleSql,
     currentPack: current.asset,
     targetTemplateId: input.targetTemplateId,
+    targetTemplateIds: input.targetTemplateIds,
+    targetTable: input.targetTable,
+    targetKnowledgeArea: input.targetKnowledgeArea,
   });
   let completion: string;
   try {

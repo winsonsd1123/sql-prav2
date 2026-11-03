@@ -12,6 +12,12 @@ import Link from "next/link";
 import AdminDomainPackTemplates from "@/components/admin-domain-pack-templates";
 import AdminDomainPackRefiner from "@/components/admin-domain-pack-refiner";
 import { parsePackIdVersion } from "@/kernel/domain-pack-versioning";
+import {
+  toggleTemplate,
+  toggleTable,
+  toggleKnowledgeArea,
+  type ElementRefineTarget,
+} from "@/components/element-refine-target";
 import type { DifficultyTierDefinition } from "@/kernel/domain-pack-contract";
 import type { ColumnDefinition, DomainPack, TableDefinition } from "@/kernel/types";
 
@@ -54,8 +60,19 @@ function SkeletonColumnRow({ column }: { column: ColumnDefinition & { isPrimaryK
   );
 }
 
-/** 单表的骨架卡片：语义角色 / 表名池 / 行数 / 列清单（主键列居首） */
-function SkeletonTableCard({ table }: { table: TableDefinition }) {
+/** 单表的骨架卡片：语义角色 / 表名池 / 行数 / 列清单（主键列居首）；
+ *  票 #87 起传入 onToggleTable 时表头出现「选中微调」按钮（含外键调整指令入口） */
+function SkeletonTableCard({
+  table,
+  isSelected,
+  onToggleTable,
+}: {
+  table: TableDefinition;
+  /** 当前表是否为元素微调目标 */
+  isSelected: boolean;
+  /** 点选回调（toggle 语义）；undefined = 无选中交互（纯只读） */
+  onToggleTable?: () => void;
+}) {
   const primaryKeyColumn: (ColumnDefinition & { isPrimaryKey?: boolean }) | null = table.serialKey
     ? {
         columnRole: table.serialKey.columnRole,
@@ -67,7 +84,7 @@ function SkeletonTableCard({ table }: { table: TableDefinition }) {
     : null;
   return (
     <section
-      className="卡片 rounded-2xl border border-ink/10 bg-paper p-4"
+      className={`卡片 rounded-2xl border p-4 ${isSelected ? "border-emerald-600 ring-1 ring-emerald-600" : "border-ink/10"} bg-paper`}
       data-testid={`骨架表-${table.tableRole}`}
       aria-label={`骨架表 ${table.tableRole}`}
     >
@@ -78,6 +95,17 @@ function SkeletonTableCard({ table }: { table: TableDefinition }) {
         <span className="text-xs text-muted">行数：{table.rowCount}</span>
         {table.serialKey && (
           <span className="text-xs text-muted">主键起始值：{table.serialKey.startValue}</span>
+        )}
+        {onToggleTable && (
+          <button
+            type="button"
+            className={`ml-auto self-center rounded-full px-2 py-0.5 text-xs ${isSelected ? "bg-emerald-700 text-white" : "border border-ink/20"}`}
+            data-testid={`表选中按钮-${table.tableRole}`}
+            aria-pressed={isSelected}
+            onClick={onToggleTable}
+          >
+            {isSelected ? "已选中（微调目标）" : "选中微调"}
+          </button>
         )}
       </div>
       <ul className="text-sm">
@@ -156,8 +184,9 @@ export default function AdminDomainPackDetail({
   difficultyTiers,
   onRefineApplied,
 }: AdminDomainPackDetailProps) {
-  // 元素微调选中态（票 #85）：null = 未选中（题目列表纯只读）；选中后渲染单题微调面板
-  const [selectedTemplateId, setSelectedTemplateId] = useState<string | null>(null);
+  // 元素微调目标（#85 单题 → #87 三类元素统一）：null = 未选中（各分区纯只读）；
+  // 跨类点选互斥（toggle 纯函数保证），选中后渲染元素微调面板
+  const [target, setTarget] = useState<ElementRefineTarget | null>(null);
   if (!cloudLoaded) {
     return <p className="呼吸 text-sm text-muted" data-testid="域包详情加载中">正在加载域包清单……</p>;
   }
@@ -202,44 +231,73 @@ export default function AdminDomainPackDetail({
       <section id="库骨架" className="flex flex-col gap-4" data-testid="库骨架分区" aria-label="库骨架">
         <h2 className="标题 text-base">库骨架</h2>
         <p className="text-xs text-muted">
-          该场景的数据模型全貌：每张表的语义角色、表名池、行数与列定义（值池 / 外键引用）。严格只读。
+          该场景的数据模型全貌：每张表的语义角色、表名池、行数与列定义（值池 / 外键引用）。可选中单张表
+          作为元素微调目标（含外键调整指令），改动一律经微调闭环。
         </p>
         {pack.schemaSkeleton.map((table) => (
-          <SkeletonTableCard key={table.tableRole} table={table} />
+          <SkeletonTableCard
+            key={table.tableRole}
+            table={table}
+            isSelected={target?.kind === "table" && target.tableRole === table.tableRole}
+            onToggleTable={() => setTarget((prev) => toggleTable(prev, table.tableRole))}
+          />
         ))}
       </section>
-      {/* 知识点清单（票 #80）：有序清单，顺序即会话抽题推进顺序（票 #58 下放域包字段） */}
+      {/* 知识点清单（票 #80）：有序清单，顺序即会话抽题推进顺序（票 #58 下放域包字段）；
+          #87 起条目可选中作元素微调目标（增删/改序指令） */}
       <section id="知识点清单" className="flex flex-col gap-3" data-testid="知识点清单分区" aria-label="知识点清单">
         <h2 className="标题 text-base">知识点清单</h2>
         <p className="text-xs text-muted">
           该场景考察的知识点与推进顺序（共 {pack.knowledgeAreas?.length ?? 0} 类）：会话抽题按此顺序推进。
+          可选中条目作为元素微调目标（增删/改序指令），调整后清单仍须是词表子集。
         </p>
         {pack.knowledgeAreas === undefined ? (
           <p className="text-sm text-muted">该域包未携带知识点清单。</p>
         ) : (
           <ol className="卡片 flex flex-col gap-1 rounded-xl border border-ink/10 bg-paper px-4 py-3 text-sm">
-            {pack.knowledgeAreas.map((area, index) => (
-              <li key={area} data-testid={`知识点条目-${index}`}>
-                {index + 1}. {area}
-              </li>
-            ))}
+            {pack.knowledgeAreas.map((area, index) => {
+              const areaSelected = target?.kind === "knowledgeArea" && target.name === area;
+              return (
+                <li
+                  key={area}
+                  className={`flex items-center gap-2 rounded-lg px-2 py-1 ${areaSelected ? "bg-emerald-50 ring-1 ring-emerald-600" : ""}`}
+                  data-testid={`知识点条目-${index}`}
+                >
+                  <span>
+                    {index + 1}. {area}
+                  </span>
+                  <button
+                    type="button"
+                    className={`ml-auto rounded-full px-2 py-0.5 text-xs ${areaSelected ? "bg-emerald-700 text-white" : "border border-ink/20"}`}
+                    data-testid={`知识点选中按钮-${area}`}
+                    aria-pressed={areaSelected}
+                    onClick={() => setTarget((prev) => toggleKnowledgeArea(prev, area))}
+                  >
+                    {areaSelected ? "已选中（微调目标）" : "选中微调"}
+                  </button>
+                </li>
+              );
+            })}
           </ol>
         )}
       </section>
-      {/* 题目列表分区（票 #81）：概要行 + 展开完整题；#85 起概要行可选中作元素微调目标 */}
+      {/* 题目列表分区（票 #81）：概要行 + 展开完整题；#85 起可选中单题，#87 扩为多题框选 */}
       <AdminDomainPackTemplates
         templates={pack.templates}
-        selection={{ selectedTemplateId, onSelectTemplate: setSelectedTemplateId }}
+        selection={{
+          selectedTemplateIds: target?.kind === "templates" ? target.ids : [],
+          onToggleTemplate: (templateId) => setTarget((prev) => toggleTemplate(prev, templateId)),
+        }}
       />
-      {/* 元素微调面板（票 #85）：选中题目后内嵌，复用既有微调链路（key = 目标题目，
+      {/* 元素微调面板（#85 → #87）：选中任一元素后内嵌，复用既有微调链路（key = 目标描述串，
           切换目标即重挂载回初始态）；生效成功后刷新清单并保留反馈 */}
-      {selectedTemplateId !== null && (
+      {target !== null && (
         <AdminDomainPackRefiner
-          key={selectedTemplateId}
+          key={JSON.stringify(target)}
           packs={[pack]}
           targetBasePackId={parsePackIdVersion(pack.packId).base}
-          targetTemplateId={selectedTemplateId}
-          onClearTarget={() => setSelectedTemplateId(null)}
+          target={target}
+          onClearTarget={() => setTarget(null)}
           onApplied={onRefineApplied}
         />
       )}
