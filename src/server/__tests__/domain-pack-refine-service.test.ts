@@ -13,6 +13,7 @@ import {
   refineDomainPackDraft,
   applyDomainPackRefinement,
   getDomainPackVersionHistory,
+  getDomainPackVersionContent,
   type RefineServiceDeps,
 } from "@/server/domain-pack-refine-service";
 import { parsePackIdVersion } from "@/kernel/domain-pack-versioning";
@@ -574,5 +575,66 @@ describe("getDomainPackVersionHistory：版本历史查询", () => {
     if (result.status !== "ok") throw new Error("unreachable");
     expect(result.versions.map((v) => `${v.versionLabel}:${v.isCurrent}`)).toEqual(["v2:true", "v1:false"]);
     expect(result.versions[1].packId).toBe(PACK_ID);
+  });
+});
+
+// —— 票 #86：历史版本完整内容查询（版本内容视图页数据源）——
+
+describe("getDomainPackVersionContent：版本完整内容查询", () => {
+  it("请求当前版本 packId：返回当前资产并带 isCurrent 标记", async () => {
+    const v2 = mkCloudPackJson({ packId: `${PACK_ID}@v2` }) as unknown as DomainPackAsset;
+    const tables = mkTables([{ pack_id: PACK_ID, asset: v2 }]);
+    const result = await getDomainPackVersionContent(`${PACK_ID}@v2`, auth, {
+      adminDeps: mkAdminDeps(),
+      ...tables.deps,
+    });
+    expect(result.status).toBe("ok");
+    if (result.status !== "ok") throw new Error("unreachable");
+    expect(result.isCurrent).toBe(true);
+    expect(result.versionLabel).toBe("v2");
+    expect(result.asset.packId).toBe(`${PACK_ID}@v2`);
+    // 难度档位定义随资产透传（留在资产态供教师端展示，ADR-0009）
+    expect(result.asset.difficultyTiers).toHaveLength(5);
+  });
+
+  it("请求历史版本 packId：从版本历史表取旧资产（旧字符串清单形态兼容渲染）", async () => {
+    const v1 = mkCloudPackJson({ packId: PACK_ID, name: "图书馆借阅" });
+    const v2 = mkCloudPackJson({ packId: `${PACK_ID}@v2` }) as unknown as DomainPackAsset;
+    const tables = mkTables(
+      [{ pack_id: PACK_ID, asset: v2 }],
+      [{ pack_id: PACK_ID, version_label: "v1", asset: v1 }],
+    );
+    const result = await getDomainPackVersionContent(PACK_ID, auth, {
+      adminDeps: mkAdminDeps(),
+      ...tables.deps,
+    });
+    expect(result.status).toBe("ok");
+    if (result.status !== "ok") throw new Error("unreachable");
+    expect(result.isCurrent).toBe(false);
+    expect(result.versionLabel).toBe("v1");
+    expect(result.asset.packId).toBe(PACK_ID);
+    expect(result.asset.name).toBe("图书馆借阅");
+    // 旧字符串清单形态：无 knowledgeAreaRefIds 字段，知识点清单仍完整可读
+    expect(result.asset.knowledgeAreaRefIds).toBeUndefined();
+    expect(result.asset.knowledgeAreas.length).toBeGreaterThan(0);
+  });
+
+  it("请求不存在的版本 packId：not_found", async () => {
+    const v2 = mkCloudPackJson({ packId: `${PACK_ID}@v2` }) as unknown as DomainPackAsset;
+    const tables = mkTables([{ pack_id: PACK_ID, asset: v2 }]);
+    const result = await getDomainPackVersionContent(`${PACK_ID}@v9`, auth, {
+      adminDeps: mkAdminDeps(),
+      ...tables.deps,
+    });
+    expect(result.status).toBe("not_found");
+  });
+
+  it("无权限点：forbidden", async () => {
+    const tables = mkTables([]);
+    const result = await getDomainPackVersionContent(PACK_ID, auth, {
+      adminDeps: mkAdminDeps([]),
+      ...tables.deps,
+    });
+    expect(result.status).toBe("forbidden");
   });
 });
