@@ -43,6 +43,29 @@ const DIFF_CLASS_LABEL: Record<DomainPackDiffView["changeClass"], string> = {
 };
 
 /**
+ * 取当前版本资产作为 diff 基准（票 #88）：版本历史 API 找 isCurrent 行 → 取其内容。
+ * 任一步失败返回 null（调用方降级为 UI 弱提示，不设主流程错误态）。
+ */
+async function fetchCurrentVersionContent(base: string, token: string): Promise<VersionContent | null> {
+  const headers = bearerHeaders(token);
+  const historyResponse = await fetch(`/api/admin/domain-packs/versions?packId=${encodeURIComponent(base)}`, {
+    headers,
+  });
+  if (!historyResponse.ok) return null;
+  const historyBody = (await historyResponse.json()) as {
+    versions: { packId: string; isCurrent: boolean }[] | undefined;
+  };
+  const currentEntry = historyBody.versions?.find((v) => v.isCurrent);
+  if (currentEntry === undefined) return null;
+  const response = await fetch(
+    `/api/admin/domain-packs/versions/content?packId=${encodeURIComponent(currentEntry.packId)}`,
+    { headers },
+  );
+  if (!response.ok) return null;
+  return (await response.json()) as VersionContent;
+}
+
+/**
  * 版本轻量 diff 呈现（票 #88）：分类结论 + 变更区块清单，不做逐字段高亮。
  * 视图模型由内核纯函数产出（buildDomainPackDiffView），本组件只做渲染。
  */
@@ -129,36 +152,28 @@ function PackVersionViewContent() {
   // 轻量 diff（票 #88）：历史版本以「当前版本」为对比基准（微调闭环核对「改对了没有」
   // 的最自然参照；当前版本 packId 经版本历史 API 取 isCurrent 行——基础名在当前为 vN 时
   // 会解析到历史行，不能直接当基准）。当前版本自身不 diff（vs 自身恒为无差异）。
-  // 基准取数失败不阻塞内容查看——diff 区块静默缺位（内容本体已可用），不打扰只读主流程。
+  // 基准取数失败不阻塞内容查看（内容本体已可用），也不设主流程错误态——
+  // 但不能静默缺位：教师需能区分「与当前版本无差异」与「diff 基准取数失败」，
+  // 故降级为 UI 弱提示（弱到不打扰只读主流程，留痕到足以解释 diff 为何不在）。
   const [currentContent, setCurrentContent] = useState<VersionContent | null>(null);
+  const [diffBaseFailed, setDiffBaseFailed] = useState(false);
   const needDiff = content !== null && !content.isCurrent;
   useEffect(() => {
     if (!needDiff) return;
     const base = parsePackIdVersion(packId).base;
     let cancelled = false;
     (async () => {
+      setCurrentContent(null);
+      setDiffBaseFailed(false);
       try {
         const { token } = await getSessionAuth();
-        if (!token) return;
-        const headers = bearerHeaders(token);
-        const historyResponse = await fetch(`/api/admin/domain-packs/versions?packId=${encodeURIComponent(base)}`, {
-          headers,
-        });
-        if (!historyResponse.ok) return;
-        const historyBody = (await historyResponse.json()) as {
-          versions: { packId: string; isCurrent: boolean }[] | undefined;
-        };
-        const currentEntry = historyBody.versions?.find((v) => v.isCurrent);
-        if (currentEntry === undefined) return;
-        const response = await fetch(
-          `/api/admin/domain-packs/versions/content?packId=${encodeURIComponent(currentEntry.packId)}`,
-          { headers },
-        );
-        if (!response.ok) return;
-        const body = (await response.json()) as VersionContent;
-        if (!cancelled) setCurrentContent(body);
+        if (!token) throw new Error("no session");
+        const body = await fetchCurrentVersionContent(base, token);
+        if (cancelled) return;
+        if (body === null) setDiffBaseFailed(true);
+        else setCurrentContent(body);
       } catch {
-        // 基准取数失败：diff 区块缺位即可，不设错误态
+        if (!cancelled) setDiffBaseFailed(true);
       }
     })();
     return () => {
@@ -198,6 +213,11 @@ function PackVersionViewContent() {
         {missingPackId && <p className="text-sm text-red-700" data-testid="版本内容错误">缺少 packId 查询参数</p>}
         {error !== null && <p className="text-sm text-red-700" data-testid="版本内容错误">{error}</p>}
         {content === null && error === null && <p className="呼吸 text-sm text-muted">正在加载版本内容……</p>}
+        {content !== null && !content.isCurrent && currentContent === null && diffBaseFailed && (
+          <p data-testid="diff基准取数失败" className="text-xs text-muted">
+            差异对比暂不可用（基准版本读取失败），可刷新重试
+          </p>
+        )}
         {diffView !== null && content !== null && (
           <VersionDiffSection diff={diffView} fromLabel={content.versionLabel} toLabel={`当前版本 ${currentContent?.versionLabel ?? ""}`} />
         )}
