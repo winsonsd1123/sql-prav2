@@ -33,3 +33,7 @@ Issue 以 GitHub issue 形式跟踪，通过 `gh` CLI 操作。见 `docs/agents/
 ### 命名语言
 
 代码用英文：标识符、文件/目录名、路由、数据库对象（表/列/触发器/RLS 策略）、auth 元数据键（DB snake_case / TS camelCase / 组件 PascalCase / 文件 kebab-case）。中文只用于：文档、注释、测试描述、commit message、界面文案、域包题面与试题内容、种子数据值。见 `docs/adr/0006`。
+
+### 个人心得目录（知识库排除项）
+
+`docs/reflections/` 是个人心得随笔，已 gitignore、不入库。它**不属于项目知识库**：扫描项目文档、拼装规范来源、建立索引或引用项目内容时，一律跳过该目录，不要读取、总结或引用其中内容。
