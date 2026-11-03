@@ -1,12 +1,21 @@
 "use client";
 
-// 域包详情页「题目列表」分区（票 #81 / spec #73 子票三）：
+// 域包详情页「题目列表」分区（票 #81 / spec #73 子票三；票 #85 加选中交互）：
 // 全部题目模板的概要行（题面摘要 / 知识点归属 / 难度）+ 原生 details 展开完整题
 // （题面 / 提示×2 / 参考答案 / 常见错误 / 参数池 / 有序性）。
-// 概要行结构为 #85「选中题目」微调留自然扩展——本票不做任何选中交互。
-// 严格只读：不发起任何变更请求。
+// 票 #85：传入 onSelectTemplate 时概要行出现「选中微调」按钮，单选一道题目作为
+// 元素微调目标（选中态 aria-pressed + 徽标清晰可见）；微调本身由详情页的元素微调
+// 面板承接，本组件不发起任何变更请求。
 
 import type { QuestionTemplate } from "@/kernel/types";
+
+/** 元素微调选中态扩展 props（票 #85）：缺省不渲染选中交互（版本历史页复用本组件时保持纯只读） */
+export interface TemplateSelectionProps {
+  /** 当前选中的微调目标题目（null = 未选中） */
+  selectedTemplateId: string | null;
+  /** 选中回调（点击已选中的行再点一次取消选中） */
+  onSelectTemplate: (templateId: string | null) => void;
+}
 
 /** 参数候选池展示格式化：条目间分号分隔；候选值标量直出、对象按「子键:值」圆点连接 */
 export function formatParamPool(pool: Record<string, (string | number | Record<string, string>)[]>): string {
@@ -26,9 +35,22 @@ function formatCandidate(candidate: string | number | Record<string, string>): s
 }
 
 /** 单题概要行 + 展开完整内容（原生 details，无 JS 状态即可用） */
-function TemplateItem({ template }: { template: QuestionTemplate }) {
+function TemplateItem({
+  template,
+  selection,
+}: {
+  template: QuestionTemplate;
+  /** 元素微调选中态（票 #85）；undefined = 无选中交互 */
+  selection?: TemplateSelectionProps;
+}) {
+  const isSelected = selection?.selectedTemplateId === template.templateId;
   return (
-    <li className="卡片 rounded-xl border border-ink/10 bg-paper px-4 py-3">
+    <li
+      className={`卡片 rounded-xl border px-4 py-3 ${
+        isSelected ? "border-emerald-600 ring-1 ring-emerald-600" : "border-ink/10"
+      } bg-paper`}
+      data-testid={`题目卡片-${template.templateId}`}
+    >
       <details data-testid={`题目展开-${template.templateId}`}>
         <summary
           className="cursor-pointer list-none"
@@ -38,6 +60,21 @@ function TemplateItem({ template }: { template: QuestionTemplate }) {
           <span className="font-medium">{template.prompt}</span>
           <span className="ml-2 text-xs text-muted">知识点：{template.knowledgeArea}</span>
           <span className="ml-2 text-xs text-muted">难度：{template.difficulty}</span>
+          {selection && (
+            <button
+              type="button"
+              className={`ml-2 rounded-full px-2 py-0.5 text-xs ${isSelected ? "bg-emerald-700 text-white" : "border border-ink/20"}`}
+              data-testid={`题目选中按钮-${template.templateId}`}
+              aria-pressed={isSelected}
+              onClick={(e) => {
+                // 阻止 summary 折叠切换：选中按钮只承担选中态
+                e.preventDefault();
+                selection.onSelectTemplate(isSelected ? null : template.templateId);
+              }}
+            >
+              {isSelected ? "已选中（微调目标）" : "选中微调"}
+            </button>
+          )}
         </summary>
         <div className="mt-2 flex flex-col gap-1 text-sm" data-testid={`题目完整内容-${template.templateId}`}>
           <p>
@@ -81,16 +118,24 @@ function TemplateItem({ template }: { template: QuestionTemplate }) {
 }
 
 /** 题目列表分区：概要行覆盖包内全部模板 */
-export default function AdminDomainPackTemplates({ templates }: { templates: QuestionTemplate[] }) {
+export default function AdminDomainPackTemplates({
+  templates,
+  selection,
+}: {
+  templates: QuestionTemplate[];
+  /** 元素微调选中态（票 #85）：传入即启用概要行选中交互 */
+  selection?: TemplateSelectionProps;
+}) {
   return (
     <section id="题目列表" className="flex flex-col gap-3" data-testid="题目列表分区" aria-label="题目列表">
       <h2 className="标题 text-base">题目列表</h2>
       <p className="text-xs text-muted">
-        全部题目模板（{templates.length} 题）：概要行含题面摘要、知识点归属与难度，点开查看完整题目内容。严格只读。
+        全部题目模板（{templates.length} 题）：概要行含题面摘要、知识点归属与难度，点开查看完整题目内容。
+        {selection ? "可选中单道题目作为元素微调目标（改动一律经微调闭环，无手工行内编辑）。" : "严格只读。"}
       </p>
       <ul className="flex flex-col gap-2">
         {templates.map((template) => (
-          <TemplateItem key={template.templateId} template={template} />
+          <TemplateItem key={template.templateId} template={template} selection={selection} />
         ))}
       </ul>
     </section>
