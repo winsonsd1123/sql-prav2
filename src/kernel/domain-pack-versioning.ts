@@ -35,8 +35,11 @@ export function buildVersionedPackId(base: string, version: number): string {
 /** A/B 类改动分类结果（GLOSSARY「域包版本」） */
 export type DomainPackChangeClass = "A" | "B" | "unchanged";
 
-/** 稳定序列化：对象键递归排序后序列化，比较与键序无关 */
-function stableStringify(value: unknown): string {
+/**
+ * 稳定序列化：对象键递归排序后序列化，比较与键序无关。
+ * 导出供版本轻量 diff（票 #88）复用，键序无关比较口径单一真理源。
+ */
+export function stableStringify(value: unknown): string {
   if (Array.isArray(value)) return `[${value.map(stableStringify).join(",")}]`;
   if (typeof value === "object" && value !== null) {
     const keys = Object.keys(value as Record<string, unknown>).sort();

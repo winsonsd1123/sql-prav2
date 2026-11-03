@@ -7,7 +7,7 @@
 // 「进行中会话停留旧版本」的解释场景）。严格只读，无变更请求。
 // 守卫与安全边界同详情页（/admin/packs/[packId]）：admin 布局拦「访问后台」（体验层），
 // 页内 AdminPackManageGuard 拦「域包管理」，真正的安全边界在 API（ADR-0007）。
-import { Suspense, useEffect, useState } from "react";
+import { Suspense, useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { useSearchParams } from "next/navigation";
 import AdminDomainPackDetail from "@/components/admin-domain-pack-detail";
@@ -15,12 +15,78 @@ import AdminPackManageGuard from "@/components/admin-pack-manage-guard";
 import { bearerHeaders, getSessionAuth } from "@/lib/admin-api-client";
 import { assetToKernelPack, type DomainPackAsset } from "@/kernel/domain-pack-contract";
 import { parsePackIdVersion } from "@/kernel/domain-pack-versioning";
+import { buildDomainPackDiffView, type DomainPackDiffBlock, type DomainPackDiffView } from "@/kernel/domain-pack-diff";
 
 /** 版本内容响应（与 /api/admin/domain-packs/versions/content 响应同形） */
 interface VersionContent {
   asset: DomainPackAsset;
   versionLabel: string;
   isCurrent: boolean;
+}
+
+/** diff 区块分区与动作的界面文案（中文域，ADR-0006） */
+const DIFF_SECTION_LABEL: Record<DomainPackDiffBlock["section"], string> = {
+  table: "表",
+  knowledgeArea: "知识点",
+  template: "题目模板",
+};
+const DIFF_ACTION_LABEL: Record<DomainPackDiffBlock["action"], string> = {
+  added: "新增",
+  removed: "删除",
+  modified: "修改",
+};
+/** 分类结论文案：与微调报告同口径（A/B 类分界见 ADR-0009） */
+const DIFF_CLASS_LABEL: Record<DomainPackDiffView["changeClass"], string> = {
+  B: "B 类改动：触及参与种子生成的内容，产生新版本",
+  A: "A 类改动：仅不参与种子生成的内容变化，即时生效",
+  unchanged: "与当前版本无差异",
+};
+
+/**
+ * 版本轻量 diff 呈现（票 #88）：分类结论 + 变更区块清单，不做逐字段高亮。
+ * 视图模型由内核纯函数产出（buildDomainPackDiffView），本组件只做渲染。
+ */
+function VersionDiffSection({ diff, fromLabel, toLabel }: { diff: DomainPackDiffView; fromLabel: string; toLabel: string }) {
+  return (
+    <section data-testid="版本diff区块" className="flex flex-col gap-2 rounded-lg border border-panel bg-panel/50 p-4">
+      <h2 className="text-sm font-medium">与当前版本的差异（{fromLabel} → {toLabel}）</h2>
+      <p
+        data-testid="版本diff结论"
+        className={`w-fit rounded-full px-2.5 py-0.5 text-xs ${
+          diff.changeClass === "B" ? "bg-amber-50 text-amber-700" : "bg-panel text-muted"
+        }`}
+      >
+        {DIFF_CLASS_LABEL[diff.changeClass]}
+      </p>
+      {diff.blocks.length === 0 ? (
+        <p className="text-xs text-muted">无变更区块</p>
+      ) : (
+        <ul data-testid="版本diff清单" className="flex flex-col gap-1">
+          {diff.blocks.map((block) => (
+            <li
+              key={`${block.section}-${block.action}-${block.key}`}
+              data-testid={`diff区块-${block.section}-${block.key}`}
+              className="flex items-center gap-2 text-xs"
+            >
+              <span className="rounded bg-panel px-1.5 py-0.5 text-muted">{DIFF_SECTION_LABEL[block.section]}</span>
+              <span>{block.key}</span>
+              <span
+                className={
+                  block.action === "added"
+                    ? "text-emerald-700"
+                    : block.action === "removed"
+                      ? "text-red-700"
+                      : "text-amber-700"
+                }
+              >
+                {DIFF_ACTION_LABEL[block.action]}
+              </span>
+            </li>
+          ))}
+        </ul>
+      )}
+    </section>
+  );
 }
 
 function PackVersionViewContent() {
@@ -60,6 +126,55 @@ function PackVersionViewContent() {
     };
   }, [packId, missingPackId]);
 
+  // 轻量 diff（票 #88）：历史版本以「当前版本」为对比基准（微调闭环核对「改对了没有」
+  // 的最自然参照；当前版本 packId 经版本历史 API 取 isCurrent 行——基础名在当前为 vN 时
+  // 会解析到历史行，不能直接当基准）。当前版本自身不 diff（vs 自身恒为无差异）。
+  // 基准取数失败不阻塞内容查看——diff 区块静默缺位（内容本体已可用），不打扰只读主流程。
+  const [currentContent, setCurrentContent] = useState<VersionContent | null>(null);
+  const needDiff = content !== null && !content.isCurrent;
+  useEffect(() => {
+    if (!needDiff) return;
+    const base = parsePackIdVersion(packId).base;
+    let cancelled = false;
+    (async () => {
+      try {
+        const { token } = await getSessionAuth();
+        if (!token) return;
+        const headers = bearerHeaders(token);
+        const historyResponse = await fetch(`/api/admin/domain-packs/versions?packId=${encodeURIComponent(base)}`, {
+          headers,
+        });
+        if (!historyResponse.ok) return;
+        const historyBody = (await historyResponse.json()) as {
+          versions: { packId: string; isCurrent: boolean }[] | undefined;
+        };
+        const currentEntry = historyBody.versions?.find((v) => v.isCurrent);
+        if (currentEntry === undefined) return;
+        const response = await fetch(
+          `/api/admin/domain-packs/versions/content?packId=${encodeURIComponent(currentEntry.packId)}`,
+          { headers },
+        );
+        if (!response.ok) return;
+        const body = (await response.json()) as VersionContent;
+        if (!cancelled) setCurrentContent(body);
+      } catch {
+        // 基准取数失败：diff 区块缺位即可，不设错误态
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [needDiff, packId]);
+
+  // 视图模型判定全在内核纯函数：历史版本（当前页）→ 当前版本（基准）
+  const diffView = useMemo(
+    () =>
+      content !== null && currentContent !== null
+        ? buildDomainPackDiffView(content.asset, currentContent.asset)
+        : null,
+    [content, currentContent],
+  );
+
   return (
     <AdminPackManageGuard>
       <div className="flex flex-col gap-4">
@@ -83,6 +198,9 @@ function PackVersionViewContent() {
         {missingPackId && <p className="text-sm text-red-700" data-testid="版本内容错误">缺少 packId 查询参数</p>}
         {error !== null && <p className="text-sm text-red-700" data-testid="版本内容错误">{error}</p>}
         {content === null && error === null && <p className="呼吸 text-sm text-muted">正在加载版本内容……</p>}
+        {diffView !== null && content !== null && (
+          <VersionDiffSection diff={diffView} fromLabel={content.versionLabel} toLabel={`当前版本 ${currentContent?.versionLabel ?? ""}`} />
+        )}
         {content !== null && (
           <AdminDomainPackDetail
             packId={content.asset.packId}
