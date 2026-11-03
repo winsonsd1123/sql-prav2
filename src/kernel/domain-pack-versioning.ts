@@ -58,8 +58,18 @@ export function classifyDomainPackChange(
   current: DomainPackAsset,
   draft: DomainPackAsset,
 ): DomainPackChangeClass {
-  const seedFields = [current.schemaSkeleton, current.templates, current.knowledgeAreas] as const;
-  const draftFields = [draft.schemaSkeleton, draft.templates, draft.knowledgeAreas] as const;
+  // 知识点清单双形态（#83 / ADR 0010）：名称清单与词表引用数组作为一个种子字段整体比较——
+  // 引用数组变化（含引用↔自由形态切换）即清单变化 → B 类；仅 A 类字段变 → A 类（分界不变）
+  const seedFields = [
+    current.schemaSkeleton,
+    current.templates,
+    { knowledgeAreas: current.knowledgeAreas, knowledgeAreaRefIds: current.knowledgeAreaRefIds ?? null },
+  ] as const;
+  const draftFields = [
+    draft.schemaSkeleton,
+    draft.templates,
+    { knowledgeAreas: draft.knowledgeAreas, knowledgeAreaRefIds: draft.knowledgeAreaRefIds ?? null },
+  ] as const;
   const seedChanged = seedFields.some((field, i) => stableStringify(field) !== stableStringify(draftFields[i]));
   if (seedChanged) return "B";
   const aChanged =

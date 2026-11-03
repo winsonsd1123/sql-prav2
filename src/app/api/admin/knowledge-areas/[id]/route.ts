@@ -76,6 +76,9 @@ export async function DELETE(request: Request, context: RouteContext) {
         return Response.json({ ok: true });
       case "not_found":
         return Response.json({ error: "知识点条目不存在" }, { status: 404 });
+      case "in_use":
+        // 被引用条目禁止物理删除（#83 / ADR 0010 防悬挂引用）：只能停用（停用不阻断既有引用）
+        return Response.json({ error: "该知识点已被域包引用，不能删除；如需收回请改用停用" }, { status: 400 });
       case "unauthorized":
         return adminErrorResponse("unauthorized");
       case "forbidden":

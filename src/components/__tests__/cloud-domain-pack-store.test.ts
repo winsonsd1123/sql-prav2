@@ -2,7 +2,7 @@
 // 测快照语义：未就绪（空 + loaded=false，学生端仅见内置两包）、就绪后收录合法域包、
 // 契约非法/与当前抽题顺序不兼容的域包静默剔除、读取失败降级空清单。
 import { describe, expect, it, vi, beforeEach } from "vitest";
-import { mkCloudPackJson } from "@/kernel/__tests__/fixtures/cloud-domain-pack";
+import { mkCloudPackJson, CLOUD_FIXTURE_KNOWLEDGE_AREAS } from "@/kernel/__tests__/fixtures/cloud-domain-pack";
 
 const selectMock = vi.fn();
 const historySelectMock = vi.fn();
@@ -101,6 +101,21 @@ describe("学生端云端域包存储（cloudPackStore）", () => {
     await vi.waitFor(() => expect(cloudPackStore.getSnapshot().loaded).toBe(true));
     unsubscribe();
     expect(cloudPackStore.getSnapshot().packs.map((d) => d.packId)).toEqual(["self-contained-pack"]);
+  });
+
+  it("词表引用形态域包正常收录，内核域包与同名称清单的自由形态逐字段一致（#83 双形态归一化读取）", async () => {
+    const refForm = mkCloudPackJson({
+      packId: "ref-form-pack",
+      // 引用形态：引用数组与名称清单等长逐位对齐（词表语义在服务端写入路径校验，读取端只认归一化名称）
+      knowledgeAreaRefIds: ["ka-1", "ka-2", "ka-3", "ka-4", "ka-5", "ka-6", "ka-7"],
+    });
+    rowsOf([{ pack_id: "ref-form-pack", asset: refForm }]);
+    const unsubscribe = cloudPackStore.subscribe(() => {});
+    await vi.waitFor(() => expect(cloudPackStore.getSnapshot().loaded).toBe(true));
+    unsubscribe();
+    const snapshot = cloudPackStore.getSnapshot();
+    expect(snapshot.packs.map((d) => d.packId)).toEqual(["ref-form-pack"]);
+    expect(snapshot.packs[0].knowledgeAreas).toEqual([...CLOUD_FIXTURE_KNOWLEDGE_AREAS]);
   });
 
   it("云端报错/网络异常 → 降级空清单 + loaded 置真（学生端只见内置两包，不白屏不闪错）", async () => {

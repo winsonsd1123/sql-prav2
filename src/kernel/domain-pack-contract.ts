@@ -31,8 +31,19 @@ export interface DomainPackAsset {
   schemaSkeleton: TableDefinition[];
   /** 题目模板集：25-35 道 */
   templates: QuestionTemplate[];
-  /** 有序知识点清单：模板 knowledgeArea 必须取自本清单，顺序即会话推进顺序 */
+  /**
+   * 有序知识点清单：模板 knowledgeArea 必须取自本清单，顺序即会话推进顺序。
+   * 双形态（#83 / ADR 0010）：自由字符串（未圈选的生成产物，现状）或词表引用形态——
+   * 引用形态时本清单即归一化结果（写入时与词表条目名称逐位对齐），读取端一律读本清单，
+   * 两形态进入内核行为一致。
+   */
   knowledgeAreas: string[];
+  /**
+   * 词表引用形态标记（#83 / ADR 0010）：与 knowledgeAreas 等长、逐位对齐的
+   * knowledge_area 条目 id 有序数组；字段存在即引用形态（词表的有序引用子集），缺省即自由字符串形态。
+   * 只在词表维度使用（被引用视图/禁删/圈选校验），不进入判题内核（assetToKernelPack 只取名称清单）。
+   */
+  knowledgeAreaRefIds?: string[];
   /** 难度 1-5 档定义：恰好五档、level 1-5 齐全 */
   difficultyTiers: DifficultyTierDefinition[];
   /** 演练配置：总题数与各档分布 */
@@ -234,6 +245,29 @@ export function parseDomainPackJson(json: unknown): ParseResult {
   }
   if (knowledgeAreas.length === 0) e("knowledgeAreas", "知识点清单不能为空");
 
+  // ── 知识点清单引用形态（#83 / ADR 0010）：可选、与清单等长逐位对齐、id 无重复 ──
+  // 只校验形状（纯函数无词表可查）；id 是否存在于词表、名称是否与词表对齐、停用条目
+  // 不可新圈选等语义校验在服务层写入路径（domain-pack-asset-service 注入词表接缝）裁决。
+  let knowledgeAreaRefIds: string[] | undefined;
+  if (json.knowledgeAreaRefIds !== undefined) {
+    if (
+      !Array.isArray(json.knowledgeAreaRefIds) ||
+      json.knowledgeAreaRefIds.some((id) => !isNonEmptyString(id))
+    ) {
+      e("knowledgeAreaRefIds", "词表引用形态时必须是非空字符串数组（knowledge_area 条目 id）");
+    } else {
+      knowledgeAreaRefIds = json.knowledgeAreaRefIds as string[];
+      const seenRefIds = new Set<string>();
+      for (const [ri, refId] of knowledgeAreaRefIds.entries()) {
+        if (seenRefIds.has(refId)) e(`knowledgeAreaRefIds[${ri}]`, `词表条目引用重复：${refId}`);
+        seenRefIds.add(refId);
+      }
+      if (knowledgeAreaRefIds.length !== knowledgeAreas.length) {
+        e("knowledgeAreaRefIds", `必须与 knowledgeAreas 等长逐位对齐（清单 ${knowledgeAreas.length} 项，引用 ${knowledgeAreaRefIds.length} 项）`);
+      }
+    }
+  }
+
   const seenTemplateIds = new Set<string>();
   /** 各难度档位的模板计数（供演练配置配额检查） */
   const templatesByDifficulty = new Map<number, number>();
@@ -343,6 +377,7 @@ export function parseDomainPackJson(json: unknown): ParseResult {
       schemaSkeleton: schema as TableDefinition[],
       templates: templates as QuestionTemplate[],
       knowledgeAreas: knowledgeAreas as string[],
+      ...(knowledgeAreaRefIds !== undefined ? { knowledgeAreaRefIds } : {}),
       difficultyTiers: tiers as DifficultyTierDefinition[],
       practiceConfig: config as unknown as PracticeConfiguration,
     },

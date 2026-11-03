@@ -5,7 +5,7 @@ import { describe, expect, it, vi, beforeEach } from "vitest";
 import type { AdminDeps } from "@/server/admin-service";
 import type { LlmProvider, LlmJsonPrompt } from "@/server/llm-provider";
 import { LlmProviderError } from "@/server/llm-provider";
-import { mkCloudPackJson } from "@/kernel/__tests__/fixtures/cloud-domain-pack";
+import { mkCloudPackJson, CLOUD_FIXTURE_KNOWLEDGE_AREAS } from "@/kernel/__tests__/fixtures/cloud-domain-pack";
 import { generateDomainPackDraft, publishDomainPack, type GenerationServiceDeps } from "@/server/domain-pack-generation-service";
 import { parseDomainPackJson, assetToKernelPack } from "@/kernel/domain-pack-contract";
 import { generatePracticeSession } from "@/kernel/question-picking";
@@ -160,5 +160,24 @@ describe("publishDomainPack：确认发布编排", () => {
     expect((await publishDomainPack({ pack: mkCloudPackJson() }, null, mkDeps())).status).toBe("unauthorized");
     expect((await publishDomainPack({ pack: mkCloudPackJson() }, auth, mkDeps({ adminDeps: mkAdminDeps(["访问后台"]) }))).status).toBe("forbidden");
     expect((await publishDomainPack({}, auth, mkDeps())).status).toBe("invalid");
+  });
+
+  it("引用形态草稿圈选了停用条目（#83）：vocabulary 拒绝并透出中文原因，不落库", async () => {
+    const upsertMock = vi.fn().mockResolvedValue({ error: null });
+    const names = [...CLOUD_FIXTURE_KNOWLEDGE_AREAS];
+    const refIds = names.map((_n, i) => `ka-${i + 1}`);
+    const pack = mkCloudPackJson({ knowledgeAreaRefIds: refIds });
+    const deps = mkDeps({
+      writeClient: { from: () => ({ upsert: upsertMock }) },
+      vocabSeam: {
+        fetchKnowledgeAreaEntries: async () =>
+          refIds.map((id, i) => ({ id, name: names[i], active: id !== "ka-6" })), // 「日期函数」已停用
+        fetchCurrentRefIds: async () => null,
+      },
+    });
+    const result = await publishDomainPack({ pack }, auth, deps);
+    expect(result.status).toBe("vocabulary");
+    if (result.status === "vocabulary") expect(result.message).toContain("日期函数");
+    expect(upsertMock).not.toHaveBeenCalled();
   });
 });
