@@ -2,17 +2,6 @@ import type { DomainPack, Session, QuestionInstance, PracticeConfiguration } fro
 import { generateSession } from "./generate";
 import { createRandomSource } from "./prng";
 
-/** 会话内题目推进的知识点顺序（GLOSSARY「知识点」：会话按此顺序推进抽题） */
-export const knowledgeAreaOrder = [
-  "单表查询与投影",
-  "条件筛选与排序",
-  "聚合与分组",
-  "多表 JOIN",
-  "子查询",
-  "日期函数",
-  "综合应用",
-] as const;
-
 /**
  * 会话抽题（issue #8 / T7；题量固定 10 见 issue #13 / T2；难度配额抽题见票 #61）：
  * 种子 + 域包 → 会话（库与 generateSession(seed, pack) 完全一致，题目为按知识点顺序抽取的子序列）。
@@ -34,6 +23,12 @@ export const knowledgeAreaOrder = [
  *    固定 10 题、每知识点保底 1、剩余名额按种子随机分配，不施加难度约束。
  */
 export function generatePracticeSession(seed: number, pack: DomainPack): Session {
+  // 知识点清单为域包必带字段（契约校验必填，issue #84 起不再回退内置七类常量——
+  // 词表 + 包内清单已全覆盖其职责）；类型被绕过时显式失败，不静默回退
+  if (pack.knowledgeAreas === undefined) {
+    throw new Error(`域包 ${pack.packId} 未携带知识点清单（knowledgeAreas 为必填字段）`);
+  }
+
   const session = generateSession(seed, pack);
   return pack.practiceConfig === undefined
     ? { ...session, questions: pickByKnowledgeQuota(seed, pack, session) }
@@ -45,9 +40,8 @@ function pickByKnowledgeQuota(seed: number, pack: DomainPack, session: Session):
   const random = createRandomSource(seed);
   const questionCount = 10;
 
-  // 知识点顺序（票 #58 下放域包字段）：优先读域包自带清单，缺省回退内置七类
-  // （兼容自造模板的历史调用方；数据资产域包经契约校验必带清单）
-  const areas = pack.knowledgeAreas ?? [...knowledgeAreaOrder];
+  // 知识点顺序（票 #58 下放域包字段）：读域包自带清单（契约必填，#84 起无回退）
+  const areas = pack.knowledgeAreas;
   const partitions = areas.map((knowledgeArea) => {
     const candidates = session.questions.filter((q) => q.knowledgeArea === knowledgeArea);
     if (candidates.length === 0 && session.questions.length > 0) {
@@ -81,8 +75,8 @@ function pickByPracticeConfig(
   session: Session,
   config: PracticeConfiguration,
 ): QuestionInstance[] {
-  // 知识点顺序（票 #58）：优先读域包自带清单，缺省回退内置七类
-  const areas = pack.knowledgeAreas ?? [...knowledgeAreaOrder];
+  // 知识点顺序（票 #58）：读域包自带清单（契约必填，#84 起无回退）
+  const areas = pack.knowledgeAreas;
 
   // 各知识点的候选桶：档位 → 洗牌后的候选队列（同知识点同档内不重复模板由队列游标保证）
   const pools = areas.map((knowledgeArea, areaIndex) => {
