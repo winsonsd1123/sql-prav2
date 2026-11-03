@@ -49,6 +49,7 @@ export default function AdminKnowledgeAreaManager() {
     headers.set("authorization", `Bearer ${token}`);
     const response = await fetch(path, { ...init, headers });
     if (!response.ok) throw new Error(await readErrorMessage(response, "操作失败，请稍后重试"));
+    // 成功响应体本组件不消费；解析失败（如空 body/非 JSON）静默降级为 null，不阻断成功路径
     return response.json().catch(() => null);
   }
 
@@ -71,88 +72,72 @@ export default function AdminKnowledgeAreaManager() {
     })();
   }, [refresh]);
 
-  /** 创建条目：成功后清空新增输入并回读 */
-  const create = async () => {
+  /** 四个写操作（创建/编辑/启停/删除）的公共骨架：busy 防重入 → 清 notice → 请求 →
+   *  成功清 error、出文案、onSuccess 收尾（如清输入/退编辑态）→ 回读全量；
+   *  失败透出服务端文案（no-session 已由 requestApi 提示重登，此处不重复 set） */
+  const runWrite = async (path: string, init: RequestInit, successNotice: string, onSuccess?: () => void) => {
     if (busy) return;
     setBusy(true);
     setNotice(null);
     try {
-      await requestApi("/api/admin/knowledge-areas", {
+      await requestApi(path, init);
+      setError(null);
+      setNotice(successNotice);
+      onSuccess?.();
+      await refresh();
+    } catch (cause) {
+      if (cause instanceof Error && cause.message !== "no-session") setError(cause.message);
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  /** 创建条目：成功后清空新增输入并回读 */
+  const create = () =>
+    runWrite(
+      "/api/admin/knowledge-areas",
+      {
         method: "POST",
         headers: { "content-type": "application/json" },
         body: JSON.stringify({ name: newName, description: newDescription }),
-      });
-      setError(null);
-      setNotice("已创建新知识点");
-      setNewName("");
-      setNewDescription("");
-      await refresh();
-    } catch (cause) {
-      if (cause instanceof Error && cause.message !== "no-session") setError(cause.message);
-    } finally {
-      setBusy(false);
-    }
-  };
+      },
+      "已创建新知识点",
+      () => {
+        setNewName("");
+        setNewDescription("");
+      },
+    );
 
   /** 保存编辑：成功后退出编辑态并回读 */
-  const saveEdit = async () => {
-    if (!editing || busy) return;
-    setBusy(true);
-    setNotice(null);
-    try {
-      await requestApi(`/api/admin/knowledge-areas/${editing.id}`, {
+  const saveEdit = () => {
+    if (!editing) return;
+    return runWrite(
+      `/api/admin/knowledge-areas/${editing.id}`,
+      {
         method: "PUT",
         headers: { "content-type": "application/json" },
         body: JSON.stringify({ name: editing.name, description: editing.description }),
-      });
-      setError(null);
-      setNotice("已保存修改");
-      setEditing(null);
-      await refresh();
-    } catch (cause) {
-      if (cause instanceof Error && cause.message !== "no-session") setError(cause.message);
-    } finally {
-      setBusy(false);
-    }
+      },
+      "已保存修改",
+      () => setEditing(null),
+    );
   };
 
   /** 启停切换：停用条目仍可被既有包引用、不能再被新圈选 */
-  const toggleActive = async (entry: KnowledgeAreaEntry) => {
-    if (busy) return;
-    setBusy(true);
-    setNotice(null);
-    try {
-      await requestApi(`/api/admin/knowledge-areas/${entry.id}`, {
+  const toggleActive = (entry: KnowledgeAreaEntry) =>
+    runWrite(
+      `/api/admin/knowledge-areas/${entry.id}`,
+      {
         method: "PATCH",
         headers: { "content-type": "application/json" },
         body: JSON.stringify({ active: !entry.active }),
-      });
-      setError(null);
-      setNotice(!entry.active ? `已启用「${entry.name}」` : `已停用「${entry.name}」`);
-      await refresh();
-    } catch (cause) {
-      if (cause instanceof Error && cause.message !== "no-session") setError(cause.message);
-    } finally {
-      setBusy(false);
-    }
-  };
+      },
+      !entry.active ? `已启用「${entry.name}」` : `已停用「${entry.name}」`,
+    );
 
   /** 删除条目（物理删除；被引用禁删属 #83） */
-  const remove = async (entry: KnowledgeAreaEntry) => {
-    if (busy) return;
-    setBusy(true);
-    setNotice(null);
-    try {
-      await requestApi(`/api/admin/knowledge-areas/${entry.id}`, { method: "DELETE" });
-      setError(null);
-      setNotice(`已删除「${entry.name}」`);
-      await refresh();
-    } catch (cause) {
-      if (cause instanceof Error && cause.message !== "no-session") setError(cause.message);
-    } finally {
-      setBusy(false);
-    }
-  };
+  const remove = (entry: KnowledgeAreaEntry) =>
+    runWrite(`/api/admin/knowledge-areas/${entry.id}`, { method: "DELETE" }, `已删除「${entry.name}」`);
 
   if (loading) return <p className="text-sm text-muted">正在加载知识点词表……</p>;
 
