@@ -1,5 +1,5 @@
 import { test, expect, type Page, type Route } from "@playwright/test";
-import { presetLoginState, collectConsoleProblems, createDomainPackVersionHistoryStub } from "./helpers";
+import { presetLoginState, collectConsoleProblems, createDomainPackVersionHistoryStub, chooseSelectOption } from "./helpers";
 import packAJson from "../src/domain-packs/student-course-grades/pack-a.json";
 
 // 难度配额抽题与演练配置（票 #61 / spec #53 目标②）：教师改配置 → 学生开练题数随之变化；
@@ -151,6 +151,38 @@ test("教师把内置包A 配置改为 7 题：学生端开练题数变为 7，�
   // 换一套（新种子）仍按当前配置生成 7 题
   await page.getByRole("button", { name: "换一套" }).click();
   await expect(page.getByText("第 1/7 题")).toBeVisible({ timeout: 15000 });
+});
+
+test("域包下拉切换（票 #97）：草稿回填为所选包配置，保存载荷携带所选 packId，刷新后选中保持", async ({ page }) => {
+  await mockTeacherPermissions(page);
+  const { calls } = await mockPracticeConfigAdminApi(page);
+  await mockAdminPageSiblingBlocks(page);
+  await page.goto("/admin/packs/practice-config");
+  const packSelect = page.getByTestId("演练配置域包选择");
+  await expect(packSelect).toContainText("（student-course-grade）");
+  // 选中包变化会触发一次重拉并重置草稿：等首屏重拉落定、切换后再等一次，避免填写被覆盖
+  await page.waitForLoadState("networkidle");
+  await page.getByTestId("演练配置总题数").fill("8"); // 未保存的草稿随切换丢弃
+  const refetched = page.waitForResponse(
+    (r) => r.url().endsWith("/api/admin/domain-packs/practice-config") && r.request().method() === "GET",
+  );
+  await chooseSelectOption(page, "演练配置域包选择", "（employee-department-payroll）");
+  await refetched;
+  await expect(packSelect).toContainText("（employee-department-payroll）");
+  await expect(page.getByTestId("演练配置总题数")).toHaveValue("10");
+  await expect(page.getByTestId("演练配置管理")).toContainText("档4（模板 6）");
+  await page.getByTestId("演练配置总题数").fill("9");
+  await page.getByTestId("演练配置档位-4").fill("1");
+  await page.getByRole("button", { name: "保存演练配置" }).click();
+  await expect(page.getByTestId("演练配置提示")).toContainText("已保存");
+  expect(calls.put).toEqual([
+    {
+      packId: "employee-department-payroll",
+      practiceConfig: { totalQuestions: 9, tierDistribution: { "1": 1, "2": 3, "3": 3, "4": 1, "5": 1 } },
+    },
+  ]);
+  await expect(packSelect).toContainText("（employee-department-payroll）");
+  await expect(page.getByTestId("演练配置总题数")).toHaveValue("9");
 });
 
 test("非法配置（各档总和不等于总题数）前端即拦：按钮禁用、不出 PUT 请求", async ({ page }) => {

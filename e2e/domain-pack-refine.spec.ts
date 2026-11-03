@@ -1,5 +1,5 @@
 import { test, expect, type Page, type Route } from "@playwright/test";
-import { presetLoginState, collectConsoleProblems, createDomainPackAssetStub, createDomainPackVersionHistoryStub } from "./helpers";
+import { presetLoginState, collectConsoleProblems, createDomainPackAssetStub, createDomainPackVersionHistoryStub, chooseSelectOption } from "./helpers";
 import { mkCloudPackJson } from "../src/kernel/__tests__/fixtures/cloud-domain-pack";
 import type { GateReport } from "../src/kernel/domain-pack-gate";
 
@@ -116,7 +116,7 @@ test("packId 预选：B 类微调→确认产生 v2，学生旧会话钉旧版�
 
   // —— 带目标直达微调页：packId 已预选，无需手动选择 ——
   await page.goto(`/admin/packs/refine?packId=${BASE}`);
-  await expect(page.getByTestId("微调目标域包")).toHaveValue(BASE);
+  await expect(page.getByTestId("微调目标域包")).toContainText(`（${BASE}）`);
   await page.getByTestId("修改意图").fill("把题目模板的题面写得更贴合借阅业务");
   await page.getByTestId("微调SQL样例").fill("SELECT 姓名 FROM 读者 JOIN 借阅 ON …");
   await page.getByTestId("发起微调").click();
@@ -133,7 +133,7 @@ test("packId 预选：B 类微调→确认产生 v2，学生旧会话钉旧版�
 
   // —— 版本历史核对：跳独立版本历史页（#70 拆分后 /admin/packs 为纯列表页），v2 置顶标「当前」 ——
   await page.goto(`/admin/packs/versions?packId=${BASE}`);
-  await expect(page.getByTestId("版本历史目标域包")).toHaveValue(BASE);
+  await expect(page.getByTestId("版本历史目标域包")).toContainText(`（${BASE}）`);
   await expect(page.getByTestId("版本历史列表")).toContainText("当前（新会话使用）");
   await expect(page.getByTestId("版本历史列表")).toContainText("历史（旧会话钉住）");
 
@@ -191,7 +191,7 @@ test("微调失败（502）：明确错误，表单与意图保留可重试", as
   });
 
   await page.goto("/admin/packs/refine?packId=library-loan");
-  await expect(page.getByTestId("微调目标域包")).toHaveValue("library-loan");
+  await expect(page.getByTestId("微调目标域包")).toContainText("（library-loan）");
   await page.getByTestId("修改意图").fill("给难度档位补充样例");
   await page.getByTestId("发起微调").click();
   await expect(page.getByTestId("微调失败提示")).toContainText("LLM 网络请求失败");
@@ -210,9 +210,9 @@ test("不带参数直达微调页：页内选择器兜底可用", async ({ page 
 
   await page.goto("/admin/packs/refine");
   // 未携带目标：选择器落在占位项，可自行选择域包
-  await expect(page.getByTestId("微调目标域包")).toHaveValue("");
-  await page.getByTestId("微调目标域包").selectOption("library-loan");
-  await expect(page.getByTestId("微调目标域包")).toHaveValue("library-loan");
+  await expect(page.getByTestId("微调目标域包")).toHaveText("请选择域包");
+  await chooseSelectOption(page, "微调目标域包", "（library-loan）");
+  await expect(page.getByTestId("微调目标域包")).toContainText("（library-loan）");
 });
 
 test("packId 参数无效：回退页内选择器兜底，不落在不存在的选项上", async ({ page }) => {
@@ -222,9 +222,9 @@ test("packId 参数无效：回退页内选择器兜底，不落在不存在的�
   await assetStub.attach(page);
 
   await page.goto("/admin/packs/refine?packId=不存在的域包");
-  await expect(page.getByTestId("微调目标域包")).toHaveValue("");
-  await page.getByTestId("微调目标域包").selectOption("library-loan");
-  await expect(page.getByTestId("微调目标域包")).toHaveValue("library-loan");
+  await expect(page.getByTestId("微调目标域包")).toHaveText("请选择域包");
+  await chooseSelectOption(page, "微调目标域包", "（library-loan）");
+  await expect(page.getByTestId("微调目标域包")).toContainText("（library-loan）");
 });
 
 // —— 票 #85：元素微调（弹道一：单道题目模板）——

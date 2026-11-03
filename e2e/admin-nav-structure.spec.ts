@@ -148,7 +148,7 @@ test("生成页与微调页不在导航列示，但期间高亮「域包列表�
 
   // 微调页携带 ?packId= 预选也不影响归属（query 不参与 active 判定）
   await page.goto("/admin/packs/refine?packId=student-course-grade");
-  await expect(page.getByTestId("微调目标域包")).toHaveValue("student-course-grade");
+  await expect(page.getByTestId("微调目标域包")).toContainText("（student-course-grade）");
   await expectOnlyCurrent(page, "域包列表");
 });
 

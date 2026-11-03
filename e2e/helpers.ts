@@ -129,3 +129,11 @@ export function createDomainPackVersionHistoryStub() {
   };
   return { rows, attach };
 }
+
+// shadcn Select（票 #97）：触发器是按钮、无原生 value，selectOption 不可用。
+// 选择 = 点开触发器 + 点选项（选项名为「名称（基础名）」，按基础名子串匹配）；
+// 选中值断言按触发器显示文字：toContainText("（基础名）")，占位项为 toHaveText("请选择域包")。
+export async function chooseSelectOption(page: Page, testId: string, optionName: string) {
+  await page.getByTestId(testId).click();
+  await page.getByRole("option", { name: optionName }).click();
+}
