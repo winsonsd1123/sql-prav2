@@ -51,7 +51,7 @@ import { hasPermission, PERMISSIONS } from "@/lib/permissions";
 import type { JudgeResult, QuestionInstance } from "@/kernel/types";
 
 // UI 编排组件：会话级本地状态（种子/域包/进度）在 会话存储，判题在 Worker，
-// 本组件只负责把它们接到界面与交互上。视觉层为「静室」：点阵画布、三栏工作台。
+// 本组件只负责把它们接到界面与交互上。视觉层为三栏工作台。
 
 // 桌面断点（lg 1024px）作为外部系统订阅：SSR 按桌面快照渲染，客户端按真实视口纠正，
 // 视口变化（旋转/缩放）实时跟随；用户一旦切换面板（按钮/Cmd+B/ESC）即覆盖默认值。

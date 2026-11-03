@@ -1,55 +1,88 @@
 @import "tailwindcss";
+@import "tw-animate-css";
+@import "shadcn/tailwind.css";
+
+/* 单主题：dark 变体只认 .dark 祖先，而全站从不挂 .dark——shadcn 组件自带的 dark: 类永不生效，
+   不会退回 Tailwind 默认的 prefers-color-scheme 行为。 */
+@custom-variant dark (&:is(.dark *));
 
 /* ============================================================
-   「静室」主题：灰白主调。画布与卡片分层，主按钮是浅灰白，不是黑块。
-   语义色：绿=通过 / 紫=借助答案 / 红=错误 / 琥珀=警示。
-   dark: 跟随系统，深灰画布，文字用灰白。
+   若依（RuoYi-Vue v3.8.3 / Element UI）浅色单主题，见 ADR 0011。
+   中文 token 是唯一色值事实源；shadcn 主题变量只做 var() 映射，不写色值。
+   语义色：绿=通过 / 紫=借助答案 / 红=错误 / 橙=警示 / 灰=中性。
    ============================================================ */
 
 :root {
   color-scheme: light;
-  --色-底: #e8e7e3;
-  --色-面板: #f6f5f3;
-  --色-深: #f3f2ef;
-  --色-边框: #deddd8;
-  --色-墨: #2a2926;
-  --色-次文: #4e4d49;
-  --色-反色: #f6f5f3;
-  --色-强调: #6a6965;
-  --色-主底: #fbfbfa;
-  --色-主字: #2f2e2b;
-  --色-主边: #d9d8d4;
-  --色-主悬停: #f0efec;
-  --色-通过: #1c7a4a;
+
+  /* 主色 */
+  --色-主色: #409eff;
+  --色-主悬停: #66b1ff;
+  --色-主按下: #3a8ee6;
+  --色-主禁用: #a0cfff;
+  --色-主浅底: #ecf5ff;
+  --色-主浅边: #b3d8ff;
+  --色-主字: #ffffff;
+
+  /* 文字四阶 */
+  --色-墨: #303133;
+  --色-次文: #606266;
+  --色-辅文: #909399;
+  --色-占位: #c0c4cc;
+
+  /* 边框阶 */
+  --色-边框-基: #dcdfe6;
+  --色-边框-浅: #e4e7ed;
+  --色-边框: #ebeef5;
+  --色-边框-极浅: #f2f6fc;
+
+  /* 画布与面板 */
+  --色-底: var(--色-边框-极浅);
+  --色-面板: #ffffff;
+  --色-深: var(--色-行悬停);
+  --色-反色: var(--色-面板);
+  --色-强调: var(--色-主色);
+
+  /* 表格 */
+  --色-表头底: #f8f8f9;
+  --色-表头字: #515a6e;
+  --色-行悬停: #f5f7fa;
+
+  /* 语义色 */
+  --色-通过: #67c23a;
+  --色-警示: #e6a23c;
+  --色-错误: #f56c6c;
+  --色-中性: #909399;
   --色-借助: #6d4f99;
-  --色-错误: #c4314a;
-  --色-警示: #9a6b12;
-  --网格色: color-mix(in srgb, var(--色-墨) 18%, transparent);
+
+  /* 卡片 */
+  --阴影-卡片: 0 2px 12px rgba(0, 0, 0, 0.1);
+  --radius: 4px;
+
+  /* shadcn 主题变量：一律映射到上方中文 token */
+  --background: var(--色-底);
+  --foreground: var(--色-墨);
+  --card: var(--色-面板);
+  --card-foreground: var(--色-墨);
+  --popover: var(--色-面板);
+  --popover-foreground: var(--色-墨);
+  --primary: var(--色-主色);
+  --primary-foreground: var(--色-主字);
+  --secondary: var(--色-深);
+  --secondary-foreground: var(--色-墨);
+  --muted: var(--色-深);
+  --muted-foreground: var(--色-辅文);
+  --accent: var(--色-行悬停);
+  --accent-foreground: var(--色-墨);
+  --destructive: var(--色-错误);
+  --border: var(--色-边框);
+  --input: var(--色-边框-基);
+  --ring: var(--色-主色);
 }
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    color-scheme: dark;
-    --色-底: #1a1a18;
-    --色-面板: #242422;
-    --色-深: #1e1e1c;
-    --色-边框: #343432;
-    --色-墨: #f0efea;
-    --色-次文: #c8c7c2;
-    --色-反色: #242422;
-    --色-强调: #b0afa9;
-    --色-主底: #2e2e2c;
-    --色-主字: #f0efea;
-    --色-主边: #454542;
-    --色-主悬停: #383836;
-    --色-通过: #3cba7a;
-    --色-借助: #c4b0e8;
-    --色-错误: #f07178;
-    --色-警示: #e3b341;
-    --网格色: color-mix(in srgb, var(--色-墨) 10%, transparent);
-  }
-}
-
+/* 注意：Tailwind 的 muted / accent 工具类沿用项目既有语义（text-muted = 次文、accent = 强调），
+   与 shadcn 约定的 bg-muted / bg-accent（浅底）不同；取用 shadcn 组件时需把这两类改写为
+   bg-secondary / bg-[var(--accent)] 等，muted-foreground / accent-foreground 不受影响。 */
 @theme inline {
   --color-bg: var(--色-底);
   --color-panel: var(--色-面板);
@@ -67,24 +100,57 @@
   --font-sans: var(--font-noto-sans), "PingFang SC", "Hiragino Sans GB", "Microsoft YaHei",
     "Noto Sans SC", system-ui, sans-serif;
   --font-serif: var(--font-noto-serif), "Songti SC", "Noto Serif SC", "Source Han Serif SC", serif;
+  --font-heading: var(--font-sans);
+  --color-ring: var(--ring);
+  --color-input: var(--input);
+  --color-border: var(--border);
+  --color-destructive: var(--destructive);
+  --color-accent-foreground: var(--accent-foreground);
+  --color-muted-foreground: var(--muted-foreground);
+  --color-secondary-foreground: var(--secondary-foreground);
+  --color-secondary: var(--secondary);
+  --color-primary-foreground: var(--primary-foreground);
+  --color-primary: var(--primary);
+  --color-popover-foreground: var(--popover-foreground);
+  --color-popover: var(--popover);
+  --color-card-foreground: var(--card-foreground);
+  --color-card: var(--card);
+  --color-foreground: var(--foreground);
+  --color-background: var(--background);
+  --radius-sm: calc(var(--radius) * 0.6);
+  --radius-md: calc(var(--radius) * 0.8);
+  --radius-lg: var(--radius);
+  --radius-xl: calc(var(--radius) * 1.4);
+  --radius-2xl: calc(var(--radius) * 1.8);
+  --radius-3xl: calc(var(--radius) * 2.2);
+  --radius-4xl: calc(var(--radius) * 2.6);
 }
 
-body {
-  background-color: var(--色-底);
-  color: var(--色-墨);
-  font-family: var(--font-sans);
-  background-image: radial-gradient(circle, var(--网格色) 0.85px, transparent 0.9px);
-  background-size: 16px 16px;
+@layer base {
+  * {
+    @apply border-border outline-ring/50;
+  }
+  html {
+    @apply font-sans;
+  }
+  body {
+    @apply bg-background text-foreground;
+  }
+  thead th {
+    background-color: var(--色-表头底);
+    color: var(--色-表头字);
+  }
+  tbody tr:hover {
+    background-color: var(--色-行悬停);
+  }
 }
 
-/* 白卡：轻边 + 软阴影 */
+/* 白卡：4px 圆角 + 浅边 + 轻阴影 */
 .卡片 {
   background: var(--色-面板);
   border: 1px solid var(--色-边框);
-  border-radius: 12px;
-  box-shadow:
-    0 1px 2px color-mix(in srgb, #000 4%, transparent),
-    0 10px 28px color-mix(in srgb, #000 5%, transparent);
+  border-radius: var(--radius);
+  box-shadow: var(--阴影-卡片);
 }
 
 .标题 {
@@ -94,57 +160,67 @@ body {
 }
 
 .主按钮 {
-  background: var(--色-主底);
+  background: var(--色-主色);
   color: var(--色-主字);
-  border: 1px solid var(--色-主边);
-  border-radius: 10px;
+  border: 1px solid var(--色-主色);
+  border-radius: var(--radius);
   font-weight: 500;
-  box-shadow: 0 1px 2px color-mix(in srgb, #000 4%, transparent);
   transition: background 150ms ease, border-color 150ms ease;
 }
 .主按钮:hover:not(:disabled) {
   background: var(--色-主悬停);
+  border-color: var(--色-主悬停);
+}
+.主按钮:active:not(:disabled) {
+  background: var(--色-主按下);
+  border-color: var(--色-主按下);
 }
 .主按钮:disabled {
-  color: color-mix(in srgb, var(--色-主字) 55%, var(--色-主底));
-  box-shadow: none;
+  background: var(--色-主禁用);
+  border-color: var(--色-主禁用);
   cursor: not-allowed;
 }
 
+/* 次按钮：Element 默认按钮——白底灰边，悬停转主色浅底 */
 .次按钮 {
-  background: color-mix(in srgb, var(--色-墨) 6%, var(--色-面板));
-  color: var(--色-墨);
-  border-radius: 10px;
-  transition: background 150ms ease;
+  background: var(--色-面板);
+  color: var(--色-次文);
+  border: 1px solid var(--色-边框-基);
+  border-radius: var(--radius);
+  transition: background 150ms ease, border-color 150ms ease, color 150ms ease;
 }
 .次按钮:hover:not(:disabled) {
-  background: color-mix(in srgb, var(--色-墨) 11%, var(--色-面板));
+  background: var(--色-主浅底);
+  border-color: var(--色-主浅边);
+  color: var(--色-主色);
 }
 .次按钮:disabled {
-  opacity: 0.4;
+  color: var(--色-占位);
+  border-color: var(--色-边框);
   cursor: not-allowed;
 }
 
-/* 输入框（派生规范：底/边与主按钮同层，焦点态照抄编辑器的墨色 18% outline） */
 .输入框 {
-  background: var(--色-主底);
-  color: var(--色-主字);
-  border: 1px solid var(--色-主边);
-  border-radius: 10px;
+  background: var(--色-面板);
+  color: var(--色-次文);
+  border: 1px solid var(--色-边框-基);
+  border-radius: var(--radius);
   font-size: 0.875rem;
   line-height: 1.25rem;
   padding: 0.5rem 0.75rem; /* py-2 px-3，与按钮标准内距一致 */
   width: 100%;
+  transition: border-color 150ms ease;
 }
 .输入框::placeholder {
-  color: var(--色-次文);
+  color: var(--色-占位);
 }
 .输入框:focus {
-  outline: 1px solid color-mix(in srgb, var(--色-墨) 18%, transparent);
-  outline-offset: 0;
+  outline: none;
+  border-color: var(--色-主色);
 }
 .输入框:disabled {
-  opacity: 0.4;
+  background: var(--色-深);
+  color: var(--色-占位);
   cursor: not-allowed;
 }
 .输入框.错误 {

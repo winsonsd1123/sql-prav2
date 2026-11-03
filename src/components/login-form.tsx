@@ -1,6 +1,6 @@
 "use client";
 
-// 登录表单（客户端）：静室主题；学号或邮箱 + 密码 + 阿里云验证码 2.0（每次登录必过，无降级）。
+// 登录表单（客户端）：学号或邮箱 + 密码 + 阿里云验证码 2.0（每次登录必过，无降级）。
 // 提交流程：点登录按钮 → 阿里组件弹验证 → captchaVerifyCallback 拿到票据 → POST /api/auth/login
 // → 后端先核验票据再走用户体系；成功后浏览器客户端 setSession 恢复登录态并进入演练场。
 // 验证码接缝：window.initAliyunCaptcha 已存在时直接使用（e2e 用 addInitScript 注入 stub 即可整体替换）。

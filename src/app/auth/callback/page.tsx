@@ -1,4 +1,4 @@
-// 邮箱验证回调页：验证邮件链接的落地页（成功/失败态，静室风格）。
+// 邮箱验证回调页：验证邮件链接的落地页（成功/失败态）。
 import EmailVerificationCallback from "@/components/email-verification-callback";
 
 export const metadata = { title: "邮箱验证 · SQL 演练场" };
