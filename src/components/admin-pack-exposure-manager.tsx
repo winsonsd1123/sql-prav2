@@ -13,6 +13,9 @@ import { bearerHeaders, getSessionAuth, readErrorMessage } from "@/lib/admin-api
 /** 写操作反馈 toast：固定 id 使新反馈原位替换旧反馈（同一时刻只有一条） */
 const FEEDBACK_TOAST = { id: "放出提示", testId: "放出提示" };
 
+/** 错误反馈时长 8 秒（多条拼接的长错误读得完），成功仍走默认 4 秒 */
+const FEEDBACK_ERROR_TOAST = { ...FEEDBACK_TOAST, duration: 8000 };
+
 /** 可选域包条目：packId 稳定标识，name 展示用（由调用方注入，便于 #60 搬迁换源） */
 export interface PackExposureOption {
   packId: string;
@@ -86,14 +89,14 @@ export default function AdminPackExposureManager({ packs }: AdminPackExposureMan
         body: JSON.stringify({ packIds: [...exposedIds] }),
       });
       if (!response.ok) {
-        toast.error(await readErrorMessage(response, "放出清单保存失败"), FEEDBACK_TOAST);
+        toast.error(await readErrorMessage(response, "放出清单保存失败"), FEEDBACK_ERROR_TOAST);
         return;
       }
       setError(null);
       toast.success("已保存，学生端可演练列表即时生效", FEEDBACK_TOAST);
       await refresh();
     } catch {
-      toast.error("放出清单保存失败，请稍后重试", FEEDBACK_TOAST);
+      toast.error("放出清单保存失败，请稍后重试", FEEDBACK_ERROR_TOAST);
     } finally {
       setSaving(false);
     }

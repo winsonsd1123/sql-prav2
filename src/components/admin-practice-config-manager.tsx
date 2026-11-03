@@ -14,6 +14,9 @@ import { bearerHeaders, getSessionAuth, readErrorMessage } from "@/lib/admin-api
 /** 写操作反馈 toast：固定 id 使新反馈原位替换旧反馈（同一时刻只有一条） */
 const FEEDBACK_TOAST = { id: "演练配置提示", testId: "演练配置提示" };
 
+/** 错误反馈时长 8 秒（多条拼接的长错误读得完），成功仍走默认 4 秒 */
+const FEEDBACK_ERROR_TOAST = { ...FEEDBACK_TOAST, duration: 8000 };
+
 /** 配置视图条目（服务端 GET 返回形状） */
 interface PracticeConfigEntry {
   packId: string;
@@ -153,14 +156,14 @@ export default function AdminPracticeConfigManager() {
         // 400/422 带服务端中文错误清单（errors 数组），展示首条并整体列出
         const body = (await response.json().catch(() => null)) as { error?: string; errors?: string[] } | null;
         const messages = body?.errors?.length ? body.errors : [body?.error ?? "演练配置保存失败"];
-        toast.error(messages.join("；"), FEEDBACK_TOAST);
+        toast.error(messages.join("；"), FEEDBACK_ERROR_TOAST);
         return;
       }
       setError(null);
       toast.success("已保存，学生下次开练即按新配置生成（进行中的会话不受影响）", FEEDBACK_TOAST);
       await refresh();
     } catch {
-      toast.error("演练配置保存失败，请稍后重试", FEEDBACK_TOAST);
+      toast.error("演练配置保存失败，请稍后重试", FEEDBACK_ERROR_TOAST);
     } finally {
       setSaving(false);
     }

@@ -11,6 +11,9 @@ import { bearerHeaders, getSessionAuth, readErrorMessage } from "@/lib/admin-api
 /** 写操作反馈 toast：固定 id 使新反馈原位替换旧反馈（同一时刻只有一条） */
 const FEEDBACK_TOAST = { id: "白名单提示", testId: "白名单提示" };
 
+/** 错误反馈时长 8 秒（多条拼接的长错误读得完），成功仍走默认 4 秒 */
+const FEEDBACK_ERROR_TOAST = { ...FEEDBACK_TOAST, duration: 8000 };
+
 /** 页面自持的清单条目（编辑中允许空行，保存前交服务层校验） */
 interface DraftDomain {
   domain: string;
@@ -78,13 +81,13 @@ export default function AdminWhitelistManager() {
         body: JSON.stringify({ allowAnyDomain: !allowAnyDomain }),
       });
       if (!response.ok) {
-        toast.error(await readErrorMessage(response, "总开关切换失败"), FEEDBACK_TOAST);
+        toast.error(await readErrorMessage(response, "总开关切换失败"), FEEDBACK_ERROR_TOAST);
         return;
       }
       await refresh();
       toast.success(!allowAnyDomain ? "已放开任意域名注册" : "已收紧为仅白名单域名可注册", FEEDBACK_TOAST);
     } catch {
-      toast.error("总开关切换失败，请稍后重试", FEEDBACK_TOAST);
+      toast.error("总开关切换失败，请稍后重试", FEEDBACK_ERROR_TOAST);
     } finally {
       setSwitching(false);
     }
@@ -111,13 +114,13 @@ export default function AdminWhitelistManager() {
         }),
       });
       if (!response.ok) {
-        toast.error(await readErrorMessage(response, "域名清单保存失败"), FEEDBACK_TOAST);
+        toast.error(await readErrorMessage(response, "域名清单保存失败"), FEEDBACK_ERROR_TOAST);
         return;
       }
       await refresh();
       toast.success("域名清单已保存", FEEDBACK_TOAST);
     } catch {
-      toast.error("域名清单保存失败，请稍后重试", FEEDBACK_TOAST);
+      toast.error("域名清单保存失败，请稍后重试", FEEDBACK_ERROR_TOAST);
     } finally {
       setSaving(false);
     }

@@ -1,5 +1,5 @@
 import { test, expect, type Page, type Route } from "@playwright/test";
-import { presetLoginState, collectConsoleProblems } from "./helpers";
+import { presetLoginState, collectConsoleProblems, expectConsoleClean } from "./helpers";
 
 // T5 · 邮箱白名单管理（issue #46 / spec #41）：离线 route-mock 覆盖配置展示、编辑保存载荷与总开关切换。
 // 权限两跳照 admin-users.spec.ts 的 mock 模式；/api/admin/whitelist* 用内存状态回放（写操作改状态后重读可见）。
@@ -59,17 +59,18 @@ async function mockAdminPermissions(page: Page) {
 }
 
 // console 卫生（用户指令加严）：全用例期间页面不得出现 console.error/warning 或未捕获异常；
-// 失败 toast 用例刻意桩 400，浏览器对其打的资源加载报错属预期，单独豁免
+// 仅桩 400 的失败用例豁免其资源加载报错（用例内置位标记），其余用例零豁免
 const STUBBED_FAILURE_RESOURCE = /Failed to load resource: the server responded with a status of 400/;
 let consoleProblems: string[] = [];
+let stubbedFailureCase = false;
 test.beforeEach(async ({ page }) => {
   consoleProblems = collectConsoleProblems(page);
+  stubbedFailureCase = false;
   await presetLoginState(page);
   await mockAdminPermissions(page);
 });
 test.afterEach(() => {
-  const problems = consoleProblems.filter((m) => !STUBBED_FAILURE_RESOURCE.test(m));
-  expect(problems, `console 卫生违例：\n${problems.join("\n")}`).toEqual([]);
+  expectConsoleClean(consoleProblems, stubbedFailureCase ? [STUBBED_FAILURE_RESOURCE] : []);
 });
 
 test("配置展示：总开关收紧状态与域名清单（含备注）", async ({ page }) => {
@@ -151,6 +152,7 @@ test("成功 toast（#96）：顶部居中浮出、不顶开布局、自动消�
 
 test("失败 toast（#96）：透传服务端文案、错误语义，可继续操作", async ({ page }) => {
   await mockWhitelistApi(page);
+  stubbedFailureCase = true; // 本用例桩 400，豁免其资源加载报错（仅本用例）
   await page.route("**/api/admin/whitelist/domains", async (route: Route) => {
     await route.fulfill({
       status: 400,

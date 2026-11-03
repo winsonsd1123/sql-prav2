@@ -15,6 +15,9 @@ import { getSessionAuth, readErrorMessage } from "@/lib/admin-api-client";
 /** 写操作反馈 toast：固定 id 使新反馈原位替换旧反馈（同一时刻只有一条） */
 const FEEDBACK_TOAST = { id: "词表提示", testId: "词表提示" };
 
+/** 错误反馈时长 8 秒（多条拼接的长错误读得完），成功仍走默认 4 秒 */
+const FEEDBACK_ERROR_TOAST = { ...FEEDBACK_TOAST, duration: 8000 };
+
 /** 词表条目（管理视图：名称 + 描述 + 启停态 + 被引用域包列表） */
 interface KnowledgeAreaEntry {
   id: string;
@@ -88,7 +91,7 @@ export default function AdminKnowledgeAreaManager() {
       onSuccess?.();
       await refresh();
     } catch (cause) {
-      if (cause instanceof Error && cause.message !== "no-session") toast.error(cause.message, FEEDBACK_TOAST);
+      if (cause instanceof Error && cause.message !== "no-session") toast.error(cause.message, FEEDBACK_ERROR_TOAST);
     } finally {
       setBusy(false);
     }
