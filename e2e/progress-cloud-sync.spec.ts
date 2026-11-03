@@ -2,7 +2,7 @@
 // 覆盖：判定后节流静默上云；刷新/新会话从云端恢复完整进度（尝试/草稿/通过状态）；
 // 跨浏览器上下文（新 context 预置登录态）进度恢复；断网（云写失败）兜底静默 + 恢复后自动冲写。
 import { expect, test, type Page } from "@playwright/test";
-import { presetLoginState, createCloudProgressStub, type CloudProgressRow } from "./helpers";
+import { presetLoginState, createCloudProgressStub, stubPlaygroundBackend, type CloudProgressRow } from "./helpers";
 
 const USER_ID = "e2e-user";
 
@@ -31,6 +31,7 @@ test.beforeEach(async ({ page }) => {
 
 test("判定后约 3 秒节流静默上云，载荷含尝试次数与草稿", async ({ page }) => {
   const stub = createCloudProgressStub();
+  await stubPlaygroundBackend(page);
   await stub.attach(page);
   await openPlayground(page, 61);
   await typeSql(page, "SELECT 草稿上云");
@@ -57,6 +58,7 @@ test("云端已有进度：进入同会话即完整恢复（通过状态、尝�
     },
   };
   stub.rows.set(stub.rowKey(cloudRow), cloudRow);
+  await stubPlaygroundBackend(page);
   await stub.attach(page);
   await openPlayground(page, 62);
   // 通过状态恢复：完成度 1/N
@@ -70,6 +72,7 @@ test("云端已有进度：进入同会话即完整恢复（通过状态、尝�
 
 test("跨浏览器上下文：新 context 同用户同会话，进度从云端恢复", async ({ page, browser }) => {
   const stub = createCloudProgressStub();
+  await stubPlaygroundBackend(page);
   await stub.attach(page);
   await openPlayground(page, 63);
   await recordFailedAttempt(page);
@@ -81,6 +84,7 @@ test("跨浏览器上下文：新 context 同用户同会话，进度从云端�
   const contextB = await browser.newContext();
   const pageB = await contextB.newPage();
   await presetLoginState(pageB);
+  await stubPlaygroundBackend(pageB);
   await stub.attach(pageB);
   await openPlayground(pageB, 63);
   await expect(page.getByTestId("完成度")).toHaveText(/^已完成 0\//); // 首上下文仍 0
@@ -92,6 +96,7 @@ test("跨浏览器上下文：新 context 同用户同会话，进度从云端�
 
 test("断网兜底：云写失败静默不弹 UI，恢复后自动冲写云端", async ({ page }) => {
   const stub = createCloudProgressStub();
+  await stubPlaygroundBackend(page);
   await stub.attach(page); // 先挂桩（Playwright 后注册的路由优先生效），再覆盖故障层
   let cloudDown = true;
   await page.route("**/rest/v1/**", async (route) => {

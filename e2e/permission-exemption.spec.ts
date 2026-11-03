@@ -1,5 +1,5 @@
 import { test, expect, type Page } from "@playwright/test";
-import { presetLoginState } from "./helpers";
+import { presetLoginState, stubPlaygroundBackend } from "./helpers";
 
 // T5 · 权限点判定与参考答案豁免（issue #27，ADR-0003 修订 v3 / ADR-0005）：
 // 学生（无权限点）走摩擦力门槛；持「随时查看参考答案」（mock 教师权限）免门槛直接可见，
@@ -7,6 +7,7 @@ import { presetLoginState } from "./helpers";
 
 test.beforeEach(async ({ page }) => {
   await presetLoginState(page);
+  await stubPlaygroundBackend(page);
 });
 
 async function openPlayground(page: Page, seed = 42) {

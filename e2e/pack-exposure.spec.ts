@@ -1,5 +1,5 @@
 import { test, expect, type Page, type Route } from "@playwright/test";
-import { presetLoginState, collectConsoleProblems, createDomainPackVersionHistoryStub } from "./helpers";
+import { presetLoginState, collectConsoleProblems, createCloudProgressStub, createDomainPackVersionHistoryStub } from "./helpers";
 
 // 域包放出（issue #55 / spec #53 目标③）：教师后台勾选放出 → 学生端只见表中的域包；
 // 未配置（清单空）默认全部放出。鉴权 401/403 行为在服务层单测断言，不在此重复。
@@ -9,6 +9,7 @@ let consoleProblems: string[] = [];
 test.beforeEach(async ({ page }) => {
   consoleProblems = collectConsoleProblems(page);
   await presetLoginState(page);
+  await createCloudProgressStub().attach(page);
 });
 test.afterEach(() => {
   expect(consoleProblems, `console 卫生违例：\n${consoleProblems.join("\n")}`).toEqual([]);

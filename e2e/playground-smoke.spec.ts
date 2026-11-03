@@ -1,8 +1,15 @@
 import { test, expect, type Page } from "@playwright/test";
-import { presetLoginState } from "./helpers";
+import { presetLoginState, collectConsoleProblems, expectConsoleClean, stubPlaygroundBackend } from "./helpers";
 
+// console 卫生：全用例期间页面不得出现 console.error/warning 或未捕获异常（零豁免）
+let consoleProblems: string[] = [];
 test.beforeEach(async ({ page }) => {
+  consoleProblems = collectConsoleProblems(page);
   await presetLoginState(page);
+  await stubPlaygroundBackend(page);
+});
+test.afterEach(() => {
+  expectConsoleClean(consoleProblems);
 });
 
 // 演练场 UI 关键路径冒烟（issue #9）：编辑器、库浏览器折叠、差异对照、

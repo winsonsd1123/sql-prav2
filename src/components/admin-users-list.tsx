@@ -206,7 +206,7 @@ export default function AdminUsersList() {
                     <tr
                       key={user.userId}
                       data-testid="用户行"
-                      className="border-b border-[color-mix(in_srgb,var(--色-墨)_6%,transparent)] last:border-b-0 hover:bg-panel"
+                      className="border-b border-[color-mix(in_srgb,var(--色-墨)_6%,transparent)] last:border-b-0"
                     >
                       <td className="px-2 py-2 font-mono text-xs">{user.studentId ?? "—"}</td>
                       <td className="px-2 py-2">{user.realName ?? "—"}</td>

@@ -11,6 +11,7 @@
 
 - 全程不真连云：`e2e/helpers.ts` 的 `presetLoginState(page)` 写离线 Supabase session；管理员权限在各 spec 内 `page.route` 打桩 user_roles / role_permissions（教师角色 + 「访问后台」「域包管理」权限点）
 - 需要域包资产 / 版本历史的场景复用共享桩 `createDomainPackAssetStub` / `createDomainPackVersionHistoryStub`（helpers.ts）
+- 进入学生端演练场的 spec 在 beforeEach 挂 `stubPlaygroundBackend(page)`（进度、资产、版本历史、放出清单、角色五表空桩），用例级桩其后注册覆盖；后台类 spec 中途进学生端、已自桩其余表的，至少补挂 `createCloudProgressStub`。漏任一张即真连占位主机，全量下偶发 `ERR_CONNECTION_CLOSED` 假红（#98 根治）
 
 ## console 卫生
 
@@ -30,7 +31,7 @@
 
 | 用例 | 症状 | 根因 | 首次确认 |
 |---|---|---|---|
-| `cloud-domain-pack.spec.ts:35` 云端合法域包出现在学生端列表 | `ERR_CONNECTION_CLOSED` 进 console 卫生断言 | 真实网络瞬断 / 并行资源争抢 | 2026-11-02（#68 在基点复跑 3/4 同败证实） |
-| `cloud-domain-pack.spec.ts:53` 云端非法域包不进入加载结果 | 同上（全量败、单跑过，基点 b97b8dd 全量同败） | 同上 | 2026-11-03（#85 三步口径验证） |
-| `practice-config.spec.ts:118` 内置包A 配置改 7 题学生端生效 | 同上（全量败、单跑过，基点 b97b8dd 全量同败） | 同上 | 2026-11-03（#85 三步口径验证） |
-| `admin-console.spec.ts:214` 无权限点直访 `/admin` 被重定向 | 时序抖动偶发失败 | 同上类 | 2026-11-02（单跑即过） |
+| `cloud-domain-pack.spec.ts:36`（原 35）云端合法域包出现在学生端列表 | `ERR_CONNECTION_CLOSED` 进 console 卫生断言 | 演练场漏桩（`practice_progress` 真连占位主机），已补桩根治（#98） | 2026-11-02（#68 在基点复跑 3/4 同败证实） |
+| `cloud-domain-pack.spec.ts:54`（原 53）云端非法域包不进入加载结果 | 同上（全量败、单跑过，基点 b97b8dd 全量同败） | 同上，已补桩根治（#98） | 2026-11-03（#85 三步口径验证） |
+| `practice-config.spec.ts:119`（原 118）内置包A 配置改 7 题学生端生效 | 同上（全量败、单跑过，基点 b97b8dd 全量同败） | 同上，已补桩根治（#98） | 2026-11-03（#85 三步口径验证） |
+| `admin-console.spec.ts:205`（原 214→217）无权限点直访 `/admin` 被重定向 | 时序抖动偶发失败 | 演练场漏桩（`domain_pack_asset` / `pack_exposure` 真连占位主机），已补桩根治（#98） | 2026-11-02（单跑即过） |

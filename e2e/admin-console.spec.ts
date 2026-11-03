@@ -1,5 +1,5 @@
 import { test, expect, type Page } from "@playwright/test";
-import { presetLoginState, collectConsoleProblems, createCloudProgressStub } from "./helpers";
+import { presetLoginState, collectConsoleProblems, stubPlaygroundBackend } from "./helpers";
 
 // T1 · 后台管理骨架（issue #42 / spec #41，ADR-0005 / ADR-0007）：
 // 持「访问后台」权限点（mock 管理员）→ 演练场顶部入口可见、/admin 骨架页与侧边导航可达；
@@ -19,8 +19,8 @@ test.afterEach(() => {
 test.describe("已登录", () => {
   test.beforeEach(async ({ page }) => {
     await presetLoginState(page);
-    // 演练场页会拉取云端进度，假 token 直连真库得 401 并污染 console 卫生断言
-    await createCloudProgressStub().attach(page);
+    // 演练场页会拉进度/域包资产/版本历史/放出清单/角色，漏桩即真连占位主机污染 console 卫生断言
+    await stubPlaygroundBackend(page);
   });
 
   /** mock 当前用户（e2e-user）的管理员权限：user_roles → role_permissions 两跳均以 REST 拦截（表名英文，glob 直配） */
@@ -72,18 +72,6 @@ test.describe("已登录", () => {
         contentType: "application/json",
         body: JSON.stringify({ allowAnyDomain: false, domains: [] }),
       });
-    });
-    // #55：演练场页会拉系统级域包放出清单（rest/v1/pack_exposure），console 卫生断言需离线桩（空=未配置）
-    await page.route("**/rest/v1/pack_exposure*", async (route) => {
-      await route.fulfill({ status: 200, contentType: "application/json", body: "[]" });
-    });
-    // #57：演练场加载层会拉云端域包资产表（rest/v1/domain_pack_asset），同样离线桩（空=仅内置两包）
-    await page.route("**/rest/v1/domain_pack_asset*", async (route) => {
-      await route.fulfill({ status: 200, contentType: "application/json", body: "[]" });
-    });
-    // 票 #62：加载层随资产表一并拉版本历史表（domain_pack_version_history），同样离线空桩
-    await page.route("**/rest/v1/domain_pack_version_history*", async (route) => {
-      await route.fulfill({ status: 200, contentType: "application/json", body: "[]" });
     });
   }
 

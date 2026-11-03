@@ -130,6 +130,19 @@ export function createDomainPackVersionHistoryStub() {
   return { rows, attach };
 }
 
+// 学生端演练场整页桩（票 #98）：演练场加载会拉进度、云端域包资产/版本历史、放出清单与当前用户角色，
+// 任一张漏桩都会真连占位主机——请求挂起或 ERR_CONNECTION_CLOSED 打进 console 卫生，全量偶发假红。
+// 一律回空行集：云端无进度/无域包、未配置放出（全放）、无角色（学生）。进度表无状态（读空、写丢弃），
+// 本地进度为唯一真相——有状态的 createCloudProgressStub 会把前段写入在 reload 后恢复回来，改变用例前提。
+// Playwright 后注册的路由优先：须在用例级桩之前挂（beforeEach），用例再按需覆盖同表（含云同步断言挂有状态桩）。
+export async function stubPlaygroundBackend(page: Page) {
+  for (const table of ["practice_progress", "domain_pack_asset", "domain_pack_version_history", "pack_exposure", "user_roles"]) {
+    await page.route(`**/rest/v1/${table}*`, (route) =>
+      route.fulfill({ status: 200, contentType: "application/json", body: "[]" }),
+    );
+  }
+}
+
 // shadcn Select（票 #97）：触发器是按钮、无原生 value，selectOption 不可用。
 // 选择 = 点开触发器 + 点选项（选项名为「名称（基础名）」，按基础名子串匹配）；
 // 选中值断言按触发器显示文字：toContainText("（基础名）")，占位项为 toHaveText("请选择域包")。

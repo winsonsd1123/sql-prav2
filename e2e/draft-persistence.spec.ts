@@ -1,8 +1,9 @@
 import { test, expect, type Page } from "@playwright/test";
-import { presetLoginState } from "./helpers";
+import { presetLoginState, stubPlaygroundBackend } from "./helpers";
 
 test.beforeEach(async ({ page }) => {
   await presetLoginState(page);
+  await stubPlaygroundBackend(page);
 });
 
 // SQL 草稿按题保留与持久化（issue #15）：
