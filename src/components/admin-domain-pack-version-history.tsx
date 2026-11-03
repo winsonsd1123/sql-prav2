@@ -7,6 +7,7 @@
 // 鉴权在 API 层（ADR-0007）；经 admin-api-client 带 Bearer token。
 
 import { useEffect, useState } from "react";
+import Link from "next/link";
 import { bearerHeaders, getSessionAuth } from "@/lib/admin-api-client";
 import { parsePackIdVersion } from "@/kernel/domain-pack-versioning";
 import type { DomainPack } from "@/kernel/types";
@@ -111,7 +112,8 @@ export default function AdminDomainPackVersionHistory({ packs, initialBasePackId
                   <th className="py-1 pr-3 font-normal">版本</th>
                   <th className="py-1 pr-3 font-normal">packId</th>
                   <th className="py-1 pr-3 font-normal">名称</th>
-                  <th className="py-1 font-normal">状态</th>
+                  <th className="py-1 pr-3 font-normal">状态</th>
+                  <th className="py-1 font-normal">内容</th>
                 </tr>
               </thead>
               <tbody>
@@ -126,6 +128,17 @@ export default function AdminDomainPackVersionHistory({ packs, initialBasePackId
                       ) : (
                         <span className="text-muted">历史（旧会话钉住）</span>
                       )}
+                    </td>
+                    {/* 查看该版本完整内容（票 #86）：携带完整版本 packId 跳版本内容视图页，
+                        复用详情页展示组件双数据源渲染（当前资产 / 历史资产） */}
+                    <td className="py-1.5">
+                      <Link
+                        href={`/admin/packs/versions/view?packId=${encodeURIComponent(v.packId)}`}
+                        className="text-xs text-sky-700 underline-offset-2 hover:underline"
+                        data-testid={`查看内容-${v.packId}`}
+                      >
+                        查看内容
+                      </Link>
                     </td>
                   </tr>
                 ))}

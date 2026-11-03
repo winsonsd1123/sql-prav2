@@ -335,3 +335,50 @@ export async function getDomainPackVersionHistory(
     return { status: "error" };
   }
 }
+
+/** 版本完整内容结果（票 #86：版本内容视图页数据源）——资产 + 版本标签 + 当前/历史标记 */
+export type VersionContentResult =
+  | { status: "ok"; asset: DomainPackAsset; versionLabel: string; isCurrent: boolean }
+  | { status: "not_found" }
+  | { status: "unauthorized" }
+  | { status: "forbidden" }
+  | { status: "error" };
+
+/**
+ * 版本完整内容查询（票 #86）：按完整版本 packId（v1 即基础名，vN≥2 带 @vN 后缀）取该版本
+ * 的完整资产——命中当前资产（请求 id 与当前资产 packId 一致）返回当前内容，否则查
+ * domain_pack_version_history 精确匹配。旧字符串清单形态（无 knowledgeAreaRefIds，
+ * #83 之前的历史资产）经 parseDomainPackJson 归一化读取，知识点清单直接可渲染。
+ */
+export async function getDomainPackVersionContent(
+  packId: string,
+  authorization: string | null,
+  deps: RefineServiceDeps = {},
+): Promise<VersionContentResult> {
+  const auth = await authorizeAdminRequest(authorization, deps.adminDeps ?? defaultAdminDeps, PERMISSIONS.packExposure);
+  if (auth.status !== "ok") return { status: auth.status };
+
+  try {
+    const { base } = parsePackIdVersion(packId);
+    const client = deps.readClient ?? serverPrivilegedClient();
+
+    const current = await resolveCurrentAsset(client, base);
+    if (current !== null && current.asset.packId === packId) {
+      return { status: "ok", asset: current.asset, versionLabel: `v${current.version}`, isCurrent: true };
+    }
+
+    const { data, error } = await client
+      .from("domain_pack_version_history")
+      .select("pack_id, version_label, asset");
+    if (error || data === null) return { status: "not_found" };
+    const row = (data as { pack_id: string; version_label: string; asset: unknown }[]).find(
+      (r) => r.pack_id === packId,
+    );
+    if (row === undefined) return { status: "not_found" };
+    const parsed = parseDomainPackJson(row.asset);
+    if (!parsed.ok) return { status: "not_found" };
+    return { status: "ok", asset: parsed.pack, versionLabel: row.version_label, isCurrent: false };
+  } catch {
+    return { status: "error" };
+  }
+}

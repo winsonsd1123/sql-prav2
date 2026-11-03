@@ -5,6 +5,7 @@ import { describe, expect, it, vi, beforeEach } from "vitest";
 const refineMock = vi.fn();
 const applyMock = vi.fn();
 const historyMock = vi.fn();
+const contentMock = vi.fn();
 const resolveDeepSeekProviderMock = vi.fn();
 
 vi.mock("@/server/domain-pack-refine-service", async (importOriginal) => ({
@@ -12,6 +13,7 @@ vi.mock("@/server/domain-pack-refine-service", async (importOriginal) => ({
   refineDomainPackDraft: (...args: unknown[]) => refineMock(...args),
   applyDomainPackRefinement: (...args: unknown[]) => applyMock(...args),
   getDomainPackVersionHistory: (...args: unknown[]) => historyMock(...args),
+  getDomainPackVersionContent: (...args: unknown[]) => contentMock(...args),
 }));
 vi.mock("@/server/llm-provider", async (importOriginal) => ({
   ...(await importOriginal<typeof import("@/server/llm-provider")>()),
@@ -21,6 +23,7 @@ vi.mock("@/server/llm-provider", async (importOriginal) => ({
 import { POST as refine } from "@/app/api/admin/domain-packs/refine/route";
 import { POST as apply } from "@/app/api/admin/domain-packs/refine/apply/route";
 import { GET as versions } from "@/app/api/admin/domain-packs/versions/route";
+import { GET as versionContent } from "@/app/api/admin/domain-packs/versions/content/route";
 
 const authHeader = { authorization: "Bearer tok" };
 function postRequest(url: string, body: unknown, headers: Record<string, string> = authHeader): Request {
@@ -120,5 +123,42 @@ describe("GET /api/admin/domain-packs/versions", () => {
   it("forbidden → 403", async () => {
     historyMock.mockResolvedValue({ status: "forbidden" });
     expect((await versions(new Request("http://l/api/admin/domain-packs/versions?packId=x", { headers: authHeader }))).status).toBe(403);
+  });
+});
+
+// —— 票 #86：版本完整内容路由（版本内容视图页数据源）——
+
+describe("GET /api/admin/domain-packs/versions/content", () => {
+  it("缺 packId 查询参数：400", async () => {
+    const response = await versionContent(new Request("http://l/api/admin/domain-packs/versions/content", { headers: authHeader }));
+    expect(response.status).toBe(400);
+    expect(contentMock).not.toHaveBeenCalled();
+  });
+
+  it("packId 与 Authorization 透传；成功 200 返回完整资产与版本标签/当前标记", async () => {
+    contentMock.mockResolvedValue({
+      status: "ok",
+      asset: { packId: "library-loan", name: "图书馆借阅" },
+      versionLabel: "v1",
+      isCurrent: false,
+    });
+    const response = await versionContent(new Request("http://l/api/admin/domain-packs/versions/content?packId=library-loan", { headers: authHeader }));
+    expect(contentMock).toHaveBeenCalledWith("library-loan", "Bearer tok");
+    expect(response.status).toBe(200);
+    const body = (await response.json()) as { asset: { packId: string }; versionLabel: string; isCurrent: boolean };
+    expect(body.asset.packId).toBe("library-loan");
+    expect(body.versionLabel).toBe("v1");
+    expect(body.isCurrent).toBe(false);
+  });
+
+  it("not_found → 404；forbidden → 403；unauthorized → 401；error → 500", async () => {
+    contentMock.mockResolvedValueOnce({ status: "not_found" });
+    expect((await versionContent(new Request("http://l/api/admin/domain-packs/versions/content?packId=g", { headers: authHeader }))).status).toBe(404);
+    contentMock.mockResolvedValueOnce({ status: "forbidden" });
+    expect((await versionContent(new Request("http://l/api/admin/domain-packs/versions/content?packId=x", { headers: authHeader }))).status).toBe(403);
+    contentMock.mockResolvedValueOnce({ status: "unauthorized" });
+    expect((await versionContent(new Request("http://l/api/admin/domain-packs/versions/content?packId=x", { headers: authHeader }))).status).toBe(401);
+    contentMock.mockResolvedValueOnce({ status: "error" });
+    expect((await versionContent(new Request("http://l/api/admin/domain-packs/versions/content?packId=x", { headers: authHeader }))).status).toBe(500);
   });
 });
