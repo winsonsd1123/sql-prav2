@@ -10,6 +10,8 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { toast } from "sonner";
 import { bearerHeaders, getSessionAuth, readErrorMessage } from "@/lib/admin-api-client";
+import { Button } from "@/components/ui/button";
+import { Card } from "@/components/ui/card";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 
 /** 写操作反馈 toast：固定 id 使新反馈原位替换旧反馈（同一时刻只有一条） */
@@ -176,90 +178,84 @@ export default function AdminPracticeConfigManager() {
   }
 
   return (
-    <section
-      data-testid="演练配置管理"
-      aria-label="演练配置管理"
-      className="卡片 rounded-2xl border border-ink/10 bg-paper p-5"
-    >
-      <h2 className="标题 mb-1 text-lg">演练配置</h2>
-      <p className="mb-4 text-xs text-muted">
-        配置每次开练的总题数与各难度档位数量（各档配额不得超过该档模板数）。保存即时生效、不产生域包版本；
-        进行中的会话不受影响，学生下次开练或换一套时按新配置生成。
-      </p>
-      {error && (
-        <p role="alert" className="mb-3 rounded-lg bg-fail/10 px-3 py-2 text-xs text-fail">
-          {error}
+    <Card asChild className="rounded-2xl border-ink/10 p-5">
+      <section data-testid="演练配置管理" aria-label="演练配置管理">
+        <h2 className="标题 mb-1 text-lg">演练配置</h2>
+        <p className="mb-4 text-xs text-muted">
+          配置每次开练的总题数与各难度档位数量（各档配额不得超过该档模板数）。保存即时生效、不产生域包版本；
+          进行中的会话不受影响，学生下次开练或换一套时按新配置生成。
         </p>
-      )}
-      <div className="mb-4 flex flex-wrap items-center gap-2 text-sm">
-        <label htmlFor="practice-config-pack" className="text-muted">
-          域包
-        </label>
-        <Select value={selectedPackId ?? ""} onValueChange={switchPack}>
-          <SelectTrigger id="practice-config-pack" data-testid="演练配置域包选择">
-            <SelectValue />
-          </SelectTrigger>
-          <SelectContent position="popper" align="start">
-            {entries.map((entry) => (
-              <SelectItem key={entry.packId} value={entry.packId}>
-                {entry.name}（{entry.packId}）
-              </SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
-      </div>
-      {draft !== null && selected !== null && (
-        <div className="mb-4 flex flex-col gap-3">
-          <div className="flex flex-wrap items-center gap-2 text-sm">
-            <label htmlFor="practice-config-total" className="text-muted">
-              总题数
-            </label>
-            <input
-              id="practice-config-total"
-              type="number"
-              min={1}
-              value={draft.totalQuestions}
-              onChange={(e) => setDraft({ ...draft, totalQuestions: e.target.value })}
-              data-testid="演练配置总题数"
-              className="w-20 rounded-lg border border-ink/15 bg-paper px-2 py-1"
-            />
-            <span className="text-xs text-muted">当前各档合计 {draftTierSum}</span>
-          </div>
-          <div className="flex flex-wrap gap-3">
-            {["1", "2", "3", "4", "5"].map((tier) => (
-              <label key={tier} className="flex flex-col gap-1 text-xs">
-                <span className="text-muted">
-                  {TIER_LABELS[tier]}（模板 {selected.tierTemplateCounts[tier]}）
-                </span>
-                <input
-                  type="number"
-                  min={0}
-                  value={draft.tiers[tier]}
-                  onChange={(e) => setDraft({ ...draft, tiers: { ...draft.tiers, [tier]: e.target.value } })}
-                  data-testid={`演练配置档位-${tier}`}
-                  className="w-20 rounded-lg border border-ink/15 bg-paper px-2 py-1 text-sm"
-                />
-              </label>
-            ))}
-          </div>
-          {draftErrors.length > 0 && (
-            <ul data-testid="演练配置校验提示" className="rounded-lg bg-warn/10 px-3 py-2 text-xs text-warn">
-              {draftErrors.map((message) => (
-                <li key={message}>{message}</li>
+        {error && (
+          <p role="alert" className="mb-3 rounded-lg bg-fail/10 px-3 py-2 text-xs text-fail">
+            {error}
+          </p>
+        )}
+        <div className="mb-4 flex flex-wrap items-center gap-2 text-sm">
+          <label htmlFor="practice-config-pack" className="text-muted">
+            域包
+          </label>
+          <Select value={selectedPackId ?? ""} onValueChange={switchPack}>
+            <SelectTrigger id="practice-config-pack" data-testid="演练配置域包选择">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent position="popper" align="start">
+              {entries.map((entry) => (
+                <SelectItem key={entry.packId} value={entry.packId}>
+                  {entry.name}（{entry.packId}）
+                </SelectItem>
               ))}
-            </ul>
-          )}
+            </SelectContent>
+          </Select>
         </div>
-      )}
-      <div className="flex items-center gap-3">
-        <button
-          onClick={save}
-          disabled={saving || draftErrors.length > 0}
-          className="主按钮 px-4 py-1.5 text-xs disabled:opacity-50"
-        >
-          {saving ? "保存中……" : "保存演练配置"}
-        </button>
-      </div>
-    </section>
+        {draft !== null && selected !== null && (
+          <div className="mb-4 flex flex-col gap-3">
+            <div className="flex flex-wrap items-center gap-2 text-sm">
+              <label htmlFor="practice-config-total" className="text-muted">
+                总题数
+              </label>
+              <input
+                id="practice-config-total"
+                type="number"
+                min={1}
+                value={draft.totalQuestions}
+                onChange={(e) => setDraft({ ...draft, totalQuestions: e.target.value })}
+                data-testid="演练配置总题数"
+                className="w-20 rounded-lg border border-ink/15 px-2 py-1"
+              />
+              <span className="text-xs text-muted">当前各档合计 {draftTierSum}</span>
+            </div>
+            <div className="flex flex-wrap gap-3">
+              {["1", "2", "3", "4", "5"].map((tier) => (
+                <label key={tier} className="flex flex-col gap-1 text-xs">
+                  <span className="text-muted">
+                    {TIER_LABELS[tier]}（模板 {selected.tierTemplateCounts[tier]}）
+                  </span>
+                  <input
+                    type="number"
+                    min={0}
+                    value={draft.tiers[tier]}
+                    onChange={(e) => setDraft({ ...draft, tiers: { ...draft.tiers, [tier]: e.target.value } })}
+                    data-testid={`演练配置档位-${tier}`}
+                    className="w-20 rounded-lg border border-ink/15 px-2 py-1 text-sm"
+                  />
+                </label>
+              ))}
+            </div>
+            {draftErrors.length > 0 && (
+              <ul data-testid="演练配置校验提示" className="rounded-lg bg-warn/10 px-3 py-2 text-xs text-warn">
+                {draftErrors.map((message) => (
+                  <li key={message}>{message}</li>
+                ))}
+              </ul>
+            )}
+          </div>
+        )}
+        <div className="flex items-center gap-3">
+          <Button onClick={save} disabled={saving || draftErrors.length > 0} size="sm" className="px-4">
+            {saving ? "保存中……" : "保存演练配置"}
+          </Button>
+        </div>
+      </section>
+    </Card>
   );
 }

@@ -14,6 +14,9 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { bearerHeaders, getSessionAuth } from "@/lib/admin-api-client";
 import { buildDomainPackListRows, type DomainPackListRow } from "@/components/domain-pack-admin-view-model";
+import { Button } from "@/components/ui/button";
+import { Card } from "@/components/ui/card";
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import type { DomainPack } from "@/kernel/types";
 
 export interface AdminDomainPackListProps {
@@ -57,83 +60,81 @@ export default function AdminDomainPackList({ packs, builtinBaseIds, cloudLoaded
     exposedIds === undefined ? [] : buildDomainPackListRows(packs, builtinBaseIds, exposedIds);
 
   return (
-    <section
-      data-testid="域包列表"
-      aria-label="域包列表"
-      className="卡片 rounded-2xl border border-ink/10 bg-paper p-5"
-    >
-      <h2 className="标题 mb-1 text-lg">域包列表</h2>
-      <p className="mb-4 text-xs text-muted">
-        全部可演练域包（内置随前端发布；云端含 AI 生成后发布的）。
-        {!cloudLoaded && " 云端域包仍在加载……"}
-      </p>
-      {exposedIds === undefined || rows.length === 0 ? (
-        <p className="text-sm text-muted">正在加载域包清单……</p>
-      ) : (
-        <table className="w-full text-left text-sm">
-          <thead>
-            <tr className="text-xs text-muted">
-              <th className="py-1 pr-3 font-normal">名称</th>
-              <th className="py-1 pr-3 font-normal">packId</th>
-              <th className="py-1 pr-3 font-normal">表数</th>
-              <th className="py-1 pr-3 font-normal">模板数</th>
-              <th className="py-1 pr-3 font-normal">难度五档概览</th>
-              <th className="py-1 pr-3 font-normal">来源</th>
-              <th className="py-1 pr-3 font-normal">放出状态</th>
-              <th className="py-1 font-normal">操作</th>
-            </tr>
-          </thead>
-          <tbody>
-            {rows.map((row) => (
-              <tr key={row.packId} className="border-t border-ink/5" data-testid={`域包行-${row.name}`}>
-                <td className="py-1.5 pr-3">{row.name}</td>
-                <td className="py-1.5 pr-3 font-mono text-xs text-muted">{row.packId}</td>
-                <td className="py-1.5 pr-3">{row.tableCount}</td>
-                <td className="py-1.5 pr-3">{row.templateCount}</td>
-                <td className="py-1.5 pr-3 font-mono text-xs">
-                  {(["1", "2", "3", "4", "5"] as const).map((t) => `${t}档:${row.tierOverview[t]}`).join(" ")}
-                </td>
-                <td className="py-1.5 pr-3 text-xs text-muted">{row.source}</td>
-                <td className="py-1.5 pr-3 text-xs">
-                  {row.exposed && exposedIds === null ? (
-                    <span className="text-pass">已放出（默认全放）</span>
-                  ) : row.exposed ? (
-                    <span className="text-pass">已放出</span>
-                  ) : (
-                    <span className="text-muted">未放出</span>
-                  )}
-                </td>
-                <td className="flex gap-2 py-1.5">
-                  {/* 详情入口（票 #78）：只读预览，路由含 packId 可分享直达 */}
-                  <Link
-                    href={`/admin/packs/${encodeURIComponent(row.packId)}`}
-                    className="次按钮 px-2 py-1 text-xs"
-                    data-testid={`详情入口-${row.name}`}
-                  >
-                    详情
-                  </Link>
-                  <button
-                    type="button"
-                    className="次按钮 px-2 py-1 text-xs"
-                    data-testid={`微调入口-${row.name}`}
-                    onClick={() => router.push(`/admin/packs/refine?packId=${encodeURIComponent(row.basePackId)}`)}
-                  >
-                    微调
-                  </button>
-                  <button
-                    type="button"
-                    className="次按钮 px-2 py-1 text-xs"
-                    data-testid={`版本历史入口-${row.name}`}
-                    onClick={() => router.push(`/admin/packs/versions?packId=${encodeURIComponent(row.basePackId)}`)}
-                  >
-                    版本历史
-                  </button>
-                </td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
-      )}
-    </section>
+    <Card asChild className="rounded-2xl border-ink/10 p-5">
+      <section data-testid="域包列表" aria-label="域包列表">
+        <h2 className="标题 mb-1 text-lg">域包列表</h2>
+        <p className="mb-4 text-xs text-muted">
+          全部可演练域包（内置随前端发布；云端含 AI 生成后发布的）。
+          {!cloudLoaded && " 云端域包仍在加载……"}
+        </p>
+        {exposedIds === undefined || rows.length === 0 ? (
+          <p className="text-sm text-muted">正在加载域包清单……</p>
+        ) : (
+          <Table>
+            <TableHeader>
+              <TableRow className="text-xs text-muted">
+                <TableHead className="h-auto px-0 py-1 pr-3 font-normal">名称</TableHead>
+                <TableHead className="h-auto px-0 py-1 pr-3 font-normal">packId</TableHead>
+                <TableHead className="h-auto px-0 py-1 pr-3 font-normal">表数</TableHead>
+                <TableHead className="h-auto px-0 py-1 pr-3 font-normal">模板数</TableHead>
+                <TableHead className="h-auto px-0 py-1 pr-3 font-normal">难度五档概览</TableHead>
+                <TableHead className="h-auto px-0 py-1 pr-3 font-normal">来源</TableHead>
+                <TableHead className="h-auto px-0 py-1 pr-3 font-normal">放出状态</TableHead>
+                <TableHead className="h-auto px-0 py-1 font-normal">操作</TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {rows.map((row) => (
+                <TableRow key={row.packId} className="border-ink/5" data-testid={`域包行-${row.name}`}>
+                  <TableCell className="px-0 py-1.5 pr-3">{row.name}</TableCell>
+                  <TableCell className="px-0 py-1.5 pr-3 font-mono text-xs text-muted">{row.packId}</TableCell>
+                  <TableCell className="px-0 py-1.5 pr-3">{row.tableCount}</TableCell>
+                  <TableCell className="px-0 py-1.5 pr-3">{row.templateCount}</TableCell>
+                  <TableCell className="px-0 py-1.5 pr-3 font-mono text-xs">
+                    {(["1", "2", "3", "4", "5"] as const).map((t) => `${t}档:${row.tierOverview[t]}`).join(" ")}
+                  </TableCell>
+                  <TableCell className="px-0 py-1.5 pr-3 text-xs text-muted">{row.source}</TableCell>
+                  <TableCell className="px-0 py-1.5 pr-3 text-xs">
+                    {row.exposed && exposedIds === null ? (
+                      <span className="text-pass">已放出（默认全放）</span>
+                    ) : row.exposed ? (
+                      <span className="text-pass">已放出</span>
+                    ) : (
+                      <span className="text-muted">未放出</span>
+                    )}
+                  </TableCell>
+                  <TableCell className="flex gap-2 px-0 py-1.5">
+                    {/* 详情入口（票 #78）：只读预览，路由含 packId 可分享直达 */}
+                    <Button asChild variant="outline" size="xs">
+                      <Link href={`/admin/packs/${encodeURIComponent(row.packId)}`} data-testid={`详情入口-${row.name}`}>
+                        详情
+                      </Link>
+                    </Button>
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="xs"
+                      data-testid={`微调入口-${row.name}`}
+                      onClick={() => router.push(`/admin/packs/refine?packId=${encodeURIComponent(row.basePackId)}`)}
+                    >
+                      微调
+                    </Button>
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="xs"
+                      data-testid={`版本历史入口-${row.name}`}
+                      onClick={() => router.push(`/admin/packs/versions?packId=${encodeURIComponent(row.basePackId)}`)}
+                    >
+                      版本历史
+                    </Button>
+                  </TableCell>
+                </TableRow>
+              ))}
+            </TableBody>
+          </Table>
+        )}
+      </section>
+    </Card>
   );
 }

@@ -9,6 +9,8 @@
 import { useCallback, useEffect, useState } from "react";
 import { toast } from "sonner";
 import { bearerHeaders, getSessionAuth, readErrorMessage } from "@/lib/admin-api-client";
+import { Button } from "@/components/ui/button";
+import { Card } from "@/components/ui/card";
 
 /** 写操作反馈 toast：固定 id 使新反馈原位替换旧反馈（同一时刻只有一条） */
 const FEEDBACK_TOAST = { id: "放出提示", testId: "放出提示" };
@@ -107,51 +109,49 @@ export default function AdminPackExposureManager({ packs }: AdminPackExposureMan
   const isUnconfigured = exposedIds === null;
 
   return (
-    <section
-      data-testid="域包放出管理"
-      aria-label="域包放出管理"
-      className="卡片 rounded-2xl border border-ink/10 bg-paper p-5"
-    >
-      <h2 className="标题 mb-1 text-lg">域包放出</h2>
-      <p className="mb-4 text-xs text-muted">
-        勾选的域包对学生可见（可演练列表）；清单为空时默认全部放出。放出与否不影响进行中的会话。
-      </p>
-      {error && (
-        <p role="alert" className="mb-3 rounded-lg bg-fail/10 px-3 py-2 text-xs text-fail">
-          {error}
+    <Card asChild className="rounded-2xl border-ink/10 p-5">
+      <section data-testid="域包放出管理" aria-label="域包放出管理">
+        <h2 className="标题 mb-1 text-lg">域包放出</h2>
+        <p className="mb-4 text-xs text-muted">
+          勾选的域包对学生可见（可演练列表）；清单为空时默认全部放出。放出与否不影响进行中的会话。
         </p>
-      )}
-      <ul className="mb-4 flex flex-col gap-2">
-        {packs.map((pack) => {
-          const checked = exposedIds === null || exposedIds.has(pack.packId);
-          return (
-            <li key={pack.packId}>
-              <label className="flex cursor-pointer items-center gap-2 rounded-lg px-2 py-1.5 text-sm hover:bg-ink/[0.03]">
-                <input
-                  type="checkbox"
-                  checked={checked}
-                  onChange={() => toggle(pack.packId)}
-                  data-testid={`放出勾选-${pack.name}`}
-                  className="h-4 w-4 accent-ink"
-                />
-                <span>{pack.name}</span>
-                <span className="font-mono text-xs text-muted">{pack.packId}</span>
-              </label>
-            </li>
-          );
-        })}
-      </ul>
-      {isUnconfigured && (
-        <p className="mb-3 text-xs text-warn">
-          未勾选任何域包：保存后清单清空，回到「默认全部放出」。
-        </p>
-      )}
-      <div className="flex items-center gap-3">
-        <button onClick={save} disabled={saving} className="主按钮 px-4 py-1.5 text-xs disabled:opacity-50">
-          {saving ? "保存中……" : "保存放出清单"}
-        </button>
-        <span className="text-xs text-muted">当前放出 {exposedIds?.size ?? packs.length} / {packs.length}</span>
-      </div>
-    </section>
+        {error && (
+          <p role="alert" className="mb-3 rounded-lg bg-fail/10 px-3 py-2 text-xs text-fail">
+            {error}
+          </p>
+        )}
+        <ul className="mb-4 flex flex-col gap-2">
+          {packs.map((pack) => {
+            const checked = exposedIds === null || exposedIds.has(pack.packId);
+            return (
+              <li key={pack.packId}>
+                <label className="flex cursor-pointer items-center gap-2 rounded-lg px-2 py-1.5 text-sm hover:bg-ink/[0.03]">
+                  <input
+                    type="checkbox"
+                    checked={checked}
+                    onChange={() => toggle(pack.packId)}
+                    data-testid={`放出勾选-${pack.name}`}
+                    className="h-4 w-4 accent-ink"
+                  />
+                  <span>{pack.name}</span>
+                  <span className="font-mono text-xs text-muted">{pack.packId}</span>
+                </label>
+              </li>
+            );
+          })}
+        </ul>
+        {isUnconfigured && (
+          <p className="mb-3 text-xs text-warn">
+            未勾选任何域包：保存后清单清空，回到「默认全部放出」。
+          </p>
+        )}
+        <div className="flex items-center gap-3">
+          <Button onClick={save} disabled={saving} size="sm" className="px-4">
+            {saving ? "保存中……" : "保存放出清单"}
+          </Button>
+          <span className="text-xs text-muted">当前放出 {exposedIds?.size ?? packs.length} / {packs.length}</span>
+        </div>
+      </section>
+    </Card>
   );
 }

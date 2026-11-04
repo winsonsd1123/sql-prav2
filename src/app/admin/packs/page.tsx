@@ -10,6 +10,7 @@
 // 展示清单按基础名收敛为最新版本（票 #62：微调出新版本后列表该行即新版本）。
 import Link from "next/link";
 import AdminDomainPackList from "@/components/admin-domain-pack-list";
+import { Button } from "@/components/ui/button";
 import { builtinDomainPacks } from "@/components/domain-pack-registry";
 import { useDisplayPacks } from "@/components/use-display-packs";
 
@@ -24,9 +25,11 @@ export default function AdminPacksPage() {
       <div className="flex items-center justify-between gap-3">
         <h1 className="标题 text-lg">域包列表</h1>
         {/* 入口规则：生成 = 目标明确的变更操作，从列表页顶进入独立生成页 */}
-        <Link href="/admin/packs/generate" className="主按钮 rounded-lg px-3 py-1.5 text-sm" data-testid="新建域包入口">
-          新建域包
-        </Link>
+        <Button asChild className="px-3">
+          <Link href="/admin/packs/generate" data-testid="新建域包入口">
+            新建域包
+          </Link>
+        </Button>
       </div>
       <AdminDomainPackList
         packs={displayPacks}

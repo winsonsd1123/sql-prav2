@@ -11,6 +11,8 @@ import Link from "next/link";
 import { bearerHeaders, getSessionAuth } from "@/lib/admin-api-client";
 import { parsePackIdVersion } from "@/kernel/domain-pack-versioning";
 import { PackBaseSelect } from "@/components/pack-base-select";
+import { Card } from "@/components/ui/card";
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import type { DomainPack } from "@/kernel/types";
 
 /** 版本历史条目（与 /api/admin/domain-packs/versions 响应同形） */
@@ -73,74 +75,72 @@ export default function AdminDomainPackVersionHistory({ packs, initialBasePackId
   }, [selectedBase]);
 
   return (
-    <section
-      data-testid="版本历史"
-      aria-label="域包版本历史"
-      className="卡片 rounded-2xl border border-ink/10 bg-paper p-5"
-    >
-      <h2 className="标题 mb-1 text-lg">域包版本历史</h2>
-      <p className="mb-4 text-xs text-muted">
-        B 类微调产生的历代版本（进行中会话仍加载其进入时的版本；新会话使用当前版本）。
-      </p>
-      <div className="flex flex-col gap-3">
-        <PackBaseSelect
-          testId="版本历史目标域包"
-          options={options}
-          value={selectedBase}
-          onValueChange={(base) => {
-            // 切换目标即清空上一包的历史（查询失败提示一并清除），effect 只负责拉取
-            setSelectedBase(base);
-            setVersions(null);
-            setError(null);
-          }}
-        />
-        {loading && <p className="text-sm text-muted">正在读取版本历史……</p>}
-        {error !== null && <p className="text-xs text-fail" data-testid="版本历史错误">{error}</p>}
-        {versions !== null && !loading && error === null && (
-          versions.length === 0 ? (
-            <p className="text-sm text-muted">该域包尚无版本记录。</p>
-          ) : (
-            <table className="w-full text-left text-sm" data-testid="版本历史列表">
-              <thead>
-                <tr className="text-xs text-muted">
-                  <th className="py-1 pr-3 font-normal">版本</th>
-                  <th className="py-1 pr-3 font-normal">packId</th>
-                  <th className="py-1 pr-3 font-normal">名称</th>
-                  <th className="py-1 pr-3 font-normal">状态</th>
-                  <th className="py-1 font-normal">内容</th>
-                </tr>
-              </thead>
-              <tbody>
-                {versions.map((v) => (
-                  <tr key={v.versionLabel} className="border-t border-ink/5">
-                    <td className="py-1.5 pr-3 font-mono text-xs">{v.versionLabel}</td>
-                    <td className="py-1.5 pr-3 font-mono text-xs text-muted">{v.packId}</td>
-                    <td className="py-1.5 pr-3">{v.name}</td>
-                    <td className="py-1.5 text-xs">
-                      {v.isCurrent ? (
-                        <span className="text-pass">当前（新会话使用）</span>
-                      ) : (
-                        <span className="text-muted">历史（旧会话钉住）</span>
-                      )}
-                    </td>
-                    {/* 查看该版本完整内容（票 #86）：携带完整版本 packId 跳版本内容视图页，
-                        复用详情页展示组件双数据源渲染（当前资产 / 历史资产） */}
-                    <td className="py-1.5">
-                      <Link
-                        href={`/admin/packs/versions/view?packId=${encodeURIComponent(v.packId)}`}
-                        className="text-xs text-accent underline-offset-2 hover:underline"
-                        data-testid={`查看内容-${v.packId}`}
-                      >
-                        查看内容
-                      </Link>
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          )
-        )}
-      </div>
-    </section>
+    <Card asChild className="rounded-2xl border-ink/10 p-5">
+      <section data-testid="版本历史" aria-label="域包版本历史">
+        <h2 className="标题 mb-1 text-lg">域包版本历史</h2>
+        <p className="mb-4 text-xs text-muted">
+          B 类微调产生的历代版本（进行中会话仍加载其进入时的版本；新会话使用当前版本）。
+        </p>
+        <div className="flex flex-col gap-3">
+          <PackBaseSelect
+            testId="版本历史目标域包"
+            options={options}
+            value={selectedBase}
+            onValueChange={(base) => {
+              // 切换目标即清空上一包的历史（查询失败提示一并清除），effect 只负责拉取
+              setSelectedBase(base);
+              setVersions(null);
+              setError(null);
+            }}
+          />
+          {loading && <p className="text-sm text-muted">正在读取版本历史……</p>}
+          {error !== null && <p className="text-xs text-fail" data-testid="版本历史错误">{error}</p>}
+          {versions !== null && !loading && error === null && (
+            versions.length === 0 ? (
+              <p className="text-sm text-muted">该域包尚无版本记录。</p>
+            ) : (
+              <Table data-testid="版本历史列表">
+                <TableHeader>
+                  <TableRow className="text-xs text-muted">
+                    <TableHead className="h-auto px-0 py-1 pr-3 font-normal">版本</TableHead>
+                    <TableHead className="h-auto px-0 py-1 pr-3 font-normal">packId</TableHead>
+                    <TableHead className="h-auto px-0 py-1 pr-3 font-normal">名称</TableHead>
+                    <TableHead className="h-auto px-0 py-1 pr-3 font-normal">状态</TableHead>
+                    <TableHead className="h-auto px-0 py-1 font-normal">内容</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {versions.map((v) => (
+                    <TableRow key={v.versionLabel} className="border-ink/5">
+                      <TableCell className="px-0 py-1.5 pr-3 font-mono text-xs">{v.versionLabel}</TableCell>
+                      <TableCell className="px-0 py-1.5 pr-3 font-mono text-xs text-muted">{v.packId}</TableCell>
+                      <TableCell className="px-0 py-1.5 pr-3">{v.name}</TableCell>
+                      <TableCell className="px-0 py-1.5 text-xs">
+                        {v.isCurrent ? (
+                          <span className="text-pass">当前（新会话使用）</span>
+                        ) : (
+                          <span className="text-muted">历史（旧会话钉住）</span>
+                        )}
+                      </TableCell>
+                      {/* 查看该版本完整内容（票 #86）：携带完整版本 packId 跳版本内容视图页，
+                          复用详情页展示组件双数据源渲染（当前资产 / 历史资产） */}
+                      <TableCell className="px-0 py-1.5">
+                        <Link
+                          href={`/admin/packs/versions/view?packId=${encodeURIComponent(v.packId)}`}
+                          className="text-xs text-accent underline-offset-2 hover:underline"
+                          data-testid={`查看内容-${v.packId}`}
+                        >
+                          查看内容
+                        </Link>
+                      </TableCell>
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
+            )
+          )}
+        </div>
+      </section>
+    </Card>
   );
 }

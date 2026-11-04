@@ -7,6 +7,8 @@
 // ——可框选一道或多道题目作元素微调目标（选中态 aria-pressed + 徽标清晰可见）；
 // 微调本身由详情页的元素微调面板承接，本组件不发起任何变更请求。
 
+import { Button } from "@/components/ui/button";
+import { Card } from "@/components/ui/card";
 import type { QuestionTemplate } from "@/kernel/types";
 
 /** 元素微调选中态扩展 props（票 #85 建框架，票 #87 扩为多题框选）：
@@ -46,75 +48,74 @@ function TemplateItem({
 }) {
   const isSelected = selection?.selectedTemplateIds.includes(template.templateId) ?? false;
   return (
-    <li
-      className={`卡片 rounded-xl border px-4 py-3 ${
-        isSelected ? "border-primary ring-1 ring-primary" : "border-ink/10"
-      } bg-paper`}
-      data-testid={`题目卡片-${template.templateId}`}
-    >
-      <details data-testid={`题目展开-${template.templateId}`}>
-        <summary
-          className="cursor-pointer list-none"
-          data-testid={`题目概要行-${template.templateId}`}
-          aria-label={`题目概要 ${template.templateId}`}
-        >
-          <span className="font-medium">{template.prompt}</span>
-          <span className="ml-2 text-xs text-muted">知识点：{template.knowledgeArea}</span>
-          <span className="ml-2 text-xs text-muted">难度：{template.difficulty}</span>
-          {selection && (
-            <button
-              type="button"
-              className={`ml-2 rounded-full px-2 py-0.5 text-xs ${isSelected ? "bg-primary text-primary-foreground" : "border border-ink/20"}`}
-              data-testid={`题目选中按钮-${template.templateId}`}
-              aria-pressed={isSelected}
-              onClick={(e) => {
-                // 阻止 summary 折叠切换：选中按钮只承担选中态
-                e.preventDefault();
-                selection.onToggleTemplate(template.templateId);
-              }}
-            >
-              {isSelected ? "已框选（微调目标）" : "框选微调"}
-            </button>
-          )}
-        </summary>
-        <div className="mt-2 flex flex-col gap-1 text-sm" data-testid={`题目完整内容-${template.templateId}`}>
-          <p>
-            <span className="text-muted">题面：</span>
-            <span className="font-mono">{template.prompt}</span>
-          </p>
-          <p>
-            <span className="text-muted">提示一：</span>
-            {template.hints[0]}
-          </p>
-          <p>
-            <span className="text-muted">提示二：</span>
-            {template.hints[1]}
-          </p>
-          <p>
-            <span className="text-muted">参考答案：</span>
-            <span className="font-mono">{template.referenceAnswer}</span>
-          </p>
-          {/* 常见错误为可选字段，缺省不渲染该行 */}
-          {template.commonMistake && (
+    <Card asChild className={`rounded-xl px-4 py-3 ${isSelected ? "border-primary ring-1 ring-primary" : "border-ink/10"}`}>
+      <li data-testid={`题目卡片-${template.templateId}`}>
+        <details data-testid={`题目展开-${template.templateId}`}>
+          <summary
+            className="cursor-pointer list-none"
+            data-testid={`题目概要行-${template.templateId}`}
+            aria-label={`题目概要 ${template.templateId}`}
+          >
+            <span className="font-medium">{template.prompt}</span>
+            <span className="ml-2 text-xs text-muted">知识点：{template.knowledgeArea}</span>
+            <span className="ml-2 text-xs text-muted">难度：{template.difficulty}</span>
+            {selection && (
+              <Button
+                type="button"
+                variant={isSelected ? "default" : "outline"}
+                size="xs"
+                className="ml-2 rounded-full"
+                data-testid={`题目选中按钮-${template.templateId}`}
+                aria-pressed={isSelected}
+                onClick={(e) => {
+                  // 阻止 summary 折叠切换：选中按钮只承担选中态
+                  e.preventDefault();
+                  selection.onToggleTemplate(template.templateId);
+                }}
+              >
+                {isSelected ? "已框选（微调目标）" : "框选微调"}
+              </Button>
+            )}
+          </summary>
+          <div className="mt-2 flex flex-col gap-1 text-sm" data-testid={`题目完整内容-${template.templateId}`}>
             <p>
-              <span className="text-muted">常见错误：</span>
-              <span className="font-mono">{template.commonMistake}</span>
+              <span className="text-muted">题面：</span>
+              <span className="font-mono">{template.prompt}</span>
             </p>
-          )}
-          {/* 参数池为可选字段，缺省不渲染该行 */}
-          {template.paramPool && (
             <p>
-              <span className="text-muted">参数池：</span>
-              {formatParamPool(template.paramPool)}
+              <span className="text-muted">提示一：</span>
+              {template.hints[0]}
             </p>
-          )}
-          <p>
-            <span className="text-muted">有序性：</span>
-            {template.ordered ? "行序敏感（含 ORDER BY）" : "行序不敏感"}
-          </p>
-        </div>
-      </details>
-    </li>
+            <p>
+              <span className="text-muted">提示二：</span>
+              {template.hints[1]}
+            </p>
+            <p>
+              <span className="text-muted">参考答案：</span>
+              <span className="font-mono">{template.referenceAnswer}</span>
+            </p>
+            {/* 常见错误为可选字段，缺省不渲染该行 */}
+            {template.commonMistake && (
+              <p>
+                <span className="text-muted">常见错误：</span>
+                <span className="font-mono">{template.commonMistake}</span>
+              </p>
+            )}
+            {/* 参数池为可选字段，缺省不渲染该行 */}
+            {template.paramPool && (
+              <p>
+                <span className="text-muted">参数池：</span>
+                {formatParamPool(template.paramPool)}
+              </p>
+            )}
+            <p>
+              <span className="text-muted">有序性：</span>
+              {template.ordered ? "行序敏感（含 ORDER BY）" : "行序不敏感"}
+            </p>
+          </div>
+        </details>
+      </li>
+    </Card>
   );
 }
 
