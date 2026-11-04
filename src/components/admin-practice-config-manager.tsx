@@ -80,8 +80,9 @@ export default function AdminPracticeConfigManager() {
     [entries, selectedPackId],
   );
 
-  /** 拉取配置视图（保存成功后复用，保证展示最新配置）；草稿随选中包同步重置 */
-  const refresh = useCallback(async () => {
+  /** 拉取配置视图（挂载首拉与保存成功后复用，保证展示最新配置）；草稿随选中包同步重置。
+   *  选中包由调用方传入而非闭包读取：切包只走本地 entries 回填，不得触发重拉（#103 竞态） */
+  const refresh = useCallback(async (keepPackId: string | null) => {
     try {
       const { token } = await getSessionAuth();
       if (!token) {
@@ -97,18 +98,18 @@ export default function AdminPracticeConfigManager() {
       setEntries(body.packs);
       setError(null);
       // 选中态保持：首次取第一个包，刷新后保持当前选中；草稿重置为选中包的最新配置
-      const nextSelected = selectedPackId ?? body.packs[0]?.packId ?? null;
+      const nextSelected = keepPackId ?? body.packs[0]?.packId ?? null;
       setSelectedPackId(nextSelected);
       const entry = body.packs.find((e) => e.packId === nextSelected) ?? null;
       setDraft(entry === null ? null : toDraft(entry));
     } catch {
       setError("演练配置加载失败，请稍后重试");
     }
-  }, [selectedPackId]);
+  }, []);
 
   useEffect(() => {
     (async () => {
-      await refresh();
+      await refresh(null);
       setLoading(false);
     })();
   }, [refresh]);
@@ -164,7 +165,7 @@ export default function AdminPracticeConfigManager() {
       }
       setError(null);
       toast.success("已保存，学生下次开练即按新配置生成（进行中的会话不受影响）", FEEDBACK_TOAST);
-      await refresh();
+      await refresh(selectedPackId);
     } catch {
       toast.error("演练配置保存失败，请稍后重试", FEEDBACK_ERROR_TOAST);
     } finally {
