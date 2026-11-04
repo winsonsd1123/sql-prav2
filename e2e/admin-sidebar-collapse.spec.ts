@@ -117,6 +117,87 @@ test("持久化：折叠后刷新页面，折叠状态保持", async ({ page }) 
     .toBeLessThanOrEqual(76);
 });
 
+// #108 rail 态账户区图标化：三出口均以图标呈现 + tooltip；「当前登录」标签隐藏。
+// 图标元素承载既有 testid（当前账户邮箱 / 登出按钮），折叠时展开态元素 lg:hidden
+// 仍在 DOM，故用 visible 过滤定位 rail 图标。
+test("rail 态账户区：邮箱/登出/返回演练场图标化 + tooltip，「当前登录」隐藏", async ({ page }) => {
+  await mockAdmin(page);
+  await page.goto("/admin/users");
+  await expect(page.getByTestId("用户列表")).toBeVisible();
+  await collapseButton(page).click();
+  await expect(collapseButton(page)).toHaveAttribute("aria-expanded", "false");
+
+  // 「当前登录」标签不可见；邮箱文本不再直接可见（收为图标）
+  await expect(page.getByTestId("后台账户区").getByText("当前登录")).toBeHidden();
+  await expect(
+    page.getByTestId("当前账户邮箱").filter({ visible: true })
+  ).toHaveCount(1);
+  await expect(page.getByTestId("当前账户邮箱").filter({ visible: true })).not.toHaveText(
+    "e2e@cuc.edu.cn"
+  );
+
+  // 悬停邮箱图标：tooltip 显示邮箱文本
+  await page.getByTestId("当前账户邮箱").filter({ visible: true }).hover();
+  await expect(page.getByRole("tooltip", { name: "e2e@cuc.edu.cn", exact: true })).toBeVisible();
+
+  // 悬停登出图标：tooltip「登出」
+  await page.getByTestId("登出按钮").filter({ visible: true }).hover();
+  await expect(page.getByRole("tooltip", { name: "登出", exact: true })).toBeVisible();
+
+  // 悬停返回演练场图标：tooltip「返回演练场」
+  await page.getByTestId("后台账户区").getByRole("link", { name: "返回演练场", exact: true }).hover();
+  await expect(page.getByRole("tooltip", { name: "返回演练场", exact: true })).toBeVisible();
+});
+
+// #108 rail 态账户区功能可用：登出可登出、返回演练场可返回
+test("rail 态账户区：登出图标可登出、返回演练场图标可返回演练场", async ({ page }) => {
+  await mockAdmin(page);
+  await page.route("**/auth/v1/logout*", async (route) => {
+    await route.fulfill({ status: 204, body: "" });
+  });
+  await page.goto("/admin/users");
+  await expect(page.getByTestId("用户列表")).toBeVisible();
+  await collapseButton(page).click();
+  await expect(collapseButton(page)).toHaveAttribute("aria-expanded", "false");
+
+  // 返回演练场图标直达演练场首页
+  await page.getByTestId("后台账户区").getByRole("link", { name: "返回演练场", exact: true }).click();
+  // 演练场首页可能带 seed 查询参数，断言 pathname 为根
+  await expect
+    .poll(async () => new URL(page.url()).pathname)
+    .toBe("/");
+
+  // 登出图标调用 auth logout 并跳转登录页（折叠态经 localStorage 持久化，回来即 rail）
+  await page.goto("/admin/users");
+  await expect(page.getByTestId("用户列表")).toBeVisible();
+  await expect(collapseButton(page)).toHaveAttribute("aria-expanded", "false");
+  const logoutRequest = page.waitForRequest("**/auth/v1/logout*");
+  await page.getByTestId("登出按钮").filter({ visible: true }).click();
+  expect((await logoutRequest).method()).toBe("POST");
+  await expect(page).toHaveURL(/\/login$/);
+});
+
+// #108 展开态账户区回归：邮箱文本/标签/两按钮完整呈现
+test("展开态账户区回归：邮箱文本、「当前登录」、两按钮可见且行为不变", async ({ page }) => {
+  await mockAdmin(page);
+  await page.goto("/admin/users");
+  await expect(page.getByTestId("用户列表")).toBeVisible();
+
+  // 默认展开：邮箱文本直接可见，「当前登录」标签可见，返回演练场为文字链接
+  await expect(page.getByTestId("当前账户邮箱")).toHaveText("e2e@cuc.edu.cn");
+  await expect(page.getByTestId("后台账户区").getByText("当前登录")).toBeVisible();
+  await expect(page.getByTestId("后台账户区").getByRole("link", { name: "返回演练场", exact: true })).toBeVisible();
+
+  // 折叠再展开：完整账户区回归
+  await collapseButton(page).click();
+  await expect(collapseButton(page)).toHaveAttribute("aria-expanded", "false");
+  await collapseButton(page).click();
+  await expect(collapseButton(page)).toHaveAttribute("aria-expanded", "true");
+  await expect(page.getByTestId("当前账户邮箱").filter({ visible: true })).toHaveText("e2e@cuc.edu.cn");
+  await expect(page.getByTestId("后台账户区").getByText("当前登录")).toBeVisible();
+  await expect(page.getByTestId("登出按钮").filter({ visible: true })).toHaveText("登出");
+});
+
 test("还原：再点展开，完整菜单回归（文字、组标题、品牌标题）", async ({ page }) => {
   await mockAdmin(page);
   await page.goto("/admin/users");
