@@ -1,0 +1,14 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="32" height="32" viewBox="0 0 32 32" fill="none">
+  <!-- #106 favicon：与 src/components/brand-logo.tsx 同图（等距数据库三层圆柱 + 主色顶盖）。
+       favicon 无 CSS 上下文，此处内联 token 等值色：主体 --色-侧栏-文字 #bfcbd9、顶盖 --色-主色 #409eff，
+       底色垫 --色-侧栏-底 #304156（浏览器标签页浅色环境下保证可读）。 -->
+  <rect width="32" height="32" rx="6" fill="#304156"/>
+  <g stroke="#bfcbd9" stroke-width="1.6" stroke-linecap="round">
+    <path d="M5.5 8.5v15"/>
+    <path d="M26.5 8.5v15"/>
+    <path d="M5.5 13.5a10.5 4 0 0 0 21 0"/>
+    <path d="M5.5 18.5a10.5 4 0 0 0 21 0"/>
+    <path d="M5.5 23.5a10.5 4 0 0 0 21 0"/>
+  </g>
+  <ellipse cx="16" cy="8.5" rx="10.5" ry="4" fill="#409eff"/>
+</svg>

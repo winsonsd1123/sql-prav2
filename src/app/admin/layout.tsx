@@ -4,6 +4,7 @@
 import type { ReactNode } from "react";
 import AdminAccountArea from "@/components/admin-account-area";
 import AdminGuard from "@/components/admin-guard";
+import BrandLogo from "@/components/brand-logo";
 import AdminNav from "@/components/admin-nav";
 
 export default function AdminLayout({ children }: { children: ReactNode }) {
@@ -14,11 +15,10 @@ export default function AdminLayout({ children }: { children: ReactNode }) {
           className="入场 flex flex-wrap items-center justify-between gap-3 rounded-lg bg-sidebar p-3 text-sidebar-fg shadow-sidebar lg:sticky lg:top-4 lg:h-[calc(100dvh-2rem)] lg:w-60 lg:shrink-0 lg:flex-col lg:flex-nowrap lg:items-stretch lg:justify-start lg:gap-0 lg:p-5"
           data-testid="后台侧栏"
         >
-          <div className="lg:pb-5">
-            <h1 className="标题 text-[1.4rem] leading-none">后台管理</h1>
-            <p className="mt-1.5 font-mono text-[10px] uppercase tracking-[0.2em] text-sidebar-fg">
-              Admin Console
-            </p>
+          {/* #106 品牌区：SVG logo + 标题横排，字号收敛 text-lg，副标已删除（heading 语义保留为既有 e2e 锚点） */}
+          <div className="flex items-center gap-2.5 lg:pb-5">
+            <BrandLogo size={28} className="shrink-0 text-sidebar-fg" />
+            <h1 className="标题 text-lg leading-none">后台管理</h1>
           </div>
           <div className="basis-full border-t border-sidebar-divider pt-3 lg:flex-1 lg:basis-auto lg:pt-4">
             <AdminNav />
