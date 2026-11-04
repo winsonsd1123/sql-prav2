@@ -3,13 +3,15 @@
 // 后台侧栏「账户与出口」区（#51，spec #49）：当前登录邮箱 + 返回演练场 + 登出。
 // 全应用第一个主动登出入口：signOut 成功后引导回登录页（同改密流程的登出引导）。
 // 宽屏纵排（标签 / 邮箱 / 两按钮同行）；窄屏为一行：左邮箱、右两按钮。
+// #107 rail 态过渡形态：lg 折叠下隐藏邮箱块与「返回演练场」（64px 放不下，
+// 不溢出破相即可；账户区完整图标化归 #108），「登出」保留；窄屏不生效。
 import { useEffect, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { browserClient } from "@/lib/supabase/browser-client";
 import { Button } from "@/components/ui/button";
 
-export default function AdminAccountArea() {
+export default function AdminAccountArea({ collapsed = false }: { collapsed?: boolean }) {
   const router = useRouter();
   const [email, setEmail] = useState<string | null>(null);
   const [signingOut, setSigningOut] = useState(false);
@@ -49,7 +51,7 @@ export default function AdminAccountArea() {
       className="flex basis-full flex-wrap items-center gap-x-3 gap-y-2 border-t border-sidebar-divider pt-3 lg:basis-auto lg:flex-col lg:flex-nowrap lg:items-stretch lg:gap-3 lg:pt-4"
       data-testid="后台账户区"
     >
-      <div className="min-w-0 flex-1 lg:flex-none">
+      <div className={`min-w-0 flex-1 lg:flex-none ${collapsed ? "lg:hidden" : ""}`}>
         <p className="hidden text-[11px] text-sidebar-fg lg:block">当前登录</p>
         <p
           className="min-h-4 truncate font-mono text-xs text-sidebar-fg lg:mt-1"
@@ -60,14 +62,19 @@ export default function AdminAccountArea() {
         </p>
       </div>
       <div className="flex shrink-0 gap-2">
-        <Button asChild variant="outline" size="sm" className="px-3 lg:h-8 lg:flex-1">
+        <Button
+          asChild
+          variant="outline"
+          size="sm"
+          className={`px-3 lg:h-8 lg:flex-1 ${collapsed ? "lg:hidden" : ""}`}
+        >
           <Link href="/">返回演练场</Link>
         </Button>
         <Button
           type="button"
           variant="outline"
           size="sm"
-          className="px-3 lg:h-8"
+          className={`px-3 lg:h-8 ${collapsed ? "lg:w-full" : ""}`}
           onClick={onSignOut}
           disabled={signingOut}
           data-testid="登出按钮"
