@@ -284,7 +284,7 @@ export default function AdminDomainPackGenerator({ onPublished, onDiscarded }: A
                     disabled={busy}
                     variant="ghost"
                     size="sm"
-                    className="px-3 font-normal text-muted hover:bg-transparent hover:text-ink"
+                    className="px-3 font-normal text-muted"
                   >
                     放弃本次草稿
                   </Button>

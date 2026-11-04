@@ -9,6 +9,7 @@ import { toast } from "sonner";
 import { bearerHeaders, getSessionAuth, readErrorMessage } from "@/lib/admin-api-client";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
+import { Input } from "@/components/ui/input";
 
 /** 写操作反馈 toast：固定 id 使新反馈原位替换旧反馈（同一时刻只有一条） */
 const FEEDBACK_TOAST = { id: "白名单提示", testId: "白名单提示" };
@@ -188,8 +189,8 @@ export default function AdminWhitelistManager() {
                 <ul className="flex flex-col gap-2" data-testid="域名清单">
                   {drafts.map((draft, index) => (
                     <li key={index} className="flex flex-wrap items-center gap-2" data-testid="域名行">
-                      <input
-                        className="输入框 min-w-0 flex-1 basis-48 font-mono text-xs"
+                      <Input
+                        className="min-w-0 flex-1 basis-48 font-mono"
                         data-testid="域名输入框"
                         type="text"
                         value={draft.domain}
@@ -197,8 +198,8 @@ export default function AdminWhitelistManager() {
                         aria-label="域名"
                         onChange={(event) => updateDraft(index, { domain: event.target.value })}
                       />
-                      <input
-                        className="输入框 min-w-0 flex-1 basis-40 text-xs"
+                      <Input
+                        className="min-w-0 flex-1 basis-40"
                         data-testid="域名备注输入框"
                         type="text"
                         value={draft.note}

@@ -8,6 +8,7 @@ import { validateResetEmail, RESET_REQUEST_UNIFORM_MESSAGE } from "@/lib/registr
 import { browserClient } from "@/lib/supabase/browser-client";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
+import { Input } from "@/components/ui/input";
 
 export default function ForgotPasswordForm() {
   const [email, setEmail] = useState("");
@@ -56,8 +57,8 @@ export default function ForgotPasswordForm() {
 
         <label className="flex flex-col gap-1">
           <span className="text-sm font-bold">注册邮箱</span>
-          <input
-            className={`输入框${emailError ? " 错误" : ""}`}
+          <Input
+            aria-invalid={emailError ? true : undefined}
             type="email"
             value={email}
             placeholder="name@cuc.edu.cn"

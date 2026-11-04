@@ -164,86 +164,10 @@
   }
 }
 
-/* 白卡：4px 圆角 + 浅边 + 轻阴影 */
-.卡片 {
-  background: var(--色-面板);
-  border: 1px solid var(--色-边框-三阶);
-  border-radius: var(--radius);
-  box-shadow: var(--阴影-卡片);
-}
-
 .标题 {
   font-family: var(--font-serif);
   font-weight: 700;
   letter-spacing: -0.02em;
-}
-
-.主按钮 {
-  background: var(--色-主色);
-  color: var(--色-主字);
-  border: 1px solid var(--色-主色);
-  border-radius: var(--radius);
-  font-weight: 500;
-  transition: background 150ms ease, border-color 150ms ease;
-}
-.主按钮:hover:not(:disabled) {
-  background: var(--色-主悬停);
-  border-color: var(--色-主悬停);
-}
-.主按钮:active:not(:disabled) {
-  background: var(--色-主按下);
-  border-color: var(--色-主按下);
-}
-.主按钮:disabled {
-  background: var(--色-主禁用);
-  border-color: var(--色-主禁用);
-  cursor: not-allowed;
-}
-
-/* 次按钮：Element 默认按钮——白底灰边，悬停转主色浅底 */
-.次按钮 {
-  background: var(--色-面板);
-  color: var(--色-次文);
-  border: 1px solid var(--色-边框-一阶);
-  border-radius: var(--radius);
-  transition: background 150ms ease, border-color 150ms ease, color 150ms ease;
-}
-.次按钮:hover:not(:disabled) {
-  background: var(--色-主浅底);
-  border-color: var(--色-主浅边);
-  color: var(--色-主色);
-}
-.次按钮:disabled {
-  color: var(--色-占位);
-  border-color: var(--色-边框-三阶);
-  cursor: not-allowed;
-}
-
-.输入框 {
-  background: var(--色-面板);
-  color: var(--色-次文);
-  border: 1px solid var(--色-边框-一阶);
-  border-radius: var(--radius);
-  font-size: 0.875rem;
-  line-height: 1.25rem;
-  padding: 0.5rem 0.75rem; /* py-2 px-3，与按钮标准内距一致 */
-  width: 100%;
-  transition: border-color 150ms ease;
-}
-.输入框::placeholder {
-  color: var(--色-占位);
-}
-.输入框:focus {
-  outline: none;
-  border-color: var(--色-主色);
-}
-.输入框:disabled {
-  background: var(--色-深);
-  color: var(--色-占位);
-  cursor: not-allowed;
-}
-.输入框.错误 {
-  border-color: var(--色-错误);
 }
 
 @keyframes 入场上浮 {
