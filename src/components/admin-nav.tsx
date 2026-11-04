@@ -32,15 +32,15 @@ function NavLink({ item, active, collapsed = false }: NavLinkProps) {
       href={item.href}
       aria-current={active ? "page" : undefined}
       className={`relative flex items-center gap-1.5 whitespace-nowrap rounded-full px-3 py-1 text-xs transition-colors duration-150 hover:bg-sidebar-hover lg:rounded-lg lg:py-2 lg:text-sm lg:transition-all lg:duration-200 ${
-        collapsed ? "lg:justify-center lg:px-0" : ""
+        collapsed ? "lg:justify-center lg:px-0 lg:gap-0" : ""
       } ${
         active
-          ? "bg-primary/15 font-medium text-sidebar-active"
+          ? "lg:bg-primary/15 font-medium text-sidebar-active"
           : "text-sidebar-fg hover:text-sidebar-bright"
       }`}
     >
       {active && (
-        <span aria-hidden="true" className="absolute left-0 top-1/2 h-4 -translate-y-1/2 w-[2px] rounded-full bg-sidebar-active" />
+        <span aria-hidden="true" className="absolute left-0 top-1/2 hidden h-4 -translate-y-1/2 w-[2px] rounded-full bg-sidebar-active lg:block" />
       )}
       <Icon aria-hidden="true" className="size-3.5 shrink-0 lg:size-4" />
       <span
@@ -78,7 +78,7 @@ export default function AdminNav({ collapsed = false }: { collapsed?: boolean })
       {/* 分组第一层：不可点分隔（窄屏）+ 小节标题（宽屏）；子项常显；rail 态隐藏（lg:hidden 不影响窄屏分隔） */}
       <span
         data-testid="导航分组-域包管理"
-        className={`flex items-center gap-1 whitespace-nowrap px-3 py-1 text-xs font-medium uppercase tracking-wider text-sidebar-fg lg:mt-2 lg:px-3 lg:py-1 ${
+        className={`flex items-center gap-1 whitespace-nowrap px-3 py-1 text-[10px] font-medium uppercase tracking-wider lg:text-xs text-sidebar-fg lg:mt-2 lg:px-3 lg:py-1 ${
           collapsed ? "lg:hidden" : ""
         }`}
       >

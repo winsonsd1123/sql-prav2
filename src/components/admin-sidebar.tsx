@@ -72,7 +72,7 @@ export default function AdminSidebar() {
         )}
         {/* heading 语义保留为既有 e2e 锚点（admin-console.spec）；rail 态仅隐藏视觉 */}
         <h1
-          className={`标题 text-lg leading-none ${collapsed ? "lg:hidden" : ""}`}
+          className={`标题 text-[1.4rem] leading-none lg:text-lg ${collapsed ? "lg:hidden" : ""}`}
         >
           后台管理
         </h1>

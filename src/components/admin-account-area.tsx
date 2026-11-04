@@ -63,7 +63,7 @@ export default function AdminAccountArea({ collapsed = false }: { collapsed?: bo
     >
       {/* 展开态块（窄屏任何折叠状态下均可用；collapsed 时仅 lg 隐藏） */}
       <div className={`min-w-0 flex-1 lg:flex-none ${collapsed ? "lg:hidden" : ""}`}>
-        <p className="hidden text-xs text-sidebar-fg lg:block">当前登录</p>
+        <p className="hidden text-[11px] text-sidebar-fg lg:block lg:text-xs">当前登录</p>
         <p
           className="min-h-4 truncate font-mono text-xs text-sidebar-fg lg:mt-1"
           title={email ?? undefined}
@@ -77,7 +77,7 @@ export default function AdminAccountArea({ collapsed = false }: { collapsed?: bo
           asChild
           variant="outline"
           size="sm"
-          className="px-3 lg:h-8 lg:flex-1"
+          className="px-3 text-xs lg:h-8 lg:flex-1"
         >
           <Link href="/">返回演练场</Link>
         </Button>
@@ -85,7 +85,7 @@ export default function AdminAccountArea({ collapsed = false }: { collapsed?: bo
           type="button"
           variant="outline"
           size="sm"
-          className="px-3 lg:h-8"
+          className="px-3 text-xs lg:h-8"
           onClick={onSignOut}
           disabled={signingOut}
           data-testid="登出按钮"
@@ -134,7 +134,7 @@ export default function AdminAccountArea({ collapsed = false }: { collapsed?: bo
         </div>
       )}
       {signOutFailed && (
-        <p className={`basis-full text-xs text-fail ${collapsed ? "lg:hidden" : ""}`} role="alert">
+        <p className={`basis-full text-[11px] text-fail lg:text-xs ${collapsed ? "lg:hidden" : ""}`} role="alert">
           登出失败，请重试
         </p>
       )}
