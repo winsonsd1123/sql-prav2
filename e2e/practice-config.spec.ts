@@ -161,14 +161,8 @@ test("域包下拉切换（票 #97）：草稿回填为所选包配置，保存�
   await page.goto("/admin/packs/practice-config");
   const packSelect = page.getByTestId("演练配置域包选择");
   await expect(packSelect).toContainText("（student-course-grade）");
-  // 选中包变化会触发一次重拉并重置草稿：等首屏重拉落定、切换后再等一次，避免填写被覆盖
-  await page.waitForLoadState("networkidle");
   await page.getByTestId("演练配置总题数").fill("8"); // 未保存的草稿随切换丢弃
-  const refetched = page.waitForResponse(
-    (r) => r.url().endsWith("/api/admin/domain-packs/practice-config") && r.request().method() === "GET",
-  );
   await chooseSelectOption(page, "演练配置域包选择", "（employee-department-payroll）");
-  await refetched;
   await expect(packSelect).toContainText("（employee-department-payroll）");
   await expect(page.getByTestId("演练配置总题数")).toHaveValue("10");
   await expect(page.getByTestId("演练配置管理")).toContainText("档4（模板 6）");
@@ -184,6 +178,46 @@ test("域包下拉切换（票 #97）：草稿回填为所选包配置，保存�
   ]);
   await expect(packSelect).toContainText("（employee-department-payroll）");
   await expect(page.getByTestId("演练配置总题数")).toHaveValue("9");
+});
+
+test("切包后立即输入不被覆盖（票 #103）：切包纯本地回填不重拉，仅保存后重拉一次", async ({ page }) => {
+  await mockTeacherPermissions(page);
+  const { calls } = await mockPracticeConfigAdminApi(page);
+  await mockAdminPageSiblingBlocks(page);
+  // 后注册先匹配：计数 GET，并把首拉之后的 GET 延迟 300ms 放大覆盖窗口（若切包仍重拉，回包必晚于填写落地）
+  let getCount = 0;
+  await page.route("**/api/admin/domain-packs/practice-config", async (route) => {
+    if (route.request().method() === "GET") {
+      getCount += 1;
+      if (getCount > 1) await new Promise((resolve) => setTimeout(resolve, 300));
+    }
+    await route.fallback();
+  });
+  await page.goto("/admin/packs/practice-config");
+  await expect(page.getByTestId("演练配置总题数")).toHaveValue("10");
+  await page.waitForLoadState("networkidle");
+  const getsAfterMount = getCount;
+
+  await chooseSelectOption(page, "演练配置域包选择", "（employee-department-payroll）");
+  await page.getByTestId("演练配置总题数").fill("9");
+  await page.getByTestId("演练配置档位-4").fill("1");
+  // 等过桩延迟：若切包仍触发重拉，其回包此时已落地并重置草稿，下方断言即红
+  await page.waitForTimeout(600);
+  await expect(page.getByTestId("演练配置总题数")).toHaveValue("9");
+  await expect(page.getByTestId("演练配置档位-4")).toHaveValue("1");
+  expect(getCount).toBe(getsAfterMount);
+
+  const saveButton = page.getByRole("button", { name: /保存演练配置|保存中/ });
+  await saveButton.click();
+  await expect(page.getByTestId("演练配置提示")).toContainText("已保存");
+  await expect(saveButton).toHaveText("保存演练配置"); // 保存后重拉落定才复位 busy
+  expect(calls.put).toEqual([
+    {
+      packId: "employee-department-payroll",
+      practiceConfig: { totalQuestions: 9, tierDistribution: { "1": 1, "2": 3, "3": 3, "4": 1, "5": 1 } },
+    },
+  ]);
+  expect(getCount).toBe(getsAfterMount + 1);
 });
 
 test("非法配置（各档总和不等于总题数）前端即拦：按钮禁用、不出 PUT 请求", async ({ page }) => {
