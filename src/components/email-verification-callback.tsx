@@ -6,6 +6,8 @@ import { Suspense, useEffect, useState } from "react";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { browserClient } from "@/lib/supabase/browser-client";
+import { Button } from "@/components/ui/button";
+import { Card } from "@/components/ui/card";
 
 type CallbackState = "换会话中" | "成功" | "失败";
 
@@ -42,7 +44,7 @@ function CallbackContent() {
   }, [code, router]);
 
   return (
-    <div className="卡片 入场 w-full max-w-md p-6 text-center">
+    <Card className="入场 w-full max-w-md p-6 text-center">
       {state === "换会话中" && (
         <p className="呼吸 text-sm text-muted" data-testid="换会话中">正在完成邮箱验证…</p>
       )}
@@ -50,7 +52,9 @@ function CallbackContent() {
         <div data-testid="验证成功">
           <h1 className="标题 mb-2 text-xl" style={{ color: "var(--色-通过)" }}>邮箱验证成功</h1>
           <p className="text-sm text-muted">账号已生效，即将开始练习之旅。</p>
-          <Link className="主按钮 mt-5 inline-block px-4 py-2 text-sm" href="/">进入演练场</Link>
+          <Button asChild size="lg" className="mt-5 px-4">
+            <Link href="/">进入演练场</Link>
+          </Button>
         </div>
       )}
       {state === "失败" && (
@@ -60,13 +64,13 @@ function CallbackContent() {
           <p className="mt-2 text-xs text-muted">请回到注册页重新注册，或重新发送验证邮件。</p>
         </div>
       )}
-    </div>
+    </Card>
   );
 }
 
 export default function EmailVerificationCallback() {
   return (
-    <Suspense fallback={<div className="卡片 w-full max-w-md p-6 text-center text-sm text-muted">加载中…</div>}>
+    <Suspense fallback={<Card className="w-full max-w-md p-6 text-center text-sm text-muted">加载中…</Card>}>
       <CallbackContent />
     </Suspense>
   );

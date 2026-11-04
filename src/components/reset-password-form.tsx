@@ -8,6 +8,7 @@ import { validateNewPassword } from "@/lib/registration-validation";
 import { browserClient } from "@/lib/supabase/browser-client";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
+import { Input } from "@/components/ui/input";
 
 type PageState = "检查会话中" | "无会话" | "表单" | "提交中" | "成功" | "失败";
 
@@ -86,8 +87,8 @@ export default function ResetPasswordForm() {
         <div className="flex flex-col gap-3">
           <label className="flex flex-col gap-1">
             <span className="text-sm font-bold">新密码</span>
-            <input
-              className={`输入框${error ? " 错误" : ""}`}
+            <Input
+              aria-invalid={error ? true : undefined}
               type="password"
               value={newPassword}
               placeholder="至少 8 位，含字母与数字"
@@ -99,8 +100,8 @@ export default function ResetPasswordForm() {
           </label>
           <label className="flex flex-col gap-1">
             <span className="text-sm font-bold">确认新密码</span>
-            <input
-              className={`输入框${error ? " 错误" : ""}`}
+            <Input
+              aria-invalid={error ? true : undefined}
               type="password"
               value={confirmPassword}
               placeholder="再输入一次"

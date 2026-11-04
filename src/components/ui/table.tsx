@@ -4,11 +4,15 @@ import { cn } from "cn"
 // 表头底色/字色与行悬停由 globals.css 的 base 层统一提供，这里不写颜色类，
 // 否则 utilities 层会压掉 base 规则（#92 行悬停失效即此因）。
 
-function Table({ className, ...props }: React.ComponentProps<"table">) {
+function Table({
+  className,
+  containerClassName,
+  ...props
+}: React.ComponentProps<"table"> & { containerClassName?: string }) {
   return (
     <div
       data-slot="table-container"
-      className="relative w-full overflow-x-auto"
+      className={cn("relative w-full overflow-x-auto", containerClassName)}
     >
       <table
         data-slot="table"

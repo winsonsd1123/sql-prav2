@@ -11,6 +11,7 @@ import { browserClient } from "@/lib/supabase/browser-client";
 import { initCaptcha } from "@/lib/aliyun-captcha-loader";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
+import { Input } from "@/components/ui/input";
 
 type CaptchaStatus = "初始化中" | "就绪" | "不可用";
 
@@ -77,8 +78,7 @@ export default function LoginForm() {
         <div className="flex flex-col gap-3">
           <label className="flex flex-col gap-1">
             <span className="text-sm font-bold">学号或邮箱</span>
-            <input
-              className="输入框"
+            <Input
               type="text"
               value={identifier}
               placeholder="如 2022110001 或 name@cuc.edu.cn"
@@ -89,8 +89,7 @@ export default function LoginForm() {
           </label>
           <label className="flex flex-col gap-1">
             <span className="text-sm font-bold">密码</span>
-            <input
-              className="输入框"
+            <Input
               type="password"
               value={password}
               placeholder="密码"

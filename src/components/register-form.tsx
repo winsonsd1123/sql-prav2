@@ -9,6 +9,7 @@ import { validateRegistrationForm, type RegistrationFormErrors } from "@/lib/reg
 import { browserClient } from "@/lib/supabase/browser-client";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
+import { Input } from "@/components/ui/input";
 
 // testid 沿用既有中文串（e2e 选择器稳定）；字段键为英文（协议与标识符英文化）
 const FIELDS = [
@@ -129,8 +130,8 @@ export default function RegisterForm() {
                 {label}
                 <span className="text-[10px] font-normal text-muted">{hint}</span>
               </span>
-              <input
-                className={`输入框${errors[key] ? " 错误" : ""}`}
+              <Input
+                aria-invalid={errors[key] ? true : undefined}
                 type={type}
                 value={form[key]}
                 placeholder={placeholder}

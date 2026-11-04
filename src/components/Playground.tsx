@@ -389,8 +389,8 @@ export default function Playground() {
                   // 高亮按基础名匹配：旧会话钉在旧版本时，同基础名的最新版本胶囊即其归处
                   pack !== null &&
                   parsePackIdVersion(d.packId).base === parsePackIdVersion(pack.packId).base
-                    ? "bg-panel font-medium text-ink shadow-sm hover:bg-panel hover:text-ink"
-                    : "font-normal text-muted hover:bg-transparent hover:text-ink"
+                    ? "bg-panel font-medium text-ink shadow-sm"
+                    : "font-normal text-muted"
                 }`}
               >
                 {d.name}
@@ -452,8 +452,8 @@ export default function Playground() {
                         size="sm"
                         className={`flex justify-start gap-2 rounded-lg px-2 text-left text-xs lg:w-full ${
                           state === "当前"
-                            ? "bg-ink/[0.06] font-medium text-ink hover:bg-ink/[0.06] hover:text-ink"
-                            : "font-normal text-ink hover:bg-ink/[0.04] hover:text-ink"
+                            ? "bg-ink/[0.06] font-medium text-ink not-disabled:hover:bg-ink/[0.06] not-disabled:hover:text-ink"
+                            : "font-normal text-ink not-disabled:hover:bg-ink/[0.04] not-disabled:hover:text-ink"
                         }`}
                       >
                         <span className={`h-1.5 w-1.5 shrink-0 rounded-full ${rowDotStyles[state]}`} />

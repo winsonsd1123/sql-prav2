@@ -13,6 +13,7 @@ import { toast } from "sonner";
 import { getSessionAuth, readErrorMessage } from "@/lib/admin-api-client";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
+import { Input } from "@/components/ui/input";
 
 /** 写操作反馈 toast：固定 id 使新反馈原位替换旧反馈（同一时刻只有一条） */
 const FEEDBACK_TOAST = { id: "词表提示", testId: "词表提示" };
@@ -163,21 +164,21 @@ export default function AdminKnowledgeAreaManager() {
 
         {/* 新增表单 */}
         <div className="mb-4 flex flex-col gap-2 border-b border-border-strong pb-4 sm:flex-row">
-          <input
+          <Input
             type="text"
             value={newName}
             onChange={(event) => setNewName(event.target.value)}
             placeholder="知识点名称（必填）"
             data-testid="新增名称输入框"
-            className="次输入框 flex-1 rounded-lg px-3 py-1.5 text-sm"
+            className="flex-1 py-1.5"
           />
-          <input
+          <Input
             type="text"
             value={newDescription}
             onChange={(event) => setNewDescription(event.target.value)}
             placeholder="描述（可选，供生成时 AI 理解含义）"
             data-testid="新增描述输入框"
-            className="次输入框 flex-1 rounded-lg px-3 py-1.5 text-sm"
+            className="flex-1 py-1.5"
           />
           <Button onClick={create} disabled={busy} data-testid="新增条目" size="sm" className="px-4">
             新增条目
@@ -193,19 +194,19 @@ export default function AdminKnowledgeAreaManager() {
               >
                 {editing?.id === entry.id ? (
                   <>
-                    <input
+                    <Input
                       type="text"
                       value={editing.name}
                       onChange={(event) => setEditing({ ...editing, name: event.target.value })}
                       data-testid="编辑名称输入框"
-                      className="次输入框 flex-1 rounded-lg px-2 py-1 text-sm"
+                      className="flex-1 px-2 py-1"
                     />
-                    <input
+                    <Input
                       type="text"
                       value={editing.description}
                       onChange={(event) => setEditing({ ...editing, description: event.target.value })}
                       data-testid="编辑描述输入框"
-                      className="次输入框 flex-1 rounded-lg px-2 py-1 text-sm"
+                      className="flex-1 px-2 py-1"
                     />
                     <Button onClick={saveEdit} disabled={busy} data-testid="保存编辑" size="xs" className="px-3">
                       保存
@@ -260,7 +261,7 @@ export default function AdminKnowledgeAreaManager() {
                       title={entry.referencedBy.length > 0 ? "已被域包引用，不能删除（只能停用）" : undefined}
                       variant="outline"
                       size="xs"
-                      className="px-3 text-fail hover:text-fail"
+                      className="px-3 text-fail not-disabled:hover:text-fail"
                     >
                       删除
                     </Button>
