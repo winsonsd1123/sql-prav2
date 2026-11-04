@@ -46,6 +46,8 @@ import {
   completionTierStats,
 } from "@/components/progress";
 import SessionSummary from "@/components/SessionSummary";
+import { Button } from "@/components/ui/button";
+import { Card } from "@/components/ui/card";
 import { usePermissions } from "@/components/current-permissions";
 import { hasPermission, PERMISSIONS } from "@/lib/permissions";
 import type { JudgeResult, QuestionInstance } from "@/kernel/types";
@@ -378,19 +380,21 @@ export default function Playground() {
         <div className="flex flex-wrap items-center gap-2">
           <span className="inline-flex rounded-full bg-ink/[0.06] p-0.5">
             {visiblePacks.map((d) => (
-              <button
+              <Button
                 key={d.packId}
                 onClick={() => onSwitchPack(d.packId)}
-                className={`rounded-full px-3 py-1 text-xs ${
+                variant="ghost"
+                size="xs"
+                className={`rounded-full px-3 ${
                   // 高亮按基础名匹配：旧会话钉在旧版本时，同基础名的最新版本胶囊即其归处
                   pack !== null &&
                   parsePackIdVersion(d.packId).base === parsePackIdVersion(pack.packId).base
-                    ? "bg-panel font-medium text-ink shadow-sm"
-                    : "text-muted hover:text-ink"
+                    ? "bg-panel font-medium text-ink shadow-sm hover:bg-panel hover:text-ink"
+                    : "font-normal text-muted hover:bg-transparent hover:text-ink"
                 }`}
               >
                 {d.name}
-              </button>
+              </Button>
             ))}
           </span>
           <span className="inline-flex items-center gap-2 px-1">
@@ -404,20 +408,24 @@ export default function Playground() {
               已完成 {completed}/{total}
             </span>
           </span>
-          <button onClick={onNewSession} className="次按钮 px-3 py-1.5 text-xs">
+          <Button onClick={onNewSession} variant="outline" size="sm" className="px-3 text-xs font-normal">
             换一套（新种子）
-          </button>
-          <button
+          </Button>
+          <Button
             onClick={() => setUserPanelToggle(!libraryBrowserOpen)}
             aria-expanded={libraryBrowserOpen}
-            className={`次按钮 px-3 py-1.5 text-xs ${libraryBrowserOpen ? "ring-1 ring-ink/15" : ""}`}
+            variant="outline"
+            size="sm"
+            className="px-3 text-xs font-normal"
           >
             表结构（Ctrl/⌘+B）
-          </button>
+          </Button>
           {adminConsoleAllowed && (
-            <Link href="/admin" className="次按钮 px-3 py-1.5 text-xs" data-testid="后台管理入口">
-              后台管理
-            </Link>
+            <Button asChild variant="outline" size="sm" className="px-3 text-xs font-normal">
+              <Link href="/admin" data-testid="后台管理入口">
+                后台管理
+              </Link>
+            </Button>
           )}
         </div>
       </header>
@@ -425,64 +433,67 @@ export default function Playground() {
       {/* 窄屏单列：题目 → 题面与编辑器 → 表结构 → 提示。桌面三栏并排。 */}
       <div className="flex flex-1 flex-col items-start gap-4 lg:flex-row">
         <aside className="入场 w-full shrink-0 lg:sticky lg:top-4 lg:max-h-[calc(100vh-2rem)] lg:w-56 lg:overflow-y-auto">
-          <nav className="卡片 横滑 flex gap-1 overflow-x-auto p-2 lg:block lg:overflow-visible">
-            <p className="hidden px-2 py-1.5 text-xs text-muted lg:block">题目 · {session.questions.length}</p>
-            {questionGroups.map((group) => (
-              <div key={group.knowledgeArea} className="flex shrink-0 items-center gap-1 lg:mb-1 lg:block">
-                <p className="hidden px-2 pt-2 pb-1 text-[11px] font-medium text-muted lg:block">
-                  {group.knowledgeArea}
-                </p>
-                {group.indices.map((i) => {
-                  const state = rowState(i);
-                  return (
-                    <button
-                      key={i}
-                      title={`${session.questions[i].knowledgeArea}（难度 ${session.questions[i].difficulty}）`}
-                      onClick={() => switchQuestion(i)}
-                      className={`flex shrink-0 items-center gap-2 rounded-lg px-2 py-1.5 text-left text-xs lg:w-full ${
-                        state === "当前"
-                          ? "bg-ink/[0.06] font-medium text-ink"
-                          : "text-ink hover:bg-ink/[0.04]"
-                      }`}
-                    >
-                      <span className={`h-1.5 w-1.5 shrink-0 rounded-full ${rowDotStyles[state]}`} />
-                      <span className="font-mono">#{String(i + 1).padStart(2, "0")}</span>
-                    </button>
-                  );
-                })}
-              </div>
-            ))}
-          </nav>
+          <Card asChild className="横滑 flex gap-1 overflow-x-auto p-2 lg:block lg:overflow-visible">
+            <nav>
+              <p className="hidden px-2 py-1.5 text-xs text-muted lg:block">题目 · {session.questions.length}</p>
+              {questionGroups.map((group) => (
+                <div key={group.knowledgeArea} className="flex shrink-0 items-center gap-1 lg:mb-1 lg:block">
+                  <p className="hidden px-2 pt-2 pb-1 text-[11px] font-medium text-muted lg:block">
+                    {group.knowledgeArea}
+                  </p>
+                  {group.indices.map((i) => {
+                    const state = rowState(i);
+                    return (
+                      <Button
+                        key={i}
+                        title={`${session.questions[i].knowledgeArea}（难度 ${session.questions[i].difficulty}）`}
+                        onClick={() => switchQuestion(i)}
+                        variant="ghost"
+                        size="sm"
+                        className={`flex justify-start gap-2 rounded-lg px-2 text-left text-xs lg:w-full ${
+                          state === "当前"
+                            ? "bg-ink/[0.06] font-medium text-ink hover:bg-ink/[0.06] hover:text-ink"
+                            : "font-normal text-ink hover:bg-ink/[0.04] hover:text-ink"
+                        }`}
+                      >
+                        <span className={`h-1.5 w-1.5 shrink-0 rounded-full ${rowDotStyles[state]}`} />
+                        <span className="font-mono">#{String(i + 1).padStart(2, "0")}</span>
+                      </Button>
+                    );
+                  })}
+                </div>
+              ))}
+            </nav>
+          </Card>
         </aside>
 
         <main className="入场 入场-2 min-w-0 w-full flex-1 space-y-4">
-          <section className="卡片 p-5">
-            <p className="mb-3 flex flex-wrap items-center gap-2 text-xs">
-              <span className="rounded-full bg-ink/[0.06] px-2.5 py-0.5 font-medium text-ink">
-                {question.knowledgeArea}
-              </span>
-              {usedAnswerAssistance(progress, currentQuestionIndex) && (
-                <span className="rounded-full bg-assist/10 px-2.5 py-0.5 font-medium text-assist">
-                  已借助答案
+          <Card asChild className="p-5">
+            <section>
+              <p className="mb-3 flex flex-wrap items-center gap-2 text-xs">
+                <span className="rounded-full bg-ink/[0.06] px-2.5 py-0.5 font-medium text-ink">
+                  {question.knowledgeArea}
                 </span>
-              )}
-              <span className="ml-auto font-mono text-muted">
-                第 {currentQuestionIndex + 1}/{session.questions.length} 题 · 难度{"★".repeat(question.difficulty)}
-              </span>
-            </p>
-            <p className="text-[17px] leading-[1.75]">{question.prompt}</p>
-          </section>
+                {usedAnswerAssistance(progress, currentQuestionIndex) && (
+                  <span className="rounded-full bg-assist/10 px-2.5 py-0.5 font-medium text-assist">
+                    已借助答案
+                  </span>
+                )}
+                <span className="ml-auto font-mono text-muted">
+                  第 {currentQuestionIndex + 1}/{session.questions.length} 题 · 难度{"★".repeat(question.difficulty)}
+                </span>
+              </p>
+              <p className="text-[17px] leading-[1.75]">{question.prompt}</p>
+            </section>
+          </Card>
 
           <section className="space-y-3">
             {showNoPasteBanner && (
-              <p
-                data-testid="禁粘横幅"
-                className="卡片 入场 border-l-4 border-l-warn px-4 py-2.5 text-sm text-warn"
-              >
-                请手动输入 SQL，粘贴已禁用
-              </p>
+              <Card asChild className="入场 border-l-4 border-l-warn px-4 py-2.5 text-sm text-warn">
+                <p data-testid="禁粘横幅">请手动输入 SQL，粘贴已禁用</p>
+              </Card>
             )}
-            <div className="卡片 overflow-hidden">
+            <Card className="overflow-hidden">
               <div className="flex items-center gap-2 border-b border-border-strong px-3 py-2 text-xs text-muted">
                 <span className="font-mono">query.sql</span>
                 <span
@@ -501,13 +512,13 @@ export default function Playground() {
                 tables={session.database.tables}
                 onInterceptPaste={notifyNoPaste}
               />
-            </div>
+            </Card>
             {!engineReady && (
               <p data-testid="引擎加载中" className="font-mono text-xs text-warn">
                 数据库引擎（WASM）加载中……首次载入约需一两秒。
               </p>
             )}
-            <div className="卡片 p-4">
+            <Card className="p-4">
               <p className="mb-3 text-xs font-medium text-muted">提示与答案</p>
               <HintsAndAnswer
                 key={currentQuestionIndex}
@@ -526,16 +537,17 @@ export default function Playground() {
                 onRevealHint={() => migrateProgress((p) => revealNextHintLayer(p, currentQuestionIndex)[0])}
                 onViewAnswer={() => migrateProgress((p) => viewAnswer(p, currentQuestionIndex, answerExemption)[0])}
               />
-            </div>
+            </Card>
             <div className="flex flex-wrap items-center gap-3">
-              <button
+              <Button
                 ref={verifyButtonRef}
                 onClick={verify}
                 disabled={judging || sqlInput.trim().length === 0}
-                className="主按钮 px-5 py-2 text-sm"
+                size="lg"
+                className="px-5"
               >
                 {judging ? "判定中……" : "验证"}
-              </button>
+              </Button>
               <span className="text-xs text-muted">
                 Ctrl/⌘ + Enter 快速验证{judging ? "（判定在后台进行，可继续编辑或切换题目）" : ""}
               </span>
@@ -545,14 +557,14 @@ export default function Playground() {
           {result && (
             <section className="入场 space-y-3">
               {result.judge === "通过" && (
-                <p className="落章 卡片 border-l-4 border-l-pass px-4 py-2.5 font-medium text-pass">
-                  通过！结果集与预期等价。
-                </p>
+                <Card asChild className="落章 border-l-4 border-l-pass px-4 py-2.5 font-medium text-pass">
+                  <p>通过！结果集与预期等价。</p>
+                </Card>
               )}
               {result.judge === "通过" && passFeedback && (
-                <div
+                <Card
                   data-testid="通过反馈条"
-                  className="卡片 入场 flex flex-wrap items-center gap-3 border-l-4 border-l-pass px-4 py-2.5 text-sm"
+                  className="入场 flex flex-wrap items-center gap-3 border-l-4 border-l-pass px-4 py-2.5 text-sm"
                 >
                   {passFeedback.targetIndex === null ? (
                     <span className="font-medium text-pass">全部题目已通过！</span>
@@ -563,39 +575,42 @@ export default function Playground() {
                           ? `即将进入第 ${passFeedback.targetIndex + 1} 题（继续编辑可留下）……`
                           : `下一道未通过：第 ${passFeedback.targetIndex + 1} 题`}
                       </span>
-                      <button
+                      <Button
                         data-testid="下一题按钮"
                         onClick={() => {
                           const target = passFeedback.targetIndex;
                           setPassFeedback(null);
                           if (target !== null) switchQuestion(target);
                         }}
-                        className="主按钮 px-3 py-1 text-sm"
+                        size="sm"
+                        className="px-3 text-sm"
                       >
                         下一题 →
-                      </button>
+                      </Button>
                     </>
                   )}
-                </div>
+                </Card>
               )}
               {result.judge === "拦截" && (
-                <p className="卡片 border-l-4 border-l-warn px-4 py-2.5 text-warn">
-                  {result.errorMessage}
-                </p>
+                <Card asChild className="border-l-4 border-l-warn px-4 py-2.5 text-warn">
+                  <p>{result.errorMessage}</p>
+                </Card>
               )}
               {result.judge === "错误" && (
-                <pre className="卡片 overflow-auto bg-deep p-3 font-mono text-sm leading-relaxed">
-                  <span className="text-muted">mysql&gt; </span>
-                  <span className="text-ink">{sqlInput}</span>
-                  {"\n"}
-                  <span className="text-fail">{result.errorMessage}</span>
-                </pre>
+                <Card asChild className="overflow-auto bg-deep p-3 font-mono text-sm leading-relaxed">
+                  <pre>
+                    <span className="text-muted">mysql&gt; </span>
+                    <span className="text-ink">{sqlInput}</span>
+                    {"\n"}
+                    <span className="text-fail">{result.errorMessage}</span>
+                  </pre>
+                </Card>
               )}
               {result.judge === "不通过" && (
                 <div className="space-y-3">
-                  <p className="卡片 border-l-4 border-l-fail px-4 py-2.5 font-medium text-fail">
-                    不通过：结果集与预期不等价，请对照两侧差异。
-                  </p>
+                  <Card asChild className="border-l-4 border-l-fail px-4 py-2.5 font-medium text-fail">
+                    <p>不通过：结果集与预期不等价，请对照两侧差异。</p>
+                  </Card>
                   <DiffComparison
                     studentResult={result.studentResult}
                     expectedResult={result.expectedResult}

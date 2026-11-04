@@ -5,6 +5,7 @@
 // 解锁门槛见 issue #16，ADR-0003。
 
 import { useState } from "react";
+import { Button } from "@/components/ui/button";
 
 /**
  * 解锁状态包（issue #16，ADR-0003）：尝试次数门槛 + 已通过的题全解锁。
@@ -62,18 +63,20 @@ export default function HintsAndAnswer({
     <div className="grid items-start gap-4 sm:grid-cols-2" data-testid="提示与答案">
       <div className="space-y-2">
         <div className="flex flex-col items-start gap-2">
-          <button
+          <Button
             onClick={onRevealHint}
             disabled={layersSeen >= 2 || !hintUnlocked}
             data-testid="提示按钮"
-            className="次按钮 px-3 py-2 text-left text-sm disabled:opacity-40"
+            variant="outline"
+            size="lg"
+            className="px-3 text-left disabled:opacity-40"
           >
             {layersSeen === 0
               ? "显示提示（第 1 层：思路）"
               : layersSeen === 1
                 ? "再显示一层（第 2 层：关键子句）"
                 : "两层提示已全部显示"}
-          </button>
+          </Button>
           {!hintUnlocked && (
             <span data-testid="提示锁定说明" className="text-xs text-muted">
               {hintLockHint}
@@ -99,7 +102,7 @@ export default function HintsAndAnswer({
 
       <div className="space-y-2">
         <div className="flex flex-col items-start gap-2">
-          <button
+          <Button
             onClick={() => {
               // 通过后查看仅展示不记录（语义收紧，进度原样返回，无需调用回调）；
               // 豁免查看同属展示不记录（教学检视）；通过前（无豁免）先弹确认框
@@ -109,10 +112,12 @@ export default function HintsAndAnswer({
             }}
             disabled={!effectiveAnswerUnlocked}
             data-testid="答案按钮"
-            className="次按钮 px-3 py-2 text-left text-sm disabled:opacity-40"
+            variant="outline"
+            size="lg"
+            className="px-3 text-left disabled:opacity-40"
           >
             {answerExpanded ? "参考答案已显示" : "查看参考答案"}
-          </button>
+          </Button>
           {!effectiveAnswerUnlocked && (
             <span data-testid="答案锁定说明" className="text-xs text-muted">
               {answerLockHint}
@@ -133,23 +138,20 @@ export default function HintsAndAnswer({
                 通过前查看将记入进度：本题将永久标注「已借助答案」，并计入会话总结的完成分档。
               </p>
               <div className="flex gap-2">
-                <button
+                <Button
                   onClick={() => {
                     setAwaitingConfirm(false);
                     setAnswerExpanded(true);
                     onViewAnswer();
                   }}
                   data-testid="确认查看答案"
-                  className="主按钮 px-3 py-1.5 text-sm"
+                  className="px-3"
                 >
                   确认查看（将记入进度）
-                </button>
-                <button
-                  onClick={() => setAwaitingConfirm(false)}
-                  className="次按钮 px-3 py-1.5 text-sm"
-                >
+                </Button>
+                <Button onClick={() => setAwaitingConfirm(false)} variant="outline" className="px-3">
                   再想想
-                </button>
+                </Button>
               </div>
             </div>
           )}

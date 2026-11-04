@@ -1,6 +1,7 @@
 // 会话总结弹窗：全部题目通过时居中出现（shadcn Dialog：Portal、焦点陷阱、Esc 关闭、背景滚动锁定）。
 // 展示三档完成分档与总通过数，可再来一套或关闭后回顾题目。
 import type { RefObject } from "react";
+import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogDescription, DialogTitle } from "@/components/ui/dialog";
 
 export interface SessionSummaryProps {
@@ -59,20 +60,12 @@ export default function SessionSummary({
           {tierItem("bg-assist", "答案", tiers.withAnswer, "答案")}
         </div>
         <div className="flex flex-wrap gap-2">
-          <button
-            data-testid="再来一套按钮"
-            onClick={onPlayAgain}
-            className="主按钮 px-4 py-2 text-sm"
-          >
+          <Button data-testid="再来一套按钮" onClick={onPlayAgain} size="lg" className="px-4">
             再来一套
-          </button>
-          <button
-            data-testid="回顾题目按钮"
-            onClick={onClose}
-            className="次按钮 px-4 py-2 text-sm"
-          >
+          </Button>
+          <Button data-testid="回顾题目按钮" onClick={onClose} variant="outline" size="lg" className="px-4">
             回顾题目
-          </button>
+          </Button>
         </div>
       </DialogContent>
     </Dialog>

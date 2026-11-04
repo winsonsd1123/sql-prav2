@@ -6,6 +6,8 @@ import { useState } from "react";
 import Link from "next/link";
 import { validateResetEmail, RESET_REQUEST_UNIFORM_MESSAGE } from "@/lib/registration-validation";
 import { browserClient } from "@/lib/supabase/browser-client";
+import { Button } from "@/components/ui/button";
+import { Card } from "@/components/ui/card";
 
 export default function ForgotPasswordForm() {
   const [email, setEmail] = useState("");
@@ -36,48 +38,53 @@ export default function ForgotPasswordForm() {
 
   if (submitted) {
     return (
-      <div className="卡片 入场 w-full max-w-md p-6" data-testid="重置请求已提交">
+      <Card className="入场 w-full max-w-md p-6" data-testid="重置请求已提交">
         <h1 className="标题 mb-2 text-lg">重置邮件已请求</h1>
         <p className="text-sm leading-relaxed text-muted">{RESET_REQUEST_UNIFORM_MESSAGE}</p>
-        <Link className="次按钮 mt-5 inline-block px-4 py-2 text-sm" href="/login" data-testid="返回登录">返回登录</Link>
-      </div>
+        <Button asChild variant="outline" size="lg" className="mt-5 px-4">
+          <Link href="/login" data-testid="返回登录">返回登录</Link>
+        </Button>
+      </Card>
     );
   }
 
   return (
-    <form className="卡片 入场 w-full max-w-md p-6" onSubmit={onSubmit} noValidate>
-      <h1 className="标题 mb-1 text-xl">忘记密码</h1>
-      <p className="mb-4 text-xs text-muted">输入注册邮箱，我们将发送重置链接到该邮箱。</p>
+    <Card asChild className="入场 w-full max-w-md p-6">
+      <form onSubmit={onSubmit} noValidate>
+        <h1 className="标题 mb-1 text-xl">忘记密码</h1>
+        <p className="mb-4 text-xs text-muted">输入注册邮箱，我们将发送重置链接到该邮箱。</p>
 
-      <label className="flex flex-col gap-1">
-        <span className="text-sm font-bold">注册邮箱</span>
-        <input
-          className={`输入框${emailError ? " 错误" : ""}`}
-          type="email"
-          value={email}
-          placeholder="name@cuc.edu.cn"
-          autoComplete="email"
+        <label className="flex flex-col gap-1">
+          <span className="text-sm font-bold">注册邮箱</span>
+          <input
+            className={`输入框${emailError ? " 错误" : ""}`}
+            type="email"
+            value={email}
+            placeholder="name@cuc.edu.cn"
+            autoComplete="email"
+            disabled={submitting}
+            onChange={(e) => { setEmail(e.target.value); setEmailError(null); }}
+            data-testid="邮箱输入"
+          />
+          {emailError && (
+            <span className="text-xs" style={{ color: "var(--色-错误)" }} data-testid="错误-邮箱">{emailError}</span>
+          )}
+        </label>
+
+        <Button
+          type="submit"
+          size="lg"
+          className="mt-5 w-full"
           disabled={submitting}
-          onChange={(e) => { setEmail(e.target.value); setEmailError(null); }}
-          data-testid="邮箱输入"
-        />
-        {emailError && (
-          <span className="text-xs" style={{ color: "var(--色-错误)" }} data-testid="错误-邮箱">{emailError}</span>
-        )}
-      </label>
+          data-testid="发送重置邮件按钮"
+        >
+          {submitting ? "发送中…" : "发送重置邮件"}
+        </Button>
 
-      <button
-        type="submit"
-        className="主按钮 mt-5 w-full px-4 py-2 text-sm"
-        disabled={submitting}
-        data-testid="发送重置邮件按钮"
-      >
-        {submitting ? "发送中…" : "发送重置邮件"}
-      </button>
-
-      <p className="mt-3 text-xs text-muted">
-        想起密码了？<a className="text-ink underline underline-offset-2" href="/login">返回登录</a>
-      </p>
-    </form>
+        <p className="mt-3 text-xs text-muted">
+          想起密码了？<a className="text-ink underline underline-offset-2" href="/login">返回登录</a>
+        </p>
+      </form>
+    </Card>
   );
 }
