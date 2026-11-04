@@ -143,6 +143,35 @@ export async function stubPlaygroundBackend(page: Page) {
   }
 }
 
+// 后台管理员环境共享桩（review 修复 S3，源自 #104 侧栏 spec）：管理员权限两跳
+// （user_roles → role_permissions）+ 用户列表页 API 空态。admin-brand / admin-sidebar-collapse
+// 逐字重复的三桩下沉至此；与 nav-presentation 的 mockAdminEnv（教师角色 + 域包页桩）口径不同，并列不合并。
+export async function mockAdmin(page: Page) {
+  await page.route("**/rest/v1/user_roles*", async (route) => {
+    await route.fulfill({
+      status: 200,
+      contentType: "application/json",
+      body: JSON.stringify([{ user_id: "e2e-user", role: "管理员", created_at: "2026-01-01" }]),
+    });
+  });
+  await page.route("**/rest/v1/role_permissions*", async (route) => {
+    await route.fulfill({
+      status: 200,
+      contentType: "application/json",
+      body: JSON.stringify([
+        { role: "管理员", permission: "访问后台", created_at: "2026-01-01" },
+      ]),
+    });
+  });
+  await page.route("**/api/admin/users*", async (route) => {
+    await route.fulfill({
+      status: 200,
+      contentType: "application/json",
+      body: JSON.stringify({ users: [], total: 0, page: 1, pageSize: 20 }),
+    });
+  });
+}
+
 // shadcn Select（票 #97）：触发器是按钮、无原生 value，selectOption 不可用。
 // 选择 = 点开触发器 + 点选项（选项名为「名称（基础名）」，按基础名子串匹配）；
 // 选中值断言按触发器显示文字：toContainText("（基础名）")，占位项为 toHaveText("请选择域包")。
