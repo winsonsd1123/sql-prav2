@@ -85,8 +85,8 @@ export default function AdminNav({ collapsed = false }: { collapsed?: boolean })
         域包管理
       </span>
       <div
-        className={`flex items-center gap-1 lg:flex-col lg:gap-0.5 lg:rounded-lg lg:bg-sidebar-sub lg:py-1 lg:pl-2 ${
-          collapsed ? "lg:pl-0" : ""
+        className={`flex items-center gap-1 lg:flex-col lg:gap-0.5 lg:rounded-lg lg:bg-sidebar-sub lg:py-1 ${
+          collapsed ? "lg:pl-0" : "lg:pl-2"
         }`}
       >
         {ADMIN_NAV_PACK_GROUP_ITEMS.map((item) => (
