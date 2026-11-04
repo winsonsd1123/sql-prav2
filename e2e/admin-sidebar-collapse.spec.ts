@@ -1,5 +1,5 @@
 import { test, expect, type Page } from "@playwright/test";
-import { presetLoginState, collectConsoleProblems } from "./helpers";
+import { presetLoginState, collectConsoleProblems, expectConsoleClean, stubPlaygroundBackend, mockAdmin } from "./helpers";
 
 // 侧栏折叠 spec（票 #107 / spec #104 / ADR-0012 手写折叠）：宽屏折叠为约 64px 图标栏、
 // rail 态 tooltip 菜单名、localStorage 持久化、再点展开还原。
@@ -10,38 +10,14 @@ let consoleProblems: string[] = [];
 test.beforeEach(async ({ page }) => {
   consoleProblems = collectConsoleProblems(page);
   await presetLoginState(page);
+  // 学生端演练场整页桩（review 修复 S2）：「返回演练场」用例导航至 /，漏桩即真连占位主机（#98 式 flake）。
+  // Playwright 后注册路由优先：此处先挂，用例内 mockAdmin 再覆盖 user_roles 等。
+  await stubPlaygroundBackend(page);
   await page.setViewportSize({ width: 1280, height: 800 });
 });
 test.afterEach(() => {
-  expect(consoleProblems, `console 卫生违例：\n${consoleProblems.join("\n")}`).toEqual([]);
+  expectConsoleClean(consoleProblems);
 });
-
-/** mock 管理员权限（口径同 admin-brand.spec）+ 用户列表页空态桩 */
-async function mockAdmin(page: Page) {
-  await page.route("**/rest/v1/user_roles*", async (route) => {
-    await route.fulfill({
-      status: 200,
-      contentType: "application/json",
-      body: JSON.stringify([{ user_id: "e2e-user", role: "管理员", created_at: "2026-01-01" }]),
-    });
-  });
-  await page.route("**/rest/v1/role_permissions*", async (route) => {
-    await route.fulfill({
-      status: 200,
-      contentType: "application/json",
-      body: JSON.stringify([
-        { role: "管理员", permission: "访问后台", created_at: "2026-01-01" },
-      ]),
-    });
-  });
-  await page.route("**/api/admin/users*", async (route) => {
-    await route.fulfill({
-      status: 200,
-      contentType: "application/json",
-      body: JSON.stringify({ users: [], total: 0, page: 1, pageSize: 20 }),
-    });
-  });
-}
 
 /** 折叠按钮：唯一新增 testid，带 aria-expanded 状态语义 */
 const collapseButton = (page: Page) => page.getByTestId("侧栏折叠按钮");

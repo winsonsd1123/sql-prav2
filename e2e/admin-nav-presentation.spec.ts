@@ -1,5 +1,5 @@
 import { test, expect, type Page } from "@playwright/test";
-import { presetLoginState, collectConsoleProblems, createDomainPackAssetStub, createDomainPackVersionHistoryStub } from "./helpers";
+import { presetLoginState, collectConsoleProblems, expectConsoleClean, createDomainPackAssetStub, createDomainPackVersionHistoryStub } from "./helpers";
 
 // 导航展示质感 spec（票 #105 / spec #104）：菜单项图标、选中态视觉升级（背景高亮 +
 // 主色文字 + 左侧 2px 圆角指示条）、分组标题字号归一 text-xs（12px 标准档）。
@@ -13,7 +13,7 @@ test.beforeEach(async ({ page }) => {
   await presetLoginState(page);
 });
 test.afterEach(() => {
-  expect(consoleProblems, `console 卫生违例：\n${consoleProblems.join("\n")}`).toEqual([]);
+  expectConsoleClean(consoleProblems);
 });
 
 /** mock 教师权限（访问后台 + 域包管理）并挂列表页依赖的离线桩（口径同 admin-nav-structure.spec） */
