@@ -26,6 +26,10 @@ Issue 以 GitHub issue 形式跟踪，通过 `gh` CLI 操作。见 `docs/agents/
 
 实现交给外部 agent（如 Cursor）施工、本仓库会话验收时：交接流程与文档模板见 `docs/agents/cursor-handoff.md`。
 
+### 截图证据
+
+验收/收口的视觉证据（before/after 对照、与参照物并排对比）入库 `docs/screenshots/<feature>/`，issue 评论与 PR body 用仓库内相对路径引用（markdown-attachments API 404，外链不可靠）。
+
 ### E2E 测试惯例
 
 写或改 `e2e/` spec 前读 `docs/e2e-conventions.md`（中文 testid、route 打桩、console 卫生、E2E_PORT 并行隔离、已知 flake 登记与处置口径）。
