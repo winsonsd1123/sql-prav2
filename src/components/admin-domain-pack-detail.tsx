@@ -11,6 +11,8 @@ import { useState } from "react";
 import Link from "next/link";
 import AdminDomainPackTemplates from "@/components/admin-domain-pack-templates";
 import AdminDomainPackRefiner from "@/components/admin-domain-pack-refiner";
+import { Button } from "@/components/ui/button";
+import { Card } from "@/components/ui/card";
 import { parsePackIdVersion } from "@/kernel/domain-pack-versioning";
 import {
   toggleTemplate,
@@ -83,54 +85,53 @@ function SkeletonTableCard({
       }
     : null;
   return (
-    <section
-      className={`卡片 rounded-2xl border p-4 ${isSelected ? "border-primary ring-1 ring-primary" : "border-ink/10"} bg-paper`}
-      data-testid={`骨架表-${table.tableRole}`}
-      aria-label={`骨架表 ${table.tableRole}`}
-    >
-      <div className="mb-2 flex flex-wrap items-baseline gap-x-3">
-        <h3 className="标题 text-base">{table.tableRole}</h3>
-        <span className="text-xs text-muted">语义角色：{table.tableRole}</span>
-        {table.tableNamePool && <span className="text-xs text-muted">表名池：{table.tableNamePool.join("、")}</span>}
-        <span className="text-xs text-muted">行数：{table.rowCount}</span>
-        {table.serialKey && (
-          <span className="text-xs text-muted">主键起始值：{table.serialKey.startValue}</span>
-        )}
-        {onToggleTable && (
-          <button
-            type="button"
-            className={`ml-auto self-center rounded-full px-2 py-0.5 text-xs ${isSelected ? "bg-primary text-primary-foreground" : "border border-ink/20"}`}
-            data-testid={`表选中按钮-${table.tableRole}`}
-            aria-pressed={isSelected}
-            onClick={onToggleTable}
-          >
-            {isSelected ? "已选中（微调目标）" : "选中微调"}
-          </button>
-        )}
-      </div>
-      <ul className="text-sm">
-        {primaryKeyColumn && <SkeletonColumnRow column={primaryKeyColumn} />}
-        {table.columns.map((column) => (
-          <SkeletonColumnRow key={column.columnRole} column={column} />
-        ))}
-      </ul>
-    </section>
+    <Card asChild className={`rounded-2xl p-4 ${isSelected ? "border-primary ring-1 ring-primary" : "border-ink/10"}`}>
+      <section data-testid={`骨架表-${table.tableRole}`} aria-label={`骨架表 ${table.tableRole}`}>
+        <div className="mb-2 flex flex-wrap items-baseline gap-x-3">
+          <h3 className="标题 text-base">{table.tableRole}</h3>
+          <span className="text-xs text-muted">语义角色：{table.tableRole}</span>
+          {table.tableNamePool && <span className="text-xs text-muted">表名池：{table.tableNamePool.join("、")}</span>}
+          <span className="text-xs text-muted">行数：{table.rowCount}</span>
+          {table.serialKey && (
+            <span className="text-xs text-muted">主键起始值：{table.serialKey.startValue}</span>
+          )}
+          {onToggleTable && (
+            <Button
+              type="button"
+              variant={isSelected ? "default" : "outline"}
+              size="xs"
+              className="ml-auto self-center rounded-full"
+              data-testid={`表选中按钮-${table.tableRole}`}
+              aria-pressed={isSelected}
+              onClick={onToggleTable}
+            >
+              {isSelected ? "已选中（微调目标）" : "选中微调"}
+            </Button>
+          )}
+        </div>
+        <ul className="text-sm">
+          {primaryKeyColumn && <SkeletonColumnRow column={primaryKeyColumn} />}
+          {table.columns.map((column) => (
+            <SkeletonColumnRow key={column.columnRole} column={column} />
+          ))}
+        </ul>
+      </section>
+    </Card>
   );
 }
 
 /** 单个难度档位定义卡片：级别 / 名称 / 含义描述 / 代表该档的 SQL 样例 */
 function DifficultyTierCard({ tier }: { tier: DifficultyTierDefinition }) {
   return (
-    <li
-      className="卡片 rounded-xl border border-ink/10 bg-paper px-4 py-3"
-      data-testid={`难度档位-${tier.level}`}
-    >
-      <p className="font-medium">
-        第 {tier.level} 档 · {tier.name}
-      </p>
-      <p className="mt-1 text-sm text-muted">{tier.description}</p>
-      <p className="mt-1 font-mono text-xs">代表样例：{tier.sampleSql}</p>
-    </li>
+    <Card asChild className="rounded-xl border-ink/10 px-4 py-3">
+      <li data-testid={`难度档位-${tier.level}`}>
+        <p className="font-medium">
+          第 {tier.level} 档 · {tier.name}
+        </p>
+        <p className="mt-1 text-sm text-muted">{tier.description}</p>
+        <p className="mt-1 font-mono text-xs">代表样例：{tier.sampleSql}</p>
+      </li>
+    </Card>
   );
 }
 
@@ -161,7 +162,7 @@ function DifficultyAndConfigSection({
       {practiceConfig === undefined ? (
         <p className="text-sm text-muted">该域包未配置演练参数，按默认算法抽题。</p>
       ) : (
-        <div className="卡片 rounded-xl border border-ink/10 bg-paper px-4 py-3 text-sm" data-testid="演练配置摘要">
+        <Card className="rounded-xl border-ink/10 px-4 py-3 text-sm" data-testid="演练配置摘要">
           <p>
             <span className="text-muted">演练配置：</span>每次会话<span data-testid="演练配置总题数">总题数：{practiceConfig.totalQuestions} 题</span>
           </p>
@@ -171,7 +172,7 @@ function DifficultyAndConfigSection({
               .map((level) => `第 ${level} 档 ${practiceConfig.tierDistribution[level] ?? 0} 题`)
               .join("、")}
           </p>
-        </div>
+        </Card>
       )}
     </section>
   );
@@ -192,12 +193,14 @@ export default function AdminDomainPackDetail({
   }
   if (pack === null) {
     return (
-      <section className="卡片 rounded-2xl border border-ink/10 bg-paper p-5" data-testid="域包详情未找到">
-        <h1 className="标题 mb-2 text-lg">未找到该域包</h1>
-        <p className="text-sm text-muted">
-          packId <span className="font-mono">{packId}</span> 不在展示清单中，可能已下线或地址有误。
-        </p>
-      </section>
+      <Card asChild className="rounded-2xl border-ink/10 p-5">
+        <section data-testid="域包详情未找到">
+          <h1 className="标题 mb-2 text-lg">未找到该域包</h1>
+          <p className="text-sm text-muted">
+            packId <span className="font-mono">{packId}</span> 不在展示清单中，可能已下线或地址有误。
+          </p>
+        </section>
+      </Card>
     );
   }
   return (
@@ -254,31 +257,35 @@ export default function AdminDomainPackDetail({
         {pack.knowledgeAreas === undefined ? (
           <p className="text-sm text-muted">该域包未携带知识点清单。</p>
         ) : (
-          <ol className="卡片 flex flex-col gap-1 rounded-xl border border-ink/10 bg-paper px-4 py-3 text-sm">
-            {pack.knowledgeAreas.map((area, index) => {
-              const areaSelected = target?.kind === "knowledgeArea" && target.name === area;
-              return (
-                <li
-                  key={area}
-                  className={`flex items-center gap-2 rounded-lg px-2 py-1 ${areaSelected ? "bg-primary/10 ring-1 ring-primary" : ""}`}
-                  data-testid={`知识点条目-${index}`}
-                >
-                  <span>
-                    {index + 1}. {area}
-                  </span>
-                  <button
-                    type="button"
-                    className={`ml-auto rounded-full px-2 py-0.5 text-xs ${areaSelected ? "bg-primary text-primary-foreground" : "border border-ink/20"}`}
-                    data-testid={`知识点选中按钮-${area}`}
-                    aria-pressed={areaSelected}
-                    onClick={() => setTarget((prev) => toggleKnowledgeArea(prev, area))}
+          <Card asChild className="flex flex-col gap-1 rounded-xl border-ink/10 px-4 py-3 text-sm">
+            <ol>
+              {pack.knowledgeAreas.map((area, index) => {
+                const areaSelected = target?.kind === "knowledgeArea" && target.name === area;
+                return (
+                  <li
+                    key={area}
+                    className={`flex items-center gap-2 rounded-lg px-2 py-1 ${areaSelected ? "bg-primary/10 ring-1 ring-primary" : ""}`}
+                    data-testid={`知识点条目-${index}`}
                   >
-                    {areaSelected ? "已选中（微调目标）" : "选中微调"}
-                  </button>
-                </li>
-              );
-            })}
-          </ol>
+                    <span>
+                      {index + 1}. {area}
+                    </span>
+                    <Button
+                      type="button"
+                      variant={areaSelected ? "default" : "outline"}
+                      size="xs"
+                      className="ml-auto rounded-full"
+                      data-testid={`知识点选中按钮-${area}`}
+                      aria-pressed={areaSelected}
+                      onClick={() => setTarget((prev) => toggleKnowledgeArea(prev, area))}
+                    >
+                      {areaSelected ? "已选中（微调目标）" : "选中微调"}
+                    </Button>
+                  </li>
+                );
+              })}
+            </ol>
+          </Card>
         )}
       </section>
       {/* 题目列表分区（票 #81）：概要行 + 展开完整题；#85 起可选中单题，#87 扩为多题框选 */}

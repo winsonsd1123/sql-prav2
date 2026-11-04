@@ -11,6 +11,8 @@
 import { useCallback, useEffect, useState } from "react";
 import { toast } from "sonner";
 import { getSessionAuth, readErrorMessage } from "@/lib/admin-api-client";
+import { Button } from "@/components/ui/button";
+import { Card } from "@/components/ui/card";
 
 /** 写操作反馈 toast：固定 id 使新反馈原位替换旧反馈（同一时刻只有一条） */
 const FEEDBACK_TOAST = { id: "词表提示", testId: "词表提示" };
@@ -147,127 +149,131 @@ export default function AdminKnowledgeAreaManager() {
   if (loading) return <p className="text-sm text-muted">正在加载知识点词表……</p>;
 
   return (
-    <section
-      data-testid="知识点词表管理"
-      aria-label="知识点词表管理"
-      className="卡片 rounded-2xl border border-ink/10 bg-paper p-5"
-    >
-      <h2 className="标题 mb-1 text-lg">知识点词表</h2>
-      <p className="mb-4 text-xs text-muted">
-        跨域包的知识点唯一来源：条目含名称与描述，可停用（停用后不能再被新圈选，既有引用不受影响）；被域包引用的条目不能删除，只能停用。
-      </p>
-      {error && (
-        <p role="alert" data-testid="词表错误" className="mb-3 rounded-lg bg-fail/10 px-3 py-2 text-xs text-fail">
-          {error}
+    <Card asChild className="rounded-2xl border-ink/10 p-5">
+      <section data-testid="知识点词表管理" aria-label="知识点词表管理">
+        <h2 className="标题 mb-1 text-lg">知识点词表</h2>
+        <p className="mb-4 text-xs text-muted">
+          跨域包的知识点唯一来源：条目含名称与描述，可停用（停用后不能再被新圈选，既有引用不受影响）；被域包引用的条目不能删除，只能停用。
         </p>
-      )}
+        {error && (
+          <p role="alert" data-testid="词表错误" className="mb-3 rounded-lg bg-fail/10 px-3 py-2 text-xs text-fail">
+            {error}
+          </p>
+        )}
 
-      {/* 新增表单 */}
-      <div className="mb-4 flex flex-col gap-2 border-b border-border-strong pb-4 sm:flex-row">
-        <input
-          type="text"
-          value={newName}
-          onChange={(event) => setNewName(event.target.value)}
-          placeholder="知识点名称（必填）"
-          data-testid="新增名称输入框"
-          className="次输入框 flex-1 rounded-lg px-3 py-1.5 text-sm"
-        />
-        <input
-          type="text"
-          value={newDescription}
-          onChange={(event) => setNewDescription(event.target.value)}
-          placeholder="描述（可选，供生成时 AI 理解含义）"
-          data-testid="新增描述输入框"
-          className="次输入框 flex-1 rounded-lg px-3 py-1.5 text-sm"
-        />
-        <button onClick={create} disabled={busy} data-testid="新增条目" className="主按钮 px-4 py-1.5 text-xs disabled:opacity-50">
-          新增条目
-        </button>
-      </div>
+        {/* 新增表单 */}
+        <div className="mb-4 flex flex-col gap-2 border-b border-border-strong pb-4 sm:flex-row">
+          <input
+            type="text"
+            value={newName}
+            onChange={(event) => setNewName(event.target.value)}
+            placeholder="知识点名称（必填）"
+            data-testid="新增名称输入框"
+            className="次输入框 flex-1 rounded-lg px-3 py-1.5 text-sm"
+          />
+          <input
+            type="text"
+            value={newDescription}
+            onChange={(event) => setNewDescription(event.target.value)}
+            placeholder="描述（可选，供生成时 AI 理解含义）"
+            data-testid="新增描述输入框"
+            className="次输入框 flex-1 rounded-lg px-3 py-1.5 text-sm"
+          />
+          <Button onClick={create} disabled={busy} data-testid="新增条目" size="sm" className="px-4">
+            新增条目
+          </Button>
+        </div>
 
-      <ul className="flex flex-col gap-2">
-        {(entries ?? []).map((entry) => (
-          <li key={entry.id} data-testid="词表行">
-            <div
-              data-testid={`词表行-${entry.name}`}
-              className="flex flex-wrap items-center gap-2 rounded-lg border border-ink/5 px-3 py-2"
-            >
-              {editing?.id === entry.id ? (
-                <>
-                  <input
-                    type="text"
-                    value={editing.name}
-                    onChange={(event) => setEditing({ ...editing, name: event.target.value })}
-                    data-testid="编辑名称输入框"
-                    className="次输入框 flex-1 rounded-lg px-2 py-1 text-sm"
-                  />
-                  <input
-                    type="text"
-                    value={editing.description}
-                    onChange={(event) => setEditing({ ...editing, description: event.target.value })}
-                    data-testid="编辑描述输入框"
-                    className="次输入框 flex-1 rounded-lg px-2 py-1 text-sm"
-                  />
-                  <button onClick={saveEdit} disabled={busy} data-testid="保存编辑" className="主按钮 px-3 py-1 text-xs disabled:opacity-50">
-                    保存
-                  </button>
-                  <button onClick={() => setEditing(null)} disabled={busy} className="次按钮 px-3 py-1 text-xs disabled:opacity-50">
-                    取消
-                  </button>
-                </>
-              ) : (
-                <>
-                  <span className="font-medium">{entry.name}</span>
-                  <span className="min-w-0 flex-1 truncate text-xs text-muted">{entry.description || "（无描述）"}</span>
-                  <span
-                    data-testid={`词表状态-${entry.name}`}
-                    className={`rounded-full px-2 py-0.5 text-[10px] ${
-                      entry.active ? "bg-pass/10 text-pass" : "bg-ink/5 text-muted"
-                    }`}
-                  >
-                    {entry.active ? "启用中" : "已停用"}
-                  </span>
-                  {/* 被引用视图（#83）：删除/停用前评估影响；未被引用不渲染，降噪 */}
-                  {entry.referencedBy.length > 0 && (
+        <ul className="flex flex-col gap-2">
+          {(entries ?? []).map((entry) => (
+            <li key={entry.id} data-testid="词表行">
+              <div
+                data-testid={`词表行-${entry.name}`}
+                className="flex flex-wrap items-center gap-2 rounded-lg border border-ink/5 px-3 py-2"
+              >
+                {editing?.id === entry.id ? (
+                  <>
+                    <input
+                      type="text"
+                      value={editing.name}
+                      onChange={(event) => setEditing({ ...editing, name: event.target.value })}
+                      data-testid="编辑名称输入框"
+                      className="次输入框 flex-1 rounded-lg px-2 py-1 text-sm"
+                    />
+                    <input
+                      type="text"
+                      value={editing.description}
+                      onChange={(event) => setEditing({ ...editing, description: event.target.value })}
+                      data-testid="编辑描述输入框"
+                      className="次输入框 flex-1 rounded-lg px-2 py-1 text-sm"
+                    />
+                    <Button onClick={saveEdit} disabled={busy} data-testid="保存编辑" size="xs" className="px-3">
+                      保存
+                    </Button>
+                    <Button onClick={() => setEditing(null)} disabled={busy} variant="outline" size="xs" className="px-3">
+                      取消
+                    </Button>
+                  </>
+                ) : (
+                  <>
+                    <span className="font-medium">{entry.name}</span>
+                    <span className="min-w-0 flex-1 truncate text-xs text-muted">{entry.description || "（无描述）"}</span>
                     <span
-                      data-testid={`词表引用-${entry.name}`}
-                      className="rounded-full bg-warn/10 px-2 py-0.5 text-[10px] text-warn"
-                      title={`被以下域包引用：${entry.referencedBy.join("、")}`}
+                      data-testid={`词表状态-${entry.name}`}
+                      className={`rounded-full px-2 py-0.5 text-[10px] ${
+                        entry.active ? "bg-pass/10 text-pass" : "bg-ink/5 text-muted"
+                      }`}
                     >
-                      被 {entry.referencedBy.length} 个域包引用
+                      {entry.active ? "启用中" : "已停用"}
                     </span>
-                  )}
-                  <button
-                    onClick={() => setEditing({ id: entry.id, name: entry.name, description: entry.description })}
-                    disabled={busy}
-                    className="次按钮 px-3 py-1 text-xs disabled:opacity-50"
-                  >
-                    编辑
-                  </button>
-                  <button
-                    onClick={() => toggleActive(entry)}
-                    disabled={busy}
-                    className="次按钮 px-3 py-1 text-xs disabled:opacity-50"
-                  >
-                    {entry.active ? "停用" : "启用"}
-                  </button>
-                  <button
-                    onClick={() => remove(entry)}
-                    disabled={busy || entry.referencedBy.length > 0}
-                    title={entry.referencedBy.length > 0 ? "已被域包引用，不能删除（只能停用）" : undefined}
-                    className="次按钮 px-3 py-1 text-xs text-fail disabled:opacity-50"
-                  >
-                    删除
-                  </button>
-                </>
-              )}
-            </div>
-          </li>
-        ))}
-      </ul>
-      <p className="mt-4 text-xs text-muted" data-testid="词表统计">
-        共 {entries?.length ?? 0} 个知识点
-      </p>
-    </section>
+                    {/* 被引用视图（#83）：删除/停用前评估影响；未被引用不渲染，降噪 */}
+                    {entry.referencedBy.length > 0 && (
+                      <span
+                        data-testid={`词表引用-${entry.name}`}
+                        className="rounded-full bg-warn/10 px-2 py-0.5 text-[10px] text-warn"
+                        title={`被以下域包引用：${entry.referencedBy.join("、")}`}
+                      >
+                        被 {entry.referencedBy.length} 个域包引用
+                      </span>
+                    )}
+                    <Button
+                      onClick={() => setEditing({ id: entry.id, name: entry.name, description: entry.description })}
+                      disabled={busy}
+                      variant="outline"
+                      size="xs"
+                      className="px-3"
+                    >
+                      编辑
+                    </Button>
+                    <Button
+                      onClick={() => toggleActive(entry)}
+                      disabled={busy}
+                      variant="outline"
+                      size="xs"
+                      className="px-3"
+                    >
+                      {entry.active ? "停用" : "启用"}
+                    </Button>
+                    <Button
+                      onClick={() => remove(entry)}
+                      disabled={busy || entry.referencedBy.length > 0}
+                      title={entry.referencedBy.length > 0 ? "已被域包引用，不能删除（只能停用）" : undefined}
+                      variant="outline"
+                      size="xs"
+                      className="px-3 text-fail hover:text-fail"
+                    >
+                      删除
+                    </Button>
+                  </>
+                )}
+              </div>
+            </li>
+          ))}
+        </ul>
+        <p className="mt-4 text-xs text-muted" data-testid="词表统计">
+          共 {entries?.length ?? 0} 个知识点
+        </p>
+      </section>
+    </Card>
   );
 }

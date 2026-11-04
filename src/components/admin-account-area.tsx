@@ -7,6 +7,7 @@ import { useEffect, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { browserClient } from "@/lib/supabase/browser-client";
+import { Button } from "@/components/ui/button";
 
 export default function AdminAccountArea() {
   const router = useRouter();
@@ -59,18 +60,20 @@ export default function AdminAccountArea() {
         </p>
       </div>
       <div className="flex shrink-0 gap-2">
-        <Link href="/" className="次按钮 px-3 py-1.5 text-center text-xs lg:flex-1 lg:py-2">
-          返回演练场
-        </Link>
-        <button
+        <Button asChild variant="outline" size="sm" className="px-3 lg:h-8 lg:flex-1">
+          <Link href="/">返回演练场</Link>
+        </Button>
+        <Button
           type="button"
-          className="次按钮 px-3 py-1.5 text-xs lg:py-2"
+          variant="outline"
+          size="sm"
+          className="px-3 lg:h-8"
           onClick={onSignOut}
           disabled={signingOut}
           data-testid="登出按钮"
         >
           {signingOut ? "登出中…" : "登出"}
-        </button>
+        </Button>
       </div>
       {signOutFailed && (
         <p className="basis-full text-[11px] text-fail" role="alert">

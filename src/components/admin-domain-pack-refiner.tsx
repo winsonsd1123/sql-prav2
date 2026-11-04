@@ -13,6 +13,8 @@ import { useState } from "react";
 import { postAdminJson } from "@/lib/admin-api-client";
 import { GateReportView } from "@/components/domain-pack-gate-report-view";
 import { PackBaseSelect } from "@/components/pack-base-select";
+import { Button } from "@/components/ui/button";
+import { Card } from "@/components/ui/card";
 import {
   validateRefineForm,
   resolveRefineOutcome,
@@ -145,144 +147,144 @@ export default function AdminDomainPackRefiner({
   };
 
   return (
-    <section
-      data-testid="域包微调"
-      aria-label="域包微调"
-      className="卡片 rounded-2xl border border-ink/10 bg-paper p-5"
-    >
-      <h2 className="标题 mb-1 text-lg">域包微调</h2>
-      <p className="mb-4 text-xs text-muted">
-        选择域包并描述修改意图，AI 产出修改后草稿；改动分类由系统判定——A 类（难度档位定义/演练配置）即时生效，
-        B 类（库骨架/名称池/题目模板/知识点清单）产生新版本，进行中会话留在旧版本。
-      </p>
-      {target != null ? (
-        // 元素微调（#85 单题 → #87 三类元素）：目标由详情页选中而来，锁定目标包（隐藏选择器防漂移）
-        <div
-          className="mb-3 flex items-center gap-2 rounded-lg border border-primary/40 bg-primary/10 px-3 py-2 text-sm"
-          data-testid="元素微调目标"
-        >
-          <span>
-            元素微调目标：<span className="font-mono">{describeElementTarget(target)}</span>
-            <span className="ml-1 text-xs text-muted">（只修改选中的元素，其余逐字保留）</span>
-          </span>
-          {onClearTarget && (
-            <button
-              type="button"
-              className="次按钮 ml-auto px-2 py-0.5 text-xs"
-              data-testid="取消元素微调目标"
-              onClick={onClearTarget}
-              disabled={busy}
-            >
-              取消选中
-            </button>
-          )}
-        </div>
-      ) : null}
-      <div className="flex flex-col gap-3">
-        {target == null && (
-        <label className="flex flex-col gap-1 text-sm">
-          目标域包
-          <PackBaseSelect
-            testId="微调目标域包"
-            className="w-full"
-            options={options}
-            value={selectedBase}
-            onValueChange={setUserSelected}
-            disabled={busy}
-          />
-        </label>
-        )}
-        <label className="flex flex-col gap-1 text-sm">
-          修改意图
-          <textarea
-            data-testid="修改意图"
-            className="min-h-20 rounded-lg border border-ink/15 px-2 py-1.5 text-sm"
-            placeholder="如：把题目模板的提示写得更具体；给难度档位定义补充样例 SQL"
-            value={intent}
-            onChange={(e) => setIntent(e.target.value)}
-            disabled={busy}
-          />
-        </label>
-        <label className="flex flex-col gap-1 text-sm">
-          参考难度 SQL 样例（可选）
-          <textarea
-            data-testid="微调SQL样例"
-            className="min-h-16 rounded-lg border border-ink/15 px-2 py-1.5 font-mono text-xs"
-            placeholder="SELECT 姓名, COUNT(*) FROM 成绩 JOIN 学生 …"
-            value={sampleSql}
-            onChange={(e) => setSampleSql(e.target.value)}
-            disabled={busy}
-          />
-        </label>
-        {formErrors.length > 0 && (
-          <ul className="flex list-disc flex-col gap-0.5 pl-5 text-xs text-fail" data-testid="微调表单错误">
-            {formErrors.map((e, i) => (
-              <li key={i}>{e}</li>
-            ))}
-          </ul>
-        )}
-        {failure !== null && (
-          <p className="text-xs text-fail" data-testid="微调失败提示">
-            {failure.message}
-            {failure.needsKeyConfig && "（需在服务端配置 DEEPSEEK_API_KEY）"}
-          </p>
-        )}
-        {phase.kind === "refining" && (
-          <p className="text-sm text-muted" data-testid="微调等待提示">
-            正在生成修改草稿（约 1-3 分钟，请勿重复提交）……
-          </p>
-        )}
-        {phase.kind === "report" || phase.kind === "applying" ? (
-          <div className="flex flex-col gap-3" data-testid="微调报告">
-            <p className="text-sm text-muted" data-testid="改动分类提示">
-              {changeClassHint(phase.outcome)}
-            </p>
-            <GateReportView report={phase.outcome.report} />
-            {phase.outcome.report.passed && phase.outcome.changeClass !== "unchanged" && (
-              <div className="flex items-center gap-2">
-                <button
-                  type="button"
-                  className="主按钮 px-3 py-1.5 text-sm"
-                  data-testid="确认生效"
-                  onClick={apply}
-                  disabled={phase.kind === "applying"}
-                >
-                  {phase.kind === "applying" ? "正在生效……" : "确认生效"}
-                </button>
-                <button type="button" className="次按钮 px-3 py-1.5 text-sm" onClick={reset} disabled={phase.kind === "applying"}>
-                  放弃
-                </button>
-              </div>
+    <Card asChild className="rounded-2xl border-ink/10 p-5">
+      <section data-testid="域包微调" aria-label="域包微调">
+        <h2 className="标题 mb-1 text-lg">域包微调</h2>
+        <p className="mb-4 text-xs text-muted">
+          选择域包并描述修改意图，AI 产出修改后草稿；改动分类由系统判定——A 类（难度档位定义/演练配置）即时生效，
+          B 类（库骨架/名称池/题目模板/知识点清单）产生新版本，进行中会话留在旧版本。
+        </p>
+        {target != null ? (
+          // 元素微调（#85 单题 → #87 三类元素）：目标由详情页选中而来，锁定目标包（隐藏选择器防漂移）
+          <div
+            className="mb-3 flex items-center gap-2 rounded-lg border border-primary/40 bg-primary/10 px-3 py-2 text-sm"
+            data-testid="元素微调目标"
+          >
+            <span>
+              元素微调目标：<span className="font-mono">{describeElementTarget(target)}</span>
+              <span className="ml-1 text-xs text-muted">（只修改选中的元素，其余逐字保留）</span>
+            </span>
+            {onClearTarget && (
+              <Button
+                type="button"
+                variant="outline"
+                size="xs"
+                className="ml-auto"
+                data-testid="取消元素微调目标"
+                onClick={onClearTarget}
+                disabled={busy}
+              >
+                取消选中
+              </Button>
             )}
           </div>
         ) : null}
-        {phase.kind === "applied" && (
-          <div className="flex flex-col gap-2" data-testid="微调生效反馈">
-            <p className="text-sm font-medium text-pass">
-              已生效（{phase.changeClass} 类改动，版本 {phase.versionLabel}）
+        <div className="flex flex-col gap-3">
+          {target == null && (
+          <label className="flex flex-col gap-1 text-sm">
+            目标域包
+            <PackBaseSelect
+              testId="微调目标域包"
+              className="w-full"
+              options={options}
+              value={selectedBase}
+              onValueChange={setUserSelected}
+              disabled={busy}
+            />
+          </label>
+          )}
+          <label className="flex flex-col gap-1 text-sm">
+            修改意图
+            <textarea
+              data-testid="修改意图"
+              className="min-h-20 rounded-lg border border-ink/15 px-2 py-1.5 text-sm"
+              placeholder="如：把题目模板的提示写得更具体；给难度档位定义补充样例 SQL"
+              value={intent}
+              onChange={(e) => setIntent(e.target.value)}
+              disabled={busy}
+            />
+          </label>
+          <label className="flex flex-col gap-1 text-sm">
+            参考难度 SQL 样例（可选）
+            <textarea
+              data-testid="微调SQL样例"
+              className="min-h-16 rounded-lg border border-ink/15 px-2 py-1.5 font-mono text-xs"
+              placeholder="SELECT 姓名, COUNT(*) FROM 成绩 JOIN 学生 …"
+              value={sampleSql}
+              onChange={(e) => setSampleSql(e.target.value)}
+              disabled={busy}
+            />
+          </label>
+          {formErrors.length > 0 && (
+            <ul className="flex list-disc flex-col gap-0.5 pl-5 text-xs text-fail" data-testid="微调表单错误">
+              {formErrors.map((e, i) => (
+                <li key={i}>{e}</li>
+              ))}
+            </ul>
+          )}
+          {failure !== null && (
+            <p className="text-xs text-fail" data-testid="微调失败提示">
+              {failure.message}
+              {failure.needsKeyConfig && "（需在服务端配置 DEEPSEEK_API_KEY）"}
             </p>
-            <p className="font-mono text-xs text-muted">
-              {phase.changeClass === "B"
-                ? `新版本 packId：${phase.packId}（旧会话仍加载旧版本，新会话使用此版本）`
-                : `packId 不变：${phase.packId}（即时生效）`}
+          )}
+          {phase.kind === "refining" && (
+            <p className="text-sm text-muted" data-testid="微调等待提示">
+              正在生成修改草稿（约 1-3 分钟，请勿重复提交）……
             </p>
-            <button type="button" className="次按钮 w-fit px-3 py-1.5 text-sm" onClick={reset}>
-              再微调一轮
-            </button>
-          </div>
-        )}
-        {(phase.kind === "idle" || phase.kind === "applied") && (
-          <button
-            type="button"
-            className="主按钮 w-fit px-3 py-1.5 text-sm"
-            data-testid="发起微调"
-            onClick={refine}
-            disabled={busy}
-          >
-            发起微调
-          </button>
-        )}
-      </div>
-    </section>
+          )}
+          {phase.kind === "report" || phase.kind === "applying" ? (
+            <div className="flex flex-col gap-3" data-testid="微调报告">
+              <p className="text-sm text-muted" data-testid="改动分类提示">
+                {changeClassHint(phase.outcome)}
+              </p>
+              <GateReportView report={phase.outcome.report} />
+              {phase.outcome.report.passed && phase.outcome.changeClass !== "unchanged" && (
+                <div className="flex items-center gap-2">
+                  <Button
+                    type="button"
+                    className="px-3"
+                    data-testid="确认生效"
+                    onClick={apply}
+                    disabled={phase.kind === "applying"}
+                  >
+                    {phase.kind === "applying" ? "正在生效……" : "确认生效"}
+                  </Button>
+                  <Button type="button" variant="outline" className="px-3" onClick={reset} disabled={phase.kind === "applying"}>
+                    放弃
+                  </Button>
+                </div>
+              )}
+            </div>
+          ) : null}
+          {phase.kind === "applied" && (
+            <div className="flex flex-col gap-2" data-testid="微调生效反馈">
+              <p className="text-sm font-medium text-pass">
+                已生效（{phase.changeClass} 类改动，版本 {phase.versionLabel}）
+              </p>
+              <p className="font-mono text-xs text-muted">
+                {phase.changeClass === "B"
+                  ? `新版本 packId：${phase.packId}（旧会话仍加载旧版本，新会话使用此版本）`
+                  : `packId 不变：${phase.packId}（即时生效）`}
+              </p>
+              <Button type="button" variant="outline" className="w-fit px-3" onClick={reset}>
+                再微调一轮
+              </Button>
+            </div>
+          )}
+          {(phase.kind === "idle" || phase.kind === "applied") && (
+            <Button
+              type="button"
+              className="w-fit px-3"
+              data-testid="发起微调"
+              onClick={refine}
+              disabled={busy}
+            >
+              发起微调
+            </Button>
+          )}
+        </div>
+      </section>
+    </Card>
   );
 }

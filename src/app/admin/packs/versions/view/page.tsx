@@ -71,7 +71,7 @@ async function fetchCurrentVersionContent(base: string, token: string): Promise<
  */
 function VersionDiffSection({ diff, fromLabel, toLabel }: { diff: DomainPackDiffView; fromLabel: string; toLabel: string }) {
   return (
-    <section data-testid="版本diff区块" className="flex flex-col gap-2 rounded-lg border border-panel bg-panel/50 p-4">
+    <section data-testid="版本diff区块" className="flex flex-col gap-2 rounded-lg border border-border bg-card p-4">
       <h2 className="text-sm font-medium">与当前版本的差异（{fromLabel} → {toLabel}）</h2>
       <p
         data-testid="版本diff结论"
