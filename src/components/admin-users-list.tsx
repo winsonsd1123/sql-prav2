@@ -4,6 +4,9 @@
 // 请求带浏览器会话的 Bearer token（ADR-0007：安全边界在服务端，本组件只做展示与交互）。
 // 观感与演练场同一设计语言：卡片容器、语义 class、宋体标题、JetBrains Mono 数字列。
 import { useEffect, useState } from "react";
+import { Button } from "@/components/ui/button";
+import { Card } from "@/components/ui/card";
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { bearerHeaders, getSessionAuth, readErrorMessage } from "@/lib/admin-api-client";
 import { ADMIN_ROLE_CANDIDATES, ADMIN_ROLE_NAME, type AdminUserRow } from "@/lib/admin-users";
 
@@ -22,6 +25,14 @@ function formatCreatedAt(iso: string | null): string {
   const pad = (n: number) => String(n).padStart(2, "0");
   return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())} ${pad(date.getHours())}:${pad(date.getMinutes())}`;
 }
+
+// 自保护锁定的按钮要能悬停出 title 提示：反覆盖 Button 的 disabled:pointer-events-none，
+// 并压住随之恢复的悬停变色（迁移前的悬停样式本就排除 :disabled）
+const LOCK_HOVER_HINT = "disabled:pointer-events-auto disabled:cursor-not-allowed";
+const LOCK_HOVER_RESET = {
+  default: "disabled:hover:bg-primary",
+  outline: "disabled:hover:border-input disabled:hover:bg-card disabled:hover:text-muted",
+} as const;
 
 export default function AdminUsersList() {
   const [input, setInput] = useState("");
@@ -160,212 +171,228 @@ export default function AdminUsersList() {
   }
 
   return (
-    <section className="卡片 p-4" data-testid="用户列表">
-      <div className="mb-3 flex flex-wrap items-end justify-between gap-x-4 gap-y-2">
-        <h2 className="标题 text-base">用户管理</h2>
-        <form className="flex w-full max-w-sm gap-2" onSubmit={submitSearch}>
-          <input
-            className="输入框"
-            data-testid="用户搜索框"
-            type="search"
-            value={input}
-            onChange={(event) => setInput(event.target.value)}
-            placeholder="搜索学号 / 姓名 / 昵称 / 邮箱"
-            aria-label="搜索用户"
-          />
-          <button type="submit" className="次按钮 shrink-0 px-3 py-1.5 text-xs">
-            搜索
-          </button>
-        </form>
-      </div>
+    <Card asChild className="p-4">
+      <section data-testid="用户列表">
+        <div className="mb-3 flex flex-wrap items-end justify-between gap-x-4 gap-y-2">
+          <h2 className="标题 text-base">用户管理</h2>
+          <form className="flex w-full max-w-sm gap-2" onSubmit={submitSearch}>
+            <input
+              className="输入框"
+              data-testid="用户搜索框"
+              type="search"
+              value={input}
+              onChange={(event) => setInput(event.target.value)}
+              placeholder="搜索学号 / 姓名 / 昵称 / 邮箱"
+              aria-label="搜索用户"
+            />
+            <Button type="submit" variant="outline" size="sm" className="h-auto px-3 text-xs">
+              搜索
+            </Button>
+          </form>
+        </div>
 
-      {error ? (
-        <p className="py-8 text-center text-sm text-muted" data-testid="用户列表错误">
-          {error}
-        </p>
-      ) : !data && !error ? (
-        <p className="呼吸 py-8 text-center text-sm text-muted">正在加载用户列表…</p>
-      ) : (
-        <>
-          <div className="横滑 overflow-x-auto">
-            <table className="w-full min-w-[720px] border-collapse text-sm">
-              <thead>
-                <tr className="border-b border-[color-mix(in_srgb,var(--色-墨)_12%,transparent)] text-left text-xs text-muted">
-                  <th className="px-2 py-2 font-medium">学号</th>
-                  <th className="px-2 py-2 font-medium">姓名</th>
-                  <th className="px-2 py-2 font-medium">昵称</th>
-                  <th className="px-2 py-2 font-medium">邮箱</th>
-                  <th className="px-2 py-2 font-medium">角色</th>
-                  <th className="px-2 py-2 font-medium">账号状态</th>
-                  <th className="px-2 py-2 font-medium">注册时间</th>
-                </tr>
-              </thead>
-              <tbody>
-                {data?.users.length ? (
-                  data.users.map((user) => (
-                    <tr
-                      key={user.userId}
-                      data-testid="用户行"
-                      className="border-b border-[color-mix(in_srgb,var(--色-墨)_6%,transparent)] last:border-b-0"
-                    >
-                      <td className="px-2 py-2 font-mono text-xs">{user.studentId ?? "—"}</td>
-                      <td className="px-2 py-2">{user.realName ?? "—"}</td>
-                      <td className="px-2 py-2 text-muted">{user.nickname ?? "—"}</td>
-                      <td className="px-2 py-2 text-xs text-muted">{user.email ?? "—"}</td>
-                      <td className="px-2 py-2">
-                        {editingUserId === user.userId ? (
-                          <span className="flex flex-col gap-1.5" data-testid="角色编辑器">
-                            <span className="flex flex-wrap gap-1">
-                              {ADMIN_ROLE_CANDIDATES.map((role) => {
-                                const isSelfAdminLock = user.userId === currentUserId && role === ADMIN_ROLE_NAME;
-                                return (
-                                  <button
-                                    type="button"
-                                    role="checkbox"
-                                    aria-checked={editingRoles.includes(role)}
-                                    key={role}
-                                    className={`whitespace-nowrap rounded-full px-2 py-0.5 text-[11px] transition-colors ${
-                                      editingRoles.includes(role) ? "bg-[color-mix(in_srgb,var(--色-墨)_10%,transparent)] text-ink" : "bg-panel text-muted"
-                                    } ${isSelfAdminLock ? "cursor-not-allowed opacity-60" : ""}`}
-                                    title={isSelfAdminLock ? "不能回收自己的管理员角色" : undefined}
-                                    data-testid={`角色复选-${role}`}
-                                    disabled={isSelfAdminLock}
-                                    onClick={() => toggleEditingRole(role)}
-                                  >
-                                    {role}
-                                  </button>
-                                );
-                              })}
+        {error ? (
+          <p className="py-8 text-center text-sm text-muted" data-testid="用户列表错误">
+            {error}
+          </p>
+        ) : !data && !error ? (
+          <p className="呼吸 py-8 text-center text-sm text-muted">正在加载用户列表…</p>
+        ) : (
+          <>
+            {/* 横向滚动由 Table 容器承担：把「横滑」的隐藏滚动条下推给它 */}
+            <div className="[&>[data-slot=table-container]::-webkit-scrollbar]:hidden [&>[data-slot=table-container]]:[scrollbar-width:none]">
+              <Table className="min-w-[720px] border-collapse">
+                <TableHeader>
+                  <TableRow className="border-[color-mix(in_srgb,var(--色-墨)_12%,transparent)] text-xs text-muted">
+                    <TableHead className="h-auto py-2">学号</TableHead>
+                    <TableHead className="h-auto py-2">姓名</TableHead>
+                    <TableHead className="h-auto py-2">昵称</TableHead>
+                    <TableHead className="h-auto py-2">邮箱</TableHead>
+                    <TableHead className="h-auto py-2">角色</TableHead>
+                    <TableHead className="h-auto py-2">账号状态</TableHead>
+                    <TableHead className="h-auto py-2">注册时间</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {data?.users.length ? (
+                    data.users.map((user) => (
+                      <TableRow
+                        key={user.userId}
+                        data-testid="用户行"
+                        className="border-[color-mix(in_srgb,var(--色-墨)_6%,transparent)]"
+                      >
+                        <TableCell className="whitespace-normal font-mono text-xs">{user.studentId ?? "—"}</TableCell>
+                        <TableCell className="whitespace-normal">{user.realName ?? "—"}</TableCell>
+                        <TableCell className="whitespace-normal text-muted">{user.nickname ?? "—"}</TableCell>
+                        <TableCell className="whitespace-normal text-xs text-muted">{user.email ?? "—"}</TableCell>
+                        <TableCell className="whitespace-normal">
+                          {editingUserId === user.userId ? (
+                            <span className="flex flex-col gap-1.5" data-testid="角色编辑器">
+                              <span className="flex flex-wrap gap-1">
+                                {ADMIN_ROLE_CANDIDATES.map((role) => {
+                                  const isSelfAdminLock = user.userId === currentUserId && role === ADMIN_ROLE_NAME;
+                                  const variant = editingRoles.includes(role) ? "default" : "outline";
+                                  return (
+                                    <Button
+                                      type="button"
+                                      role="checkbox"
+                                      aria-checked={editingRoles.includes(role)}
+                                      key={role}
+                                      variant={variant}
+                                      size="xs"
+                                      className={`rounded-full text-[11px] ${isSelfAdminLock ? `${LOCK_HOVER_HINT} ${LOCK_HOVER_RESET[variant]}` : ""}`}
+                                      title={isSelfAdminLock ? "不能回收自己的管理员角色" : undefined}
+                                      data-testid={`角色复选-${role}`}
+                                      disabled={isSelfAdminLock}
+                                      onClick={() => toggleEditingRole(role)}
+                                    >
+                                      {role}
+                                    </Button>
+                                  );
+                                })}
+                              </span>
+                              <span className="flex flex-wrap items-center gap-1.5">
+                                <Button
+                                  type="button"
+                                  variant="outline"
+                                  size="xs"
+                                  className="px-2.5 text-[11px]"
+                                  data-testid="角色保存"
+                                  disabled={saving}
+                                  onClick={() => void saveRoles(user)}
+                                >
+                                  {saving ? "保存中…" : "保存"}
+                                </Button>
+                                <Button
+                                  type="button"
+                                  variant="outline"
+                                  size="xs"
+                                  className="px-2.5 text-[11px]"
+                                  data-testid="角色取消"
+                                  disabled={saving}
+                                  onClick={() => setEditingUserId(null)}
+                                >
+                                  取消
+                                </Button>
+                                {user.userId === currentUserId && (
+                                  <span className="text-[11px] text-muted">「管理员」不可自行回收</span>
+                                )}
+                              </span>
                             </span>
-                            <span className="flex flex-wrap items-center gap-1.5">
-                              <button
-                                type="button"
-                                className="次按钮 px-2.5 py-1 text-[11px]"
-                                data-testid="角色保存"
-                                disabled={saving}
-                                onClick={() => void saveRoles(user)}
-                              >
-                                {saving ? "保存中…" : "保存"}
-                              </button>
-                              <button
-                                type="button"
-                                className="次按钮 px-2.5 py-1 text-[11px]"
-                                data-testid="角色取消"
-                                disabled={saving}
-                                onClick={() => setEditingUserId(null)}
-                              >
-                                取消
-                              </button>
-                              {user.userId === currentUserId && (
-                                <span className="text-[11px] text-muted">「管理员」不可自行回收</span>
-                              )}
-                            </span>
-                          </span>
-                        ) : (
-                          <span className="flex flex-wrap items-center gap-1">
-                            <span className="flex flex-wrap gap-1" data-testid="用户角色">
-                              {user.roles.length ? (
-                                user.roles.map((role) => (
-                                  <span
-                                    key={role}
-                                    className="whitespace-nowrap rounded-full bg-panel px-2 py-0.5 text-[11px] text-ink"
-                                  >
-                                    {role}
-                                  </span>
-                                ))
-                              ) : (
-                                <span className="text-[11px] text-muted">未分配</span>
-                              )}
-                            </span>
-                            <button
-                              type="button"
-                              className="次按钮 px-2 py-0.5 text-[11px]"
-                              data-testid="角色编辑"
-                              onClick={() => beginEditRoles(user)}
-                            >
-                              编辑
-                            </button>
-                          </span>
-                        )}
-                      </td>
-                      <td className="px-2 py-2 text-xs">
-                        <span className="flex flex-wrap items-center gap-1.5" data-testid="账号状态">
-                          {user.banned ? (
-                            <span className="whitespace-nowrap rounded-full px-2 py-0.5 text-[11px] text-[var(--色-错误)]">已禁用</span>
                           ) : (
-                            <span className="whitespace-nowrap text-muted">正常</span>
-                          )}
-                          {(() => {
-                            // 自我保护（体验层）：自己那一行的禁用按钮不可用；启用自己不在限制内
-                            const isSelfBanLock = user.userId === currentUserId && !user.banned;
-                            return (
-                              <button
+                            <span className="flex flex-wrap items-center gap-1">
+                              <span className="flex flex-wrap gap-1" data-testid="用户角色">
+                                {user.roles.length ? (
+                                  user.roles.map((role) => (
+                                    <span
+                                      key={role}
+                                      className="whitespace-nowrap rounded-full bg-panel px-2 py-0.5 text-[11px] text-ink"
+                                    >
+                                      {role}
+                                    </span>
+                                  ))
+                                ) : (
+                                  <span className="text-[11px] text-muted">未分配</span>
+                                )}
+                              </span>
+                              <Button
                                 type="button"
-                                className={`次按钮 px-2 py-0.5 text-[11px] ${isSelfBanLock ? "cursor-not-allowed opacity-60" : ""}`}
-                                title={isSelfBanLock ? "不能禁用自己的账号" : undefined}
-                                data-testid="禁用启用按钮"
-                                disabled={isSelfBanLock || banSavingUserId === user.userId}
-                                onClick={() => void toggleBan(user)}
+                                variant="outline"
+                                size="xs"
+                                className="text-[11px]"
+                                data-testid="角色编辑"
+                                onClick={() => beginEditRoles(user)}
                               >
-                                {banSavingUserId === user.userId ? "处理中…" : user.banned ? "启用" : "禁用"}
-                              </button>
-                            );
-                          })()}
-                        </span>
-                      </td>
-                      <td className="px-2 py-2 font-mono text-xs text-muted">{formatCreatedAt(user.createdAt)}</td>
-                    </tr>
-                  ))
-                ) : (
-                  <tr>
-                    <td colSpan={7} className="py-8 text-center text-sm text-muted" data-testid="用户列表空态">
-                      {search ? `没有匹配「${search}」的用户` : "暂无用户"}
-                    </td>
-                  </tr>
-                )}
-              </tbody>
-            </table>
-          </div>
+                                编辑
+                              </Button>
+                            </span>
+                          )}
+                        </TableCell>
+                        <TableCell className="whitespace-normal text-xs">
+                          <span className="flex flex-wrap items-center gap-1.5" data-testid="账号状态">
+                            {user.banned ? (
+                              <span className="whitespace-nowrap rounded-full px-2 py-0.5 text-[11px] text-[var(--色-错误)]">已禁用</span>
+                            ) : (
+                              <span className="whitespace-nowrap text-muted">正常</span>
+                            )}
+                            {(() => {
+                              // 自我保护（体验层）：自己那一行的禁用按钮不可用；启用自己不在限制内
+                              const isSelfBanLock = user.userId === currentUserId && !user.banned;
+                              return (
+                                <Button
+                                  type="button"
+                                  variant="outline"
+                                  size="xs"
+                                  className={`text-[11px] ${isSelfBanLock ? `${LOCK_HOVER_HINT} ${LOCK_HOVER_RESET.outline}` : ""}`}
+                                  title={isSelfBanLock ? "不能禁用自己的账号" : undefined}
+                                  data-testid="禁用启用按钮"
+                                  disabled={isSelfBanLock || banSavingUserId === user.userId}
+                                  onClick={() => void toggleBan(user)}
+                                >
+                                  {banSavingUserId === user.userId ? "处理中…" : user.banned ? "启用" : "禁用"}
+                                </Button>
+                              );
+                            })()}
+                          </span>
+                        </TableCell>
+                        <TableCell className="whitespace-normal font-mono text-xs text-muted">{formatCreatedAt(user.createdAt)}</TableCell>
+                      </TableRow>
+                    ))
+                  ) : (
+                    <TableRow>
+                      <TableCell colSpan={7} className="whitespace-normal py-8 text-center text-sm text-muted" data-testid="用户列表空态">
+                        {search ? `没有匹配「${search}」的用户` : "暂无用户"}
+                      </TableCell>
+                    </TableRow>
+                  )}
+                </TableBody>
+              </Table>
+            </div>
 
-          {roleError && (
-            <p className="mt-2 text-center text-xs text-[var(--色-错误)]" data-testid="角色保存错误" role="alert">
-              {roleError}
-            </p>
-          )}
+            {roleError && (
+              <p className="mt-2 text-center text-xs text-[var(--色-错误)]" data-testid="角色保存错误" role="alert">
+                {roleError}
+              </p>
+            )}
 
-          {banError && (
-            <p className="mt-2 text-center text-xs text-[var(--色-错误)]" data-testid="禁用启用错误" role="alert">
-              {banError}
-            </p>
-          )}
+            {banError && (
+              <p className="mt-2 text-center text-xs text-[var(--色-错误)]" data-testid="禁用启用错误" role="alert">
+                {banError}
+              </p>
+            )}
 
-          <div className="mt-3 flex flex-wrap items-center justify-between gap-2 text-xs text-muted">
-            <span data-testid="用户列表统计" className="font-mono">
-              {data ? `共 ${data.total} 人 · 第 ${data.page}/${totalPages} 页` : ""}
-            </span>
-            <span className="flex gap-2">
-              <button
-                type="button"
-                className="次按钮 px-3 py-1.5 text-xs"
-                data-testid="用户列表上一页"
-                disabled={loading || page <= 1}
-                onClick={() => setPage((current) => Math.max(1, current - 1))}
-              >
-                上一页
-              </button>
-              <button
-                type="button"
-                className="次按钮 px-3 py-1.5 text-xs"
-                data-testid="用户列表下一页"
-                disabled={loading || page >= totalPages}
-                onClick={() => setPage((current) => current + 1)}
-              >
-                下一页
-              </button>
-            </span>
-          </div>
-        </>
-      )}
-    </section>
+            <div className="mt-3 flex flex-wrap items-center justify-between gap-2 text-xs text-muted">
+              <span data-testid="用户列表统计" className="font-mono">
+                {data ? `共 ${data.total} 人 · 第 ${data.page}/${totalPages} 页` : ""}
+              </span>
+              <span className="flex gap-2">
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  className="px-3 text-xs"
+                  data-testid="用户列表上一页"
+                  disabled={loading || page <= 1}
+                  onClick={() => setPage((current) => Math.max(1, current - 1))}
+                >
+                  上一页
+                </Button>
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  className="px-3 text-xs"
+                  data-testid="用户列表下一页"
+                  disabled={loading || page >= totalPages}
+                  onClick={() => setPage((current) => current + 1)}
+                >
+                  下一页
+                </Button>
+              </span>
+            </div>
+          </>
+        )}
+      </section>
+    </Card>
   );
 }
