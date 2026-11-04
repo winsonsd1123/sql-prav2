@@ -260,7 +260,7 @@ export default function AdminKnowledgeAreaManager() {
                       title={entry.referencedBy.length > 0 ? "已被域包引用，不能删除（只能停用）" : undefined}
                       variant="outline"
                       size="xs"
-                      className="px-3 text-fail"
+                      className="px-3 text-fail hover:text-fail"
                     >
                       删除
                     </Button>
