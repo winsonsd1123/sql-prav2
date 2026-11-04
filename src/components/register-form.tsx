@@ -7,6 +7,8 @@ import { useEffect, useMemo, useState } from "react";
 import { strictestAllowlist, type AllowlistConfig } from "@/lib/email-allowlist";
 import { validateRegistrationForm, type RegistrationFormErrors } from "@/lib/registration-validation";
 import { browserClient } from "@/lib/supabase/browser-client";
+import { Button } from "@/components/ui/button";
+import { Card } from "@/components/ui/card";
 
 // testid 沿用既有中文串（e2e 选择器稳定）；字段键为英文（协议与标识符英文化）
 const FIELDS = [
@@ -101,64 +103,67 @@ export default function RegisterForm() {
 
   if (verificationEmailSent) {
     return (
-      <div className="卡片 入场 w-full max-w-md p-6" data-testid="验证邮件提示">
+      <Card className="入场 w-full max-w-md p-6" data-testid="验证邮件提示">
         <h2 className="标题 mb-2 text-lg">验证邮件已发送</h2>
         <p className="text-sm leading-relaxed text-muted">
           请前往 <span className="text-ink">{form.email}</span> 查收验证邮件，点击邮件中的链接完成邮箱验证后即可登录。
         </p>
         <p className="mt-2 text-xs text-muted">若几分钟内未收到，请检查垃圾邮件文件夹。</p>
-      </div>
+      </Card>
     );
   }
 
   return (
-    <form className="卡片 入场 w-full max-w-md p-6" onSubmit={onSubmit} noValidate>
-      <h1 className="标题 mb-1 text-xl">注册</h1>
-      <p className="mb-4 text-xs text-muted" data-testid="白名单说明">
-        仅限白名单域名邮箱（当前{allowlist.allowAnyDomain ? "已放开任意域名" : `：${allowlist.domainList.join("、") || "（清单为空）"}`}）；
-        注册后需完成邮箱验证。
-      </p>
-
-      <div className="flex flex-col gap-3">
-        {FIELDS.map(({ key, testid, label, placeholder, type, hint }) => (
-          <label key={key} className="flex flex-col gap-1">
-            <span className="flex items-baseline justify-between text-sm font-bold">
-              {label}
-              <span className="text-[10px] font-normal text-muted">{hint}</span>
-            </span>
-            <input
-              className={`输入框${errors[key] ? " 错误" : ""}`}
-              type={type}
-              value={form[key]}
-              placeholder={placeholder}
-              disabled={submitting}
-              onChange={(e) => setField(key, e.target.value)}
-              data-testid={`${testid}输入`}
-            />
-            {/* 提示时机：邮箱域名不符即时提示（story 2），其余字段在输入过或提交过后提示 */}
-            {(key === "email" || attemptedSubmit || form[key] !== "") && errors[key] && (
-              <span className="text-xs" style={{ color: "var(--色-错误)" }} data-testid={`错误-${testid}`}>
-                {errors[key]}
-              </span>
-            )}
-          </label>
-        ))}
-      </div>
-
-      {submitError && (
-        <p className="mt-3 rounded-lg px-3 py-2 text-sm" style={{ background: "color-mix(in srgb, var(--色-错误) 10%, transparent)", color: "var(--色-错误)" }} data-testid="提交错误">
-          {submitError}
+    <Card asChild className="入场 w-full max-w-md p-6">
+      <form onSubmit={onSubmit} noValidate>
+        <h1 className="标题 mb-1 text-xl">注册</h1>
+        <p className="mb-4 text-xs text-muted" data-testid="白名单说明">
+          仅限白名单域名邮箱（当前{allowlist.allowAnyDomain ? "已放开任意域名" : `：${allowlist.domainList.join("、") || "（清单为空）"}`}）；
+          注册后需完成邮箱验证。
         </p>
-      )}
 
-      <button
-        type="submit"
-        className="主按钮 mt-5 w-full px-4 py-2 text-sm"
-        disabled={submitting || (attemptedSubmit && hasError)}
-        data-testid="注册按钮"
-      >
-        {submitting ? "提交中…" : "注册"}
-      </button>
-    </form>
+        <div className="flex flex-col gap-3">
+          {FIELDS.map(({ key, testid, label, placeholder, type, hint }) => (
+            <label key={key} className="flex flex-col gap-1">
+              <span className="flex items-baseline justify-between text-sm font-bold">
+                {label}
+                <span className="text-[10px] font-normal text-muted">{hint}</span>
+              </span>
+              <input
+                className={`输入框${errors[key] ? " 错误" : ""}`}
+                type={type}
+                value={form[key]}
+                placeholder={placeholder}
+                disabled={submitting}
+                onChange={(e) => setField(key, e.target.value)}
+                data-testid={`${testid}输入`}
+              />
+              {/* 提示时机：邮箱域名不符即时提示（story 2），其余字段在输入过或提交过后提示 */}
+              {(key === "email" || attemptedSubmit || form[key] !== "") && errors[key] && (
+                <span className="text-xs" style={{ color: "var(--色-错误)" }} data-testid={`错误-${testid}`}>
+                  {errors[key]}
+                </span>
+              )}
+            </label>
+          ))}
+        </div>
+
+        {submitError && (
+          <p className="mt-3 rounded-lg px-3 py-2 text-sm" style={{ background: "color-mix(in srgb, var(--色-错误) 10%, transparent)", color: "var(--色-错误)" }} data-testid="提交错误">
+            {submitError}
+          </p>
+        )}
+
+        <Button
+          type="submit"
+          size="lg"
+          className="mt-5 w-full"
+          disabled={submitting || (attemptedSubmit && hasError)}
+          data-testid="注册按钮"
+        >
+          {submitting ? "提交中…" : "注册"}
+        </Button>
+      </form>
+    </Card>
   );
 }

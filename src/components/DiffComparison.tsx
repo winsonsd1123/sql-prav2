@@ -6,20 +6,22 @@
 import { buildComparison, type ComparisonSideView } from "@/components/comparison";
 import { formatValue } from "@/kernel/execute";
 import type { ResultSet } from "@/kernel/types";
+import { Card } from "@/components/ui/card";
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 
 function SideTable({ title, side }: { title: string; side: ComparisonSideView }) {
   return (
     <div className="min-w-0">
       <p className="mb-1 text-sm font-bold text-ink">{title}</p>
-      <div className="卡片 overflow-auto">
-        <table className="w-full font-mono text-sm">
-          <thead className="bg-ink/[0.04]">
-            <tr>
+      <Card className="overflow-auto">
+        <Table className="font-mono">
+          <TableHeader className="bg-ink/[0.04]">
+            <TableRow>
               {side.columns.length > 0 ? (
                 side.columns.map((column, i) => (
-                  <th
+                  <TableHead
                     key={i}
-                    className={`px-2 py-1.5 text-left font-medium whitespace-nowrap ${
+                    className={`h-auto py-1.5 ${
                       side.columnDiff[i]
                         ? "border-b border-fail bg-fail/10 text-fail"
                         : "border-b border-border-strong text-ink"
@@ -28,41 +30,37 @@ function SideTable({ title, side }: { title: string; side: ComparisonSideView })
                   >
                     {column}
                     {side.columnDiff[i] ? " ⚠" : ""}
-                  </th>
+                  </TableHead>
                 ))
               ) : (
-                <th className="px-2 py-1 text-left font-bold">（无列）</th>
+                <TableHead className="h-auto py-1 font-bold">（无列）</TableHead>
               )}
-            </tr>
-          </thead>
-          <tbody>
+            </TableRow>
+          </TableHeader>
+          <TableBody>
             {side.rows.map((row, i) => (
-              <tr
+              <TableRow
                 key={i}
-                className={`border-b border-ink/10 odd:bg-ink/[0.02] ${
-                  side.rowDiff[i] ? "bg-fail/10" : ""
-                }`}
+                className={`border-ink/10 odd:bg-ink/[0.02] ${side.rowDiff[i] ? "bg-fail/10" : ""}`}
               >
                 {row.map((cell, j) => (
-                  <td
+                  <TableCell
                     key={j}
-                    className={`px-2 py-1 whitespace-nowrap ${
-                      cell.diff ? "bg-fail/15 font-medium text-fail" : ""
-                    }`}
+                    className={`px-2 py-1 ${cell.diff ? "bg-fail/15 font-medium text-fail" : ""}`}
                   >
                     {cell.value === null ? <em className="text-muted">NULL</em> : formatValue(cell.value)}
-                  </td>
+                  </TableCell>
                 ))}
-              </tr>
+              </TableRow>
             ))}
             {side.rows.length === 0 && (
-              <tr>
-                <td className="px-2 py-1 text-muted">（空结果）</td>
-              </tr>
+              <TableRow>
+                <TableCell className="px-2 py-1 text-muted">（空结果）</TableCell>
+              </TableRow>
             )}
-          </tbody>
-        </table>
-      </div>
+          </TableBody>
+        </Table>
+      </Card>
     </div>
   );
 }

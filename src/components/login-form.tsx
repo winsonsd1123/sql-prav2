@@ -9,6 +9,8 @@ import { useRouter } from "next/navigation";
 import { parseLoginIdentifier } from "@/lib/registration-validation";
 import { browserClient } from "@/lib/supabase/browser-client";
 import { initCaptcha } from "@/lib/aliyun-captcha-loader";
+import { Button } from "@/components/ui/button";
+import { Card } from "@/components/ui/card";
 
 type CaptchaStatus = "初始化中" | "就绪" | "不可用";
 
@@ -67,70 +69,73 @@ export default function LoginForm() {
   }, []);
 
   return (
-    <form className="卡片 入场 w-full max-w-md p-6" noValidate>
-      <h1 className="标题 mb-1 text-xl">登录</h1>
-      <p className="mb-4 text-xs text-muted">用学号或注册邮箱登录；每次登录需先通过行为验证码。</p>
+    <Card asChild className="入场 w-full max-w-md p-6">
+      <form noValidate>
+        <h1 className="标题 mb-1 text-xl">登录</h1>
+        <p className="mb-4 text-xs text-muted">用学号或注册邮箱登录；每次登录需先通过行为验证码。</p>
 
-      <div className="flex flex-col gap-3">
-        <label className="flex flex-col gap-1">
-          <span className="text-sm font-bold">学号或邮箱</span>
-          <input
-            className="输入框"
-            type="text"
-            value={identifier}
-            placeholder="如 2022110001 或 name@cuc.edu.cn"
-            autoComplete="username"
-            onChange={(e) => { setIdentifier(e.target.value); setSubmitError(null); }}
-            data-testid="标识输入"
-          />
-        </label>
-        <label className="flex flex-col gap-1">
-          <span className="text-sm font-bold">密码</span>
-          <input
-            className="输入框"
-            type="password"
-            value={password}
-            placeholder="密码"
-            autoComplete="current-password"
-            onChange={(e) => { setPassword(e.target.value); setSubmitError(null); }}
-            data-testid="密码输入"
-          />
-        </label>
-      </div>
+        <div className="flex flex-col gap-3">
+          <label className="flex flex-col gap-1">
+            <span className="text-sm font-bold">学号或邮箱</span>
+            <input
+              className="输入框"
+              type="text"
+              value={identifier}
+              placeholder="如 2022110001 或 name@cuc.edu.cn"
+              autoComplete="username"
+              onChange={(e) => { setIdentifier(e.target.value); setSubmitError(null); }}
+              data-testid="标识输入"
+            />
+          </label>
+          <label className="flex flex-col gap-1">
+            <span className="text-sm font-bold">密码</span>
+            <input
+              className="输入框"
+              type="password"
+              value={password}
+              placeholder="密码"
+              autoComplete="current-password"
+              onChange={(e) => { setPassword(e.target.value); setSubmitError(null); }}
+              data-testid="密码输入"
+            />
+          </label>
+        </div>
 
-      {/* 阿里验证码挂载点（popup 模式弹层也渲染于此） */}
-      <div id="aliyun-captcha-element" className="mt-3 min-h-10" />
+        {/* 阿里验证码挂载点（popup 模式弹层也渲染于此） */}
+        <div id="aliyun-captcha-element" className="mt-3 min-h-10" />
 
-      {captcha === "不可用" && (
-        <p className="mt-2 rounded-lg px-3 py-2 text-sm" style={{ background: "color-mix(in srgb, var(--色-警示) 10%, transparent)", color: "var(--色-警示)" }} data-testid="验证码提示">
-          行为验证码加载失败，请检查网络后刷新页面重试（登录必须通过验证码，无降级路径）。
+        {captcha === "不可用" && (
+          <p className="mt-2 rounded-lg px-3 py-2 text-sm" style={{ background: "color-mix(in srgb, var(--色-警示) 10%, transparent)", color: "var(--色-警示)" }} data-testid="验证码提示">
+            行为验证码加载失败，请检查网络后刷新页面重试（登录必须通过验证码，无降级路径）。
+          </p>
+        )}
+        {captcha === "初始化中" && (
+          <p className="mt-2 text-xs text-muted" data-testid="验证码提示">验证码加载中…</p>
+        )}
+
+        {submitError && (
+          <p className="mt-3 rounded-lg px-3 py-2 text-sm" style={{ background: "color-mix(in srgb, var(--色-错误) 10%, transparent)", color: "var(--色-错误)" }} data-testid="提交错误">
+            {submitError}
+          </p>
+        )}
+
+        {/* id 供阿里组件绑定弹层触发；验证码未就绪则禁用（无降级路径） */}
+        <Button
+          type="button"
+          id="login-submit-button"
+          size="lg"
+          className="mt-5 w-full"
+          disabled={captcha !== "就绪"}
+          data-testid="登录按钮"
+        >
+          登录
+        </Button>
+
+        <p className="mt-3 flex items-baseline justify-between text-xs text-muted">
+          <span>还没有账号？<a className="text-ink underline underline-offset-2" href="/register">去注册</a></span>
+          <a className="text-ink underline underline-offset-2" href="/forgot-password" data-testid="忘记密码入口">忘记密码？</a>
         </p>
-      )}
-      {captcha === "初始化中" && (
-        <p className="mt-2 text-xs text-muted" data-testid="验证码提示">验证码加载中…</p>
-      )}
-
-      {submitError && (
-        <p className="mt-3 rounded-lg px-3 py-2 text-sm" style={{ background: "color-mix(in srgb, var(--色-错误) 10%, transparent)", color: "var(--色-错误)" }} data-testid="提交错误">
-          {submitError}
-        </p>
-      )}
-
-      {/* id 供阿里组件绑定弹层触发；验证码未就绪则禁用（无降级路径） */}
-      <button
-        type="button"
-        id="login-submit-button"
-        className="主按钮 mt-5 w-full px-4 py-2 text-sm"
-        disabled={captcha !== "就绪"}
-        data-testid="登录按钮"
-      >
-        登录
-      </button>
-
-      <p className="mt-3 flex items-baseline justify-between text-xs text-muted">
-        <span>还没有账号？<a className="text-ink underline underline-offset-2" href="/register">去注册</a></span>
-        <a className="text-ink underline underline-offset-2" href="/forgot-password" data-testid="忘记密码入口">忘记密码？</a>
-      </p>
-    </form>
+      </form>
+    </Card>
   );
 }
