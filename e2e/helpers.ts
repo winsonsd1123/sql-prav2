@@ -146,6 +146,9 @@ export async function stubPlaygroundBackend(page: Page) {
 // 后台管理员环境共享桩（review 修复 S3，源自 #104 侧栏 spec）：管理员权限两跳
 // （user_roles → role_permissions）+ 用户列表页 API 空态。admin-brand / admin-sidebar-collapse
 // 逐字重复的三桩下沉至此；与 nav-presentation 的 mockAdminEnv（教师角色 + 域包页桩）口径不同，并列不合并。
+/** 后台侧栏域包组五个子项的菜单名（字面值作 oracle，不从 src 路由表导入） */
+export const PACK_GROUP_LINK_LABELS = ["域包列表", "版本历史", "放出管理", "演练配置", "知识点词表"] as const;
+
 export async function mockAdmin(page: Page) {
   await page.route("**/rest/v1/user_roles*", async (route) => {
     await route.fulfill({

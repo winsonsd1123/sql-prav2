@@ -36,4 +36,5 @@
 | `cloud-domain-pack.spec.ts:54`（原 53）云端非法域包不进入加载结果 | 同上（全量败、单跑过，基点 b97b8dd 全量同败） | 同上，已补桩根治（#98） | 2026-11-03（#85 三步口径验证） |
 | `practice-config.spec.ts:119`（原 118）内置包A 配置改 7 题学生端生效 | 同上（全量败、单跑过，基点 b97b8dd 全量同败） | 同上，已补桩根治（#98） | 2026-11-03（#85 三步口径验证） |
 | `admin-console.spec.ts:205`（原 214→217）无权限点直访 `/admin` 被重定向 | 时序抖动偶发失败 | 演练场漏桩（`domain_pack_asset` / `pack_exposure` 真连占位主机），已补桩根治（#98） | 2026-11-02（单跑即过） |
+| `admin-sidebar-collapse.spec.ts` rail 态悬停菜单图标出 tooltip / rail 态账户区图标 tooltip 两条 | `getByRole('tooltip')` 5s 内未出现（`--repeat-each=10` 并行约 3-6% 失败） | 未根治；疑似 rail 宽度 200ms 过渡未收稳即 hover，叠加 300ms tooltip 延迟，并行负载下指针命中漂移 | 2026-11-05（侧栏分组可折叠评审修复：基点 d2f1891 `--repeat-each=10` 4/70 同败证实） |
 | `.scratch/*/shoot.spec.ts` prefers-color-scheme 逐字节探针（**非全量用例**，.scratch 探针） | light/dark 截图逐字节不一致误报（main 基点构建串行偶发、并行 4/4 败） | 逐字节对未冻结的动画/光标状态敏感；三期复用探针形态时先改像素容差或 settle 冻结后再比 | 2026-11-04（#102 施工记录待办 1，基点 a6517c1 复现） |

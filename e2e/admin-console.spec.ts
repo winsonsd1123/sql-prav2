@@ -1,5 +1,5 @@
 import { test, expect, type Page } from "@playwright/test";
-import { presetLoginState, collectConsoleProblems, stubPlaygroundBackend } from "./helpers";
+import { presetLoginState, collectConsoleProblems, stubPlaygroundBackend, PACK_GROUP_LINK_LABELS } from "./helpers";
 
 // T1 · 后台管理骨架（issue #42 / spec #41，ADR-0005 / ADR-0007）：
 // 持「访问后台」权限点（mock 管理员）→ 演练场顶部入口可见、/admin 骨架页与侧边导航可达；
@@ -172,9 +172,14 @@ test.describe("已登录", () => {
     expect(whitelist.y).toBe(users.y);
     expect(whitelist.x).toBeGreaterThan(users.x);
     expect(navBox.y + navBox.height).toBeLessThanOrEqual(content.y);
-    // 两层导航口径与宽屏一致：分组标题呈现为可见但不可点的分隔（#65 窄屏验收补全）
-    await expect(nav.getByTestId("导航分组-域包管理")).toBeVisible();
+    // 两层导航口径与宽屏一致：分组标题呈现为可见但不可点的分隔（#65 窄屏验收补全）；
+    // 窄屏分组不可折叠：无可见（含键盘可达）的折叠按钮，子项恒显
+    await expect(nav.getByText("域包管理", { exact: true }).filter({ visible: true })).toHaveCount(1);
     await expect(nav.getByRole("link", { name: "域包管理" })).toHaveCount(0);
+    await expect(nav.getByRole("button", { name: "域包管理" })).toBeHidden();
+    for (const label of PACK_GROUP_LINK_LABELS) {
+      await expect(nav.getByRole("link", { name: label, exact: true })).toBeVisible();
+    }
     // 账户区在窄屏仍可访问
     await expect(page.getByTestId("当前账户邮箱")).toHaveText("e2e@cuc.edu.cn");
     await expect(page.getByTestId("登出按钮")).toBeVisible();

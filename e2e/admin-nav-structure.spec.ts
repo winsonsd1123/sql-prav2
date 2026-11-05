@@ -1,5 +1,5 @@
 import { test, expect, type Page } from "@playwright/test";
-import { presetLoginState, collectConsoleProblems, createDomainPackAssetStub, createDomainPackVersionHistoryStub } from "./helpers";
+import { presetLoginState, collectConsoleProblems, createDomainPackAssetStub, createDomainPackVersionHistoryStub, PACK_GROUP_LINK_LABELS } from "./helpers";
 import { mkCloudPackJson } from "../src/kernel/__tests__/fixtures/cloud-domain-pack";
 import type { GateReport } from "../src/kernel/domain-pack-gate";
 
@@ -68,6 +68,14 @@ async function attachSubRouteStubs(page: Page) {
   await page.route("**/api/admin/domain-packs/versions*", async (route) => {
     await route.fulfill({ status: 200, contentType: "application/json", body: JSON.stringify({ versions: [] }) });
   });
+  // 分组折叠用例以组外页面（用户管理）为起点
+  await page.route("**/api/admin/users*", async (route) => {
+    await route.fulfill({
+      status: 200,
+      contentType: "application/json",
+      body: JSON.stringify({ users: [], total: 0, page: 1, pageSize: 20 }),
+    });
+  });
 }
 
 /** 断言导航中指定子项为唯一选中项（aria-current） */
@@ -84,24 +92,79 @@ async function expectOnlyCurrent(page: Page, label: string) {
   }
 }
 
-test("两层导航渲染：直达两项 + 域包管理分组，四个子项常显不折叠", async ({ page }) => {
+/** 断言域包组五个子项全部可见 / 全部不可见 */
+async function expectPackGroupLinks(page: Page, visible: boolean) {
+  const nav = page.getByTestId("后台侧边导航");
+  for (const label of PACK_GROUP_LINK_LABELS) {
+    const link = nav.getByRole("link", { name: label, exact: true });
+    if (visible) await expect(link).toBeVisible();
+    else await expect(link).toBeHidden();
+  }
+}
+
+test("两层导航渲染：直达两项 + 可折叠域包管理分组，默认展开，可收起再展开", async ({ page }) => {
   await mockTeacherPermissions(page);
   await attachSubRouteStubs(page);
+  await page.setViewportSize({ width: 1280, height: 800 });
 
-  await page.goto("/admin/packs");
+  await page.goto("/admin/users");
   const nav = page.getByTestId("后台侧边导航");
   // 第一层直达：用户管理 / 邮箱白名单
   await expect(nav.getByRole("link", { name: "用户管理" })).toBeVisible();
   await expect(nav.getByRole("link", { name: "邮箱白名单" })).toBeVisible();
-  // 第一层分组：域包管理为不可点分隔（无链接语义），非折叠组
+  // 第一层分组：域包管理为折叠触发器（按钮语义 + aria-expanded，无链接语义）
   const group = page.getByTestId("导航分组-域包管理");
   await expect(group).toBeVisible();
+  await expect(group).toHaveRole("button");
   await expect(group.getByRole("link")).toHaveCount(0);
-  // 第二层子项常显：四个子功能点全部直接可见（无需交互展开）
-  await expect(nav.getByRole("link", { name: "域包列表", exact: true })).toBeVisible();
-  await expect(nav.getByRole("link", { name: "版本历史", exact: true })).toBeVisible();
-  await expect(nav.getByRole("link", { name: "放出管理", exact: true })).toBeVisible();
-  await expect(nav.getByRole("link", { name: "演练配置", exact: true })).toBeVisible();
+  // 首次进入默认展开
+  await expect(group).toHaveAttribute("aria-expanded", "true");
+  await expectPackGroupLinks(page, true);
+
+  await group.click();
+  await expect(group).toHaveAttribute("aria-expanded", "false");
+  await expectPackGroupLinks(page, false);
+
+  await group.click();
+  await expect(group).toHaveAttribute("aria-expanded", "true");
+  await expectPackGroupLinks(page, true);
+});
+
+test("分组收起状态刷新后保持（组外页面）", async ({ page }) => {
+  await mockTeacherPermissions(page);
+  await attachSubRouteStubs(page);
+  await page.setViewportSize({ width: 1280, height: 800 });
+
+  await page.goto("/admin/users");
+  const group = page.getByTestId("导航分组-域包管理");
+  await group.click();
+  await expect(group).toHaveAttribute("aria-expanded", "false");
+
+  await page.reload();
+  await expect(group).toHaveAttribute("aria-expanded", "false");
+  await expectPackGroupLinks(page, false);
+});
+
+test("进入组内页面时分组自动展开，停留期间仍可手动收起", async ({ page }) => {
+  await mockTeacherPermissions(page);
+  await attachSubRouteStubs(page);
+  await page.setViewportSize({ width: 1280, height: 800 });
+
+  await page.goto("/admin/users");
+  const group = page.getByTestId("导航分组-域包管理");
+  await group.click();
+  await expect(group).toHaveAttribute("aria-expanded", "false");
+
+  // 直访组内子路由：所在分组自动展开，当前子项可见且为选中项
+  await page.goto("/admin/packs/exposure");
+  await expect(page.getByTestId("域包放出管理")).toBeVisible();
+  await expect(group).toHaveAttribute("aria-expanded", "true");
+  await expectOnlyCurrent(page, "放出管理");
+
+  // 自动展开只随路由触发，不锁死：组内页仍可收起
+  await group.click();
+  await expect(group).toHaveAttribute("aria-expanded", "false");
+  await expectPackGroupLinks(page, false);
 });
 
 test("当前子项选中态与 aria-current：导航四子项各自唯一选中", async ({ page }) => {
