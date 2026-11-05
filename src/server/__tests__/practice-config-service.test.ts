@@ -77,6 +77,45 @@ describe("getPracticeConfigView：配置视图", () => {
     expect(result.packs).toHaveLength(2);
     expect(result.packs.every((p) => p.practiceConfig.totalQuestions === 10)).toBe(true);
   });
+
+  it("云端自定义域包行也列入视图（内置 ∪ 云端非内置行，自定义包全量取自云端资产）", async () => {
+    const rows = [
+      {
+        pack_id: "ecom-order-analysis",
+        asset: mkCloudPackJson({
+          packId: "ecom-order-analysis",
+          name: "电商订单分析",
+          practiceConfig: { totalQuestions: 8, tierDistribution: { "1": 2, "2": 2, "3": 2, "4": 1, "5": 1 } },
+        }),
+      },
+    ];
+    const result = await getPracticeConfigView(auth, mkDeps({ readClient: mkReadClient(rows) }));
+    expect(result.status).toBe("ok");
+    if (result.status !== "ok") return;
+    expect(result.packs).toHaveLength(3); // 内置 2 + 自定义 1
+    const custom = result.packs.find((p) => p.packId === "ecom-order-analysis")!;
+    expect(custom.name).toBe("电商订单分析");
+    expect(custom.practiceConfig.totalQuestions).toBe(8);
+    // 云端夹具 28 模板（七类循环，难度 = areaIndex%5+1，4 轮）：1×8 2×8 3×4 4×4 5×4
+    expect(custom.tierTemplateCounts).toEqual({ "1": 8, "2": 8, "3": 4, "4": 4, "5": 4 });
+  });
+
+  it("混合行集：内置行覆盖配置且不重复追加，自定义行并列（去重按内置基础名）", async () => {
+    const rows = [
+      {
+        pack_id: builtinPackId,
+        asset: { ...mkCloudPackJson({ packId: builtinPackId }), practiceConfig: { totalQuestions: 6, tierDistribution: { "1": 1, "2": 2, "3": 1, "4": 1, "5": 1 } } },
+      },
+      { pack_id: "ecom-order-analysis", asset: mkCloudPackJson({ packId: "ecom-order-analysis", name: "电商订单分析" }) },
+    ];
+    const result = await getPracticeConfigView(auth, mkDeps({ readClient: mkReadClient(rows) }));
+    expect(result.status).toBe("ok");
+    if (result.status !== "ok") return;
+    expect(result.packs).toHaveLength(3); // 内置行并入内置条目不重复计
+    expect(result.packs.filter((p) => p.packId === builtinPackId)).toHaveLength(1);
+    expect(result.packs.find((p) => p.packId === builtinPackId)!.practiceConfig.totalQuestions).toBe(6);
+    expect(result.packs.find((p) => p.packId === "ecom-order-analysis")!.name).toBe("电商订单分析");
+  });
 });
 
 describe("savePracticeConfig：保存（A 类改动，服务端重校验）", () => {

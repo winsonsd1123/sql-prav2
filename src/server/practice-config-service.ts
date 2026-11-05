@@ -1,6 +1,7 @@
 // 演练配置编辑服务（票 #61 / spec #53 目标②，ADR-0009「A 类改动」/ ADR-0007 鉴权在服务层）：
 // 演练配置（总题数 + 各难度档位分布）不参与种子生成，编辑即时生效、packId 不变、不产生版本历史行。
 // - 视图：内置两包为底（表里未配置也能编辑），云端 domain_pack_asset 同 id 行的 practiceConfig 覆盖当前值；
+//   云端非内置行（自定义域包）全量列入（与列表页「内置 ∪ 云端」口径对齐）；
 // - 保存：服务端重校验（不信任前端）——载荷替换进整包资产后走 #56 契约校验
 //   （总和一致、档位 "1"-"5"、非负、各档配额 ≤ 该档模板数，错误为契约中文信息），
 //   再复用 #57 upsertDomainPackAsset（整包过闸门落库，「落库即合法」不变式延续；管理端编辑低频，
@@ -103,6 +104,11 @@ export async function getPracticeConfigView(
       const cloudAsset = cloud.get(builtin.packId);
       return cloudAsset === undefined ? toEntry(builtin) : toEntry({ ...builtin, practiceConfig: cloudAsset.practiceConfig });
     });
+    // 云端自定义域包（行 pack_id 非内置基础名）一并列入：与列表页「内置 ∪ 云端」口径对齐，
+    // 每基础名一行，条目全量取自云端资产（表无多版本行，当前行即最新版）
+    for (const [packId, cloudAsset] of cloud) {
+      if (!builtinPackAssets.some((b) => b.packId === packId)) packs.push(toEntry(cloudAsset));
+    }
     return { status: "ok", packs };
   } catch {
     return { status: "error" };
