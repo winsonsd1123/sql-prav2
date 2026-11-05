@@ -1,5 +1,5 @@
 import { test, expect, type Page } from "@playwright/test";
-import { presetLoginState, collectConsoleProblems, expectConsoleClean, stubPlaygroundBackend, mockAdmin } from "./helpers";
+import { presetLoginState, collectConsoleProblems, expectConsoleClean, stubPlaygroundBackend, mockAdmin, PACK_GROUP_LINK_LABELS } from "./helpers";
 
 // 侧栏折叠 spec（票 #107 / spec #104 / ADR-0012 手写折叠）：宽屏折叠为约 64px 图标栏、
 // rail 态 tooltip 菜单名、localStorage 持久化、再点展开还原。
@@ -53,6 +53,29 @@ test("折叠：侧栏收窄至约 64px，文字不可见、组标题隐藏，ari
   // rail 态点击域包组子项图标直达对应页面
   await subItem.click();
   await expect(page).toHaveURL(/\/admin\/packs\/versions$/);
+});
+
+test("分组收起后切到 rail 态，域包组子项图标仍逐个直达", async ({ page }) => {
+  await mockAdmin(page);
+  await page.goto("/admin/users");
+  await expect(page.getByTestId("用户列表")).toBeVisible();
+  const group = page.getByTestId("导航分组-域包管理");
+  await group.click();
+  await expect(group).toHaveAttribute("aria-expanded", "false");
+
+  await collapseButton(page).click();
+  await expect(collapseButton(page)).toHaveAttribute("aria-expanded", "false");
+  // rail 态不受分组展开态影响：触发器隐藏，子项图标全部可见
+  await expect(group).toBeHidden();
+  const nav = page.getByTestId("后台侧边导航");
+  for (const label of PACK_GROUP_LINK_LABELS) {
+    await expect(nav.getByRole("link", { name: label, exact: true })).toBeVisible();
+  }
+
+  // 展开侧栏后回到分组收起态
+  await collapseButton(page).click();
+  await expect(group).toHaveAttribute("aria-expanded", "false");
+  await expect(nav.getByRole("link", { name: "版本历史", exact: true })).toBeHidden();
 });
 
 test("rail 态悬停菜单图标出 tooltip 菜单名，品牌区 logo tooltip「后台管理」", async ({ page }) => {

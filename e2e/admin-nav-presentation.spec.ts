@@ -128,7 +128,7 @@ test("选中项视觉升级：背景高亮 + 主色文字 + 左侧 2px 圆角指
   expect(Number(barRadius.replace("px", ""))).toBeGreaterThan(0);
 });
 
-test("分组标题字号归一 text-xs 标准档（12px）", async ({ page }) => {
+test("分组触发器与直达项同档字号、带图标与展开指示", async ({ page }) => {
   await mockAdminEnv(page);
   await page.setViewportSize({ width: 1280, height: 800 });
 
@@ -136,8 +136,25 @@ test("分组标题字号归一 text-xs 标准档（12px）", async ({ page }) =>
   await expect(page.getByTestId("域包行-学生-课程-成绩")).toBeVisible();
 
   const group = page.getByTestId("导航分组-域包管理");
+  const direct = page.getByTestId("后台侧边导航").getByRole("link", { name: "用户管理", exact: true });
   await expect(group).toBeVisible();
-  // text-xs 标准档 = 0.75rem = 12px（已知字面值，独立于实现）
-  const fontSize = await group.evaluate((el) => getComputedStyle(el).fontSize);
-  expect(fontSize).toBe("12px");
+  const fontSize = (el: Element) => getComputedStyle(el).fontSize;
+  const groupFontSize = await group.evaluate(fontSize);
+  // text-sm 标准档 = 0.875rem = 14px（已知字面值，独立于实现），与直达项一致
+  expect(groupFontSize).toBe("14px");
+  expect(groupFontSize).toBe(await direct.evaluate(fontSize));
+  // 左侧分组图标 + 右侧展开指示 chevron，均对屏幕阅读器隐藏
+  await expect(group.locator("svg[aria-hidden='true']")).toHaveCount(2);
+  // 与直达项左缘对齐（同一行形态，不是缩进的小节标题）
+  const groupBox = await group.boundingBox();
+  const directBox = await direct.boundingBox();
+  if (!groupBox || !directBox) throw new Error("分组触发器或直达项缺少 bounding box");
+  expect(Math.abs(groupBox.x - directBox.x)).toBeLessThanOrEqual(1);
+
+  // 展开组的左侧竖线不占布局宽度：收起后触发器不位移
+  await group.click();
+  await expect(group).toHaveAttribute("aria-expanded", "false");
+  const closedBox = await group.boundingBox();
+  if (!closedBox) throw new Error("收起后分组触发器缺少 bounding box");
+  expect(Math.abs(closedBox.x - groupBox.x)).toBeLessThanOrEqual(1);
 });

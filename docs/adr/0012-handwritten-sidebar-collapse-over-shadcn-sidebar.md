@@ -10,6 +10,7 @@
 
 - 折叠态仅存在于宽屏（`lg+`）；窄屏恒为横滑胶囊条（e2e 锚点，不可动摇）。
 - 折叠状态 localStorage 持久化；折叠下全部菜单项（含域包组子项）逐个直达，不做 popover 二级收纳。
+- 域包组的展开/收起（若依式子菜单）取 shadcn `Collapsible`（radix 原语，非 Sidebar 全家桶）：仅宽屏展开态生效，`forceMount` 保子项恒在 DOM，窄屏与 rail 态无视分组展开态；展开状态 localStorage 持久化，进入组内页面自动展开。
 - 侧栏导航词汇入 GLOSSARY（直达项 / 域包组 / 折叠态）。
 - 后续若窄屏确需改抽屉形态，须先重议 `admin-nav-structure.spec.ts` 的断言口径，届时再评估换官方组件。
 - 窄屏基线保持优先于字号归一——spec 要求窄屏形态零波及，故窄屏侧保留 main 的任意值字号（10px/11px/1.4rem），字号归一仅宽屏（lg+）成立；后续票勿将此误判为回退（终审 Standards 轴建议）。

@@ -15,6 +15,7 @@ import {
   Send,
   SlidersHorizontal,
   BookOpen,
+  Boxes,
   type LucideIcon,
 } from "lucide-react";
 
@@ -43,6 +44,12 @@ export const ADMIN_NAV_DIRECT_ITEMS: readonly AdminNavItem[] = [
   { key: "users", href: "/admin/users", label: "用户管理", icon: Users },
   { key: "whitelist", href: "/admin/whitelist", label: "邮箱白名单", icon: MailCheck },
 ];
+
+/** 域包管理组的分组触发器（可折叠，图标与直达项同档；不可导航，故无 href） */
+export const ADMIN_NAV_PACK_GROUP: { label: string; icon: LucideIcon } = {
+  label: "域包管理",
+  icon: Boxes,
+};
 
 /** 域包管理组子项（列表占根路径，历史 / 放出 / 配置巡检式导航直达） */
 export const ADMIN_NAV_PACK_GROUP_ITEMS: readonly AdminNavItem[] = [
