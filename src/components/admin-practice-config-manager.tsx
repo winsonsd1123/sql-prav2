@@ -9,6 +9,7 @@
 // 组件刻意独立（数据自取，不 import 注册表）：#60 的域包管理页收纳时整块搬迁即可。
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { toast } from "sonner";
+import { resolvePracticeConfigSaveMessages } from "@/components/practice-config-save-flow";
 import { bearerHeaders, getSessionAuth, readErrorMessage } from "@/lib/admin-api-client";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
@@ -162,10 +163,9 @@ export default function AdminPracticeConfigManager() {
         }),
       });
       if (!response.ok) {
-        // 400/422 带服务端中文错误清单（errors 数组），展示首条并整体列出
-        const body = (await response.json().catch(() => null)) as { error?: string; errors?: string[] } | null;
-        const messages = body?.errors?.length ? body.errors : [body?.error ?? "演练配置保存失败"];
-        toast.error(messages.join("；"), FEEDBACK_ERROR_TOAST);
+        // 失败响应归类收口在纯函数（票 #115）：400 errors 清单 / 404 error / 422 闸门 report 各段问题逐条透出
+        const body = await response.json().catch(() => null);
+        toast.error(resolvePracticeConfigSaveMessages(body).join("；"), FEEDBACK_ERROR_TOAST);
         return;
       }
       setError(null);

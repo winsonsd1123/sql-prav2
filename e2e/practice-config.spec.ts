@@ -1,18 +1,22 @@
 import { test, expect, type Page, type Route } from "@playwright/test";
-import { presetLoginState, collectConsoleProblems, createCloudProgressStub, createDomainPackVersionHistoryStub, chooseSelectOption } from "./helpers";
+import { presetLoginState, collectConsoleProblems, expectConsoleClean, createCloudProgressStub, createDomainPackVersionHistoryStub, chooseSelectOption } from "./helpers";
 import packAJson from "../src/domain-packs/student-course-grades/pack-a.json";
 
 // 难度配额抽题与演练配置（票 #61 / spec #53 目标②）：教师改配置 → 学生开练题数随之变化；
 // 非法配置前端即拦、服务端重校验为权威。401/403 与契约校验在服务层单测断言，不在此重复。
 
-// console 卫生：全用例期间页面不得出现 console.error/warning 或未捕获异常
+// console 卫生：全用例期间页面不得出现 console.error/warning 或未捕获异常。
+// 仅桩 422 闸门拒绝的失败用例豁免其资源加载报错（用例内置位标记），其余用例零豁免。
+const STUBBED_FAILURE_RESOURCE = /Failed to load resource: the server responded with a status of 422/;
 let consoleProblems: string[] = [];
+let stubbedFailureCase = false;
 test.beforeEach(async ({ page }) => {
   consoleProblems = collectConsoleProblems(page);
+  stubbedFailureCase = false;
   await presetLoginState(page);
 });
 test.afterEach(() => {
-  expect(consoleProblems, `console 卫生违例：\n${consoleProblems.join("\n")}`).toEqual([]);
+  expectConsoleClean(consoleProblems, stubbedFailureCase ? [STUBBED_FAILURE_RESOURCE] : []);
 });
 
 /** mock 教师权限（访问后台 + 域包管理） */
@@ -244,4 +248,50 @@ test("非法配置（配额超该档模板数）前端即拦：按钮禁用、�
   await expect(page.getByTestId("演练配置校验提示")).toContainText("不得超过该档模板数");
   await expect(page.getByRole("button", { name: "保存演练配置" })).toBeDisabled();
   expect(calls.put).toEqual([]);
+});
+
+test("保存被验证闸门拒绝（PUT 422 report，票 #115）：toast 逐条透出 report 问题文案而非兜底", async ({ page }) => {
+  stubbedFailureCase = true;
+  await mockTeacherPermissions(page);
+  await mockPracticeConfigAdminApi(page);
+  await mockAdminPageSiblingBlocks(page);
+  // 后注册先匹配：PUT 桩成 422 闸门拒绝（与发布路由同口径的 report 形状），GET 走有状态桩
+  const puts: unknown[] = [];
+  await page.route("**/api/admin/domain-packs/practice-config", async (route) => {
+    if (route.request().method() === "PUT") {
+      puts.push(route.request().postDataJSON());
+      await route.fulfill({
+        status: 422,
+        contentType: "application/json",
+        body: JSON.stringify({
+          ok: false,
+          report: {
+            passed: false,
+            structural: {
+              status: "失败",
+              checkedTables: 3,
+              checkedTemplates: 30,
+              issues: [{ check: "结构", templateId: "tpl-07", message: "难度必须是 1-5，实际 9" }],
+            },
+            generation: { status: "跳过", issues: [], seeds: [20260101, 42] },
+            selfJudging: { status: "跳过", issues: [], checkedTemplates: 0, seed: 20260101 },
+          },
+        }),
+      });
+      return;
+    }
+    await route.fallback();
+  });
+  await page.goto("/admin/packs/practice-config");
+  await page.getByRole("button", { name: "保存演练配置" }).click();
+  const feedback = page.getByTestId("演练配置提示");
+  await expect(feedback).toContainText("保存被验证闸门拒绝");
+  await expect(feedback).toContainText("[结构]（tpl-07） 难度必须是 1-5，实际 9");
+  await expect(feedback).not.toContainText("演练配置保存失败");
+  expect(puts).toEqual([
+    {
+      packId: "student-course-grade",
+      practiceConfig: { totalQuestions: 10, tierDistribution: { "1": 1, "2": 3, "3": 3, "4": 2, "5": 1 } },
+    },
+  ]);
 });

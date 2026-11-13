@@ -187,6 +187,19 @@ export async function validateDomainPack(
   return { passed: structural.status === "通过" && generation.status === "通过" && selfJudging.status === "通过", structural, generation, selfJudging };
 }
 
+/** 单条问题格式化为可读中文（[类别]（模板/种子定位）明细），formatGateReport 与逐条清单共用 */
+export function formatGateIssue(issue: GateIssue): string {
+  const target = [issue.templateId, issue.seed !== undefined ? `种子 ${issue.seed}` : undefined].filter(Boolean).join("，");
+  return `[${issue.check}]${target ? `（${target}）` : ""} ${issue.message}`;
+}
+
+/** 把报告各段问题整形为逐条中文清单（票 #115：保存被闸门拒绝的单行提示场景）；全部通过为空清单 */
+export function formatGateIssueLines(report: GateReport): string[] {
+  return [report.structural, report.generation, report.selfJudging].flatMap((section) =>
+    section.issues.map(formatGateIssue),
+  );
+}
+
 /** 格式化为人类可读中文报告（教师端展示与日志共用） */
 export function formatGateReport(report: GateReport): string {
   const lines: string[] = [];
@@ -196,8 +209,7 @@ export function formatGateReport(report: GateReport): string {
   lines.push(`自判检查：${report.selfJudging.status}（模板 ${report.selfJudging.checkedTemplates} 道，种子 ${report.selfJudging.seed}）`);
   for (const section of [report.structural, report.generation, report.selfJudging]) {
     for (const issue of section.issues) {
-      const target = [issue.templateId, issue.seed !== undefined ? `种子 ${issue.seed}` : undefined].filter(Boolean).join("，");
-      lines.push(`  [${issue.check}]${target ? `（${target}）` : ""} ${issue.message}`);
+      lines.push(`  ${formatGateIssue(issue)}`);
     }
   }
   return lines.join("\n");
