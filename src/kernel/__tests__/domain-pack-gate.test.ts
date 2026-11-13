@@ -1,6 +1,12 @@
 import { describe, expect, it } from "vitest";
 import { parseDomainPackJson } from "@/kernel/domain-pack-contract";
-import { formatGateReport, validateDomainPack, GATE_TEST_SEEDS } from "@/kernel/domain-pack-gate";
+import {
+  formatGateIssueLines,
+  formatGateReport,
+  validateDomainPack,
+  GATE_TEST_SEEDS,
+} from "@/kernel/domain-pack-gate";
+import type { GateReport } from "@/kernel/domain-pack-gate";
 
 /**
  * 域包验证闸门（票 #56）：域包 JSON → 结构/生成/自判三类验证报告。
@@ -268,6 +274,33 @@ describe("验证闸门：validateDomainPack", () => {
     expect(failing).toContain("tpl-01");
     expect(failing).toContain("生成检查：跳过");
     expect(failing).toContain("自判检查：跳过");
+  });
+
+  it("formatGateIssueLines 把各段问题整形为逐条中文清单（票 #115：422 拒绝提示用），全部通过为空清单", () => {
+    const report: GateReport = {
+      passed: false,
+      structural: {
+        status: "失败",
+        checkedTables: 3,
+        checkedTemplates: 30,
+        issues: [
+          { check: "结构", templateId: "tpl-01", message: "难度必须是 1-5，实际 9" },
+          { check: "结构", message: "表数必须为 3-5，实际 2" },
+        ],
+      },
+      generation: {
+        status: "失败",
+        seeds: [20260101, 42],
+        issues: [{ check: "生成", seed: 42, message: "档5可用模板不足，生成会话失败" }],
+      },
+      selfJudging: { status: "跳过", checkedTemplates: 0, seed: 20260101, issues: [] },
+    };
+    expect(formatGateIssueLines(report)).toEqual([
+      "[结构]（tpl-01） 难度必须是 1-5，实际 9",
+      "[结构] 表数必须为 3-5，实际 2",
+      "[生成]（种子 42） 档5可用模板不足，生成会话失败",
+    ]);
+    expect(formatGateIssueLines({ ...report, passed: true, structural: { ...report.structural, status: "通过", issues: [] }, generation: { ...report.generation, status: "通过", issues: [] }, selfJudging: { ...report.selfJudging, status: "通过" } })).toEqual([]);
   });
 
   // ── 圈选封闭校验（票 #82 / spec #75，ADR 0010「圈选即封闭」闸门侧强制）──

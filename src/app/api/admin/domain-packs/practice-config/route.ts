@@ -2,7 +2,7 @@
 // 鉴权与合法性校验全部收口在服务层（ADR-0007，双权限点「访问后台」+「域包管理」；
 // 配置校验=总和一致、档位 "1"-"5" 非负、各档配额 ≤ 该档模板数，服务端重校验不信任前端）。
 // GET /api/admin/domain-packs/practice-config → 200 { packs } | 401 | 403 | 500
-// PUT /api/admin/domain-packs/practice-config { packId, practiceConfig } → 200 | 400 { error | errors } | 401 | 403 | 404 | 500
+// PUT /api/admin/domain-packs/practice-config { packId, practiceConfig } → 200 | 400 { error | errors } | 401 | 403 | 404 | 422 { ok:false, report } | 500
 import {
   getPracticeConfigView,
   savePracticeConfig,
