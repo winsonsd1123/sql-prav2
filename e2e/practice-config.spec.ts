@@ -231,3 +231,17 @@ test("非法配置（各档总和不等于总题数）前端即拦：按钮禁�
   await expect(page.getByRole("button", { name: "保存演练配置" })).toBeDisabled();
   expect(calls.put).toEqual([]);
 });
+
+test("非法配置（配额超该档模板数）前端即拦：按钮禁用、不出 PUT 请求", async ({ page }) => {
+  await mockTeacherPermissions(page);
+  const { calls } = await mockPracticeConfigAdminApi(page);
+  await mockAdminPageSiblingBlocks(page);
+  await page.goto("/admin/packs/practice-config");
+  await expect(page.getByTestId("演练配置管理")).toBeVisible();
+  // 默认包 student-course-grade 档5模板仅 2（票 #117）：配 3 即超限；总题数同步改 12，各档总和一致以隔离出唯一错误
+  await page.getByTestId("演练配置总题数").fill("12");
+  await page.getByTestId("演练配置档位-5").fill("3");
+  await expect(page.getByTestId("演练配置校验提示")).toContainText("不得超过该档模板数");
+  await expect(page.getByRole("button", { name: "保存演练配置" })).toBeDisabled();
+  expect(calls.put).toEqual([]);
+});

@@ -46,9 +46,9 @@ function toDraft(entry: PracticeConfigEntry): ConfigDraft {
   };
 }
 
-/** 前端草稿校验：与契约同口径（正整数总题数、各档非负整数、总和一致）；
- *  配额 ≤ 该档模板数由服务端权威校验（前端在提示区展示模板数供对齐）。 */
-function validateDraft(draft: ConfigDraft): string[] {
+/** 前端草稿校验：与契约同口径（正整数总题数、各档非负整数、总和一致、配额 ≤ 该档模板数）；
+ *  模板数缺失的档不拦，服务端重校验为权威（ADR-0007，前端校验只为即时报错体验）。 */
+function validateDraft(draft: ConfigDraft, tierTemplateCounts: Record<string, number>): string[] {
   const errors: string[] = [];
   const total = Number(draft.totalQuestions);
   if (!Number.isInteger(total) || total < 1) errors.push("总题数必须是正整数");
@@ -58,6 +58,11 @@ function validateDraft(draft: ConfigDraft): string[] {
     if (!Number.isInteger(value) || value < 0) {
       errors.push(`${TIER_LABELS[tier]}配额必须是非负整数`);
       continue;
+    }
+    // 配额超该档模板数即时拦（票 #117）：模板数缺失不拦，交服务端权威校验（ADR-0007 口径不变）
+    const templateCount = tierTemplateCounts[tier];
+    if (templateCount !== undefined && value > templateCount) {
+      errors.push(`${TIER_LABELS[tier]}配额不得超过该档模板数（${templateCount}）`);
     }
     sum += value;
   }
@@ -125,7 +130,7 @@ export default function AdminPracticeConfigManager() {
     [entries],
   );
 
-  const draftErrors = draft === null ? [] : validateDraft(draft);
+  const draftErrors = draft === null ? [] : validateDraft(draft, selected?.tierTemplateCounts ?? {});
   const draftTierSum = useMemo(
     () =>
       draft === null
@@ -234,6 +239,7 @@ export default function AdminPracticeConfigManager() {
                   <input
                     type="number"
                     min={0}
+                    max={selected.tierTemplateCounts[tier]}
                     value={draft.tiers[tier]}
                     onChange={(e) => setDraft({ ...draft, tiers: { ...draft.tiers, [tier]: e.target.value } })}
                     data-testid={`演练配置档位-${tier}`}
